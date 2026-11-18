@@ -62,6 +62,7 @@ test('save store safely handles corrupt data',()=>{
   assert.equal(new SaveStore(storage).load().version,4);
 });
 
+test('casting is blocked while a landed catch awaits sell or keep',()=>{const game=new FishingGame({store:new SaveStore(memoryStore())});game.phase=PHASES.CAUGHT;game.fish=FISH[0];game.reward=50;game.state.pendingCatch={fishId:FISH[0].id,reward:50};const before=game.state.total;assert.equal(game.cast(),false);assert.equal(game.phase,PHASES.CAUGHT);assert.equal(game.state.pendingCatch.reward,50);assert.equal(game.state.total,before);assert.equal(game.sell(),true);assert.equal(game.state.pendingCatch,null);assert.equal(game.cast(),true)});
 test('casting progresses to bite and hooking',()=>{
   const game=new FishingGame({rng:()=>0,store:new SaveStore(memoryStore())});
   assert.equal(game.cast(),true);
