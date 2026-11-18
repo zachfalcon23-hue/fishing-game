@@ -104,3 +104,17 @@ The project has automated regression coverage for content, visual profiles, DOM 
 - Audit finding: rod and bait luck were multiplied uniformly into every fish's spawn weight. Since weighted selection normalizes by total pool weight, this multiplier canceled out and **did not change encounter odds**. Luck upgrades therefore had no gameplay effect on rarity despite their descriptions.
 - Fix: luck is now applied only to Rare-or-better species spawn weights; Common and Uncommon weights remain unchanged. Existing Epic/Legendary baseline weighting remains intact. This gives luck gear a measurable rarity effect while avoiding an across-the-board spawn inflation.
 - Cost baseline: zone unlocks total 3,280 Essence (160 + 420 + 900 + 1,800); rods total 1,310 and baits total 305. These costs are documented as audit context, not a claim of a fully simulated payback curve.
+
+### Rarity distribution baseline (neutral conditions, no luck gear)
+
+The current authored spawn weights, with the existing 1.5 Epic+ baseline weighting and no day/night/weather modifiers, produce these aggregate Rare-or-better encounter shares:
+
+| Zone | Species | Rare+ baseline |
+|---|---:|---:|
+| North Pond | 15 | 6.0% |
+| Sunken Hollow | 13 | 20.8% |
+| Ember Creek | 13 | 40.1% |
+| Moonlit Bay | 12 | 47.4% |
+| Crystal Reach | 14 | 72.5% |
+
+This is a source-weight calculation, not a measured gameplay rate. Day/night and rain/clear condition modifiers change these shares. The progression is intentionally strongly rarity-forward in later zones; the Reach baseline is particularly high and should be reviewed for whether it still feels like an aspirational destination after luck gear becomes effective. Actual Essence/hour and upgrade payback remain unverified until gameplay telemetry/manual runs measure bite, hook, fight success, and time per catch.
