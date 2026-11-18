@@ -118,6 +118,11 @@ Current state: feature-complete prototype with automated coverage. It is not yet
 - [x] Regression checks cover record recovery, pending-catch consistency, stale-counter ID collisions, and record ties.
 - [x] Hydrated specimen weight/length are validated against percentile-derived catch profiles, including legacy one-decimal rounding tolerance.
 - [x] Empty legacy specimen logs can recover a validated `lastCatch` or pending specimen without trusting mismatched or invalid records.
+- [x] Hydrated personal-best and collection-record badges are reconstructed from normalized GoopDex bests and lifetime record holders.
+- [x] Every species' deterministic fight simulation reaches catch or escape within the extended resolution window.
+- [x] Weighted selection excludes non-finite/zero/negative entries and safely handles RNG boundary values.
+- [x] Explicit Release clears pointer and keyboard holds; concurrent secondary pointer presses cannot steal reel ownership.
+- [x] Initial focus state uses the browser's actual focus report rather than assuming an active window.
 - [x] Spawn-pool weights remain finite and selectable across every zone, time/weather combination, rod, and bait.
 - [x] Luck gear preserves Common/Uncommon spawn weights and does not reduce any Rare+ weight.
 - [x] Fishing pauses when the tab is hidden, the window loses focus, or the player leaves the Fishing view; held inputs are cleared on interruption and terminal encounter states.
