@@ -235,7 +235,7 @@ test('every species specimen roll stays inside its authored weight and length ra
 });
 
 
-test('all 50 Goops keep fight state finite and bounded throughout deterministic encounters',()=>{for(const fish of FISH){const fight=createFight(fish,()=>.42);for(let tick=0;tick<900&&!fight.caught&&!fight.escaped;tick++){fightTick(fight,{reel:tick%11<7,tap:tick%8===0},.06,.32);for(const [field,min,max] of [['progress',0,1],['stamina',0,100],['tension',0,1],['spook',0,1]]){assert.ok(Number.isFinite(fight[field]),fish.id+' '+field+' must remain finite');assert.ok(fight[field]>=min&&fight[field]<=max,fish.id+' '+field+' out of bounds: '+fight[field]);}}assert.ok(fight.caught||fight.escaped,fish.id+' encounter did not resolve within 54 seconds')});
+test('all 50 Goops keep fight state finite and bounded throughout deterministic encounters',()=>{for(const fish of FISH){const fight=createFight(fish,()=>.42);for(let tick=0;tick<900&&!fight.caught&&!fight.escaped;tick++){fightTick(fight,{reel:tick%11<7,tap:tick%8===0},.06,.32);for(const [field,min,max] of [['progress',0,1],['stamina',0,100],['tension',0,1],['spook',0,1]]){assert.ok(Number.isFinite(fight[field]),fish.id+' '+field+' must remain finite');assert.ok(fight[field]>=min&&fight[field]<=max,fish.id+' '+field+' out of bounds: '+fight[field]);}}assert.ok(fight.caught||fight.escaped,fish.id+' encounter did not resolve within 54 seconds')}});
 
 test('every fishing zone has catchable species in all day/night and clear/rain combinations',()=>{
   for(const zone of ZONES)for(const timeOfDay of ['day','night'])for(const weather of ['clear','rain']){
