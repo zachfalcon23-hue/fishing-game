@@ -4,7 +4,7 @@ A browser-based fishing and Goop-collection game prototype built around distinct
 
 ## Play and test
 
-Open `index.html` in a modern browser or serve the repository with a static server. Run `npm run check` to syntax-check the browser and game modules, and `npm test` with Node 20+ for the regression suite.
+Open `index.html` in a modern browser or serve the repository with a static server. Run `npm run check` to syntax-check the browser and game modules, and `npm test` with Node 20+ for the regression suite. See [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) for the remaining hands-on QA.
 
 ## The fishing loop
 
@@ -17,7 +17,7 @@ Open `index.html` in a modern browser or serve the repository with a static serv
 
 ## 50 Goops to discover
 
-The roster now contains **50 named Goops** across North Pond, Sunken Hollow, Ember Creek, Moonlit Bay, and Crystal Reach. Species have different rarity, spawn weighting, fighting patterns, temperament, and physical size ranges.
+The roster now contains **50 named Goops** across North Pond, Sunken Hollow, Ember Creek, Moonlit Bay, and Crystal Reach. Species have different rarity, spawn weighting, fighting patterns, temperament, physical size ranges, and procedural silhouette/marking profiles. Goops have distinct round, long, sleek, finned, winged, lantern, spiky, shell, or sprout-like forms.
 
 ## Specimen hunting: weight, length, trophies and records
 
@@ -44,7 +44,7 @@ Fish are not just different tension curves. Each encounter can use a distinct mo
 
 Species inherit a temperament from their fighting style, with signature overrides for notable Goops. More adaptable fish can react to repeated over-reeling or excessive pauses. Adaptation changes move selection, not hidden stats.
 
-The encounter UI communicates the current cue, action, counter, and recovery state. The fishing-scene fish animates during its tell and active maneuver.
+The encounter UI communicates the current cue, action, counter, and recovery state. The fishing-scene fish animates during its tell and active maneuver. The GoopDex records whether a species has been encountered through tension or patience fights.
 
 ## Two fight styles
 
@@ -65,7 +65,7 @@ Conditions are stored with the player's save and are shown visually in the Fishi
 
 ## Collection and progression
 
-- GoopDex discovery, temperament notes, maneuver research, best weight/length, and trophy counts.
+- GoopDex discovery, temperament notes, maneuver research, observed fight styles, best weight/length, and trophy counts.
 - Four rods, four bait choices, Essence purchases, five unlockable locations, quests, achievements, levels, XP, and lifetime stats.
 - Local save data persists progression, specimen records, settings, and the latest catch.
 - Responsive Fishing, GoopDex, Shop, Quests, and Stats views.
@@ -85,4 +85,4 @@ The frontend uses pointer-based hold/release controls for tension fights and a d
 
 ## Validation status
 
-The project has automated regression coverage. CI is expected to run `npm test` on the feature branch and pull requests. Browser/device playtesting, economy and encounter balance, accessibility review, audio, and a final art pipeline still require hands-on validation before a commercial release.
+The project has automated regression coverage for content, visual profiles, DOM references, specimen metrics, conditions, saves, both fight styles, and progression. CI runs the syntax check before `npm test` on the feature branch and pull requests. Browser/device playtesting, economy and encounter balance, accessibility review, audio, and a final art pipeline still require hands-on validation before a commercial release.
