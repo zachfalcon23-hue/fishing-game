@@ -118,3 +118,8 @@ The current authored spawn weights, with the existing 1.5 Epic+ baseline weighti
 | Crystal Reach | 14 | 72.5% |
 
 This is a source-weight calculation, not a measured gameplay rate. Day/night and rain/clear condition modifiers change these shares. The progression is intentionally strongly rarity-forward in later zones; the Reach baseline is particularly high and should be reviewed for whether it still feels like an aspirational destination after luck gear becomes effective. Actual Essence/hour and upgrade payback remain unverified until gameplay telemetry/manual runs measure bite, hook, fight success, and time per catch.
+
+
+### Follow-up source-derived economy simulation
+
+See [`ECONOMY_AUDIT.md`](ECONOMY_AUDIT.md) for modeled expected sale rewards across day/night, clear/rain, and starter/late gear; gross-sale unlock equivalents; and the assumptions/limitations. This calculation is not Essence/hour or measured catch success.
