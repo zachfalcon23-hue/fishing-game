@@ -136,6 +136,8 @@ Current state: feature-complete prototype with automated coverage. It is not yet
 - [x] Capture cast, bite, hook, catch, and escape transitions in a local session-only collector.
 - [x] Measure cast-to-bite, bite-to-hook, fight, and total round duration when those stages occur.
 - [x] Attribute completed rounds to zone, time, weather, rod, bait, fish, rarity, and fight style.
+- [x] Distinguish estimated specimen sale value from realized Essence; only Sell decisions count as earnings.
+- [x] Calculate session catches/hour and realized Essence/hour from the first cast, not idle page-load time.
 - [x] Provide a JSON export from the Stats view; do not transmit or persist telemetry automatically.
 - [ ] Collect representative samples from all five zones and four time/weather combinations.
 - [ ] Compare tension versus patience catch rates and fight duration using sufficient samples.
