@@ -302,3 +302,6 @@ test('dex hydration sanitizes malformed records but preserves valid collection p
 
 
 test('hydration rejects pending catch payouts above species maximum reward bounds',()=>{const storage={data:{},getItem(k){return this.data[k]??null},setItem(k,v){this.data[k]=v},removeItem(k){delete this.data[k]}};storage.data['goop-fishing-save-v3']=JSON.stringify({version:4,pendingCatch:{fishId:'gloop',reward:999999}});const state=new SaveStore(storage).load();assert.equal(state.pendingCatch,null);});
+
+
+test('GoopDex numeric fields are capped during hydration to resist absurd save values',()=>{const storage={data:{},getItem(k){return this.data[k]??null},setItem(k,v){this.data[k]=v},removeItem(k){delete this.data[k]}};storage.data['goop-fishing-save-v3']=JSON.stringify({version:4,dex:{gloop:{count:999999999,best:999999999,reads:999999999,attempts:999999999,bestWeightLb:999999999,bestLengthIn:999999999,trophies:999999999}}});const state=new SaveStore(storage).load();for(const k of ['count','best','reads','attempts','bestWeightLb','bestLengthIn','trophies'])assert.equal(state.dex.gloop[k],100000);});
