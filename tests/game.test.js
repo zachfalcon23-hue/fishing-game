@@ -135,6 +135,9 @@ test('a correct response to a telegraphed move creates a recovery opening',()=>{
   assert.equal(fight.moveResultGood,true);
 });
 
+
+test('GoopDex maneuver totals include every move adaptive fights can select',()=>{for(const fish of FISH){if(personalityFor(fish).adaptability<=.3)continue;const available=new Set(availableMovesFor(fish).map(m=>m.id));for(const [ratio,reel] of [[.9,true],[.1,false]]){const fight=createFight(fish,()=>0);fight.elapsed=8;fight.nextMoveAt=8;fight.inputTime=10;fight.reelInputTime=10*ratio;fightTick(fight,{reel},.06);assert.ok(available.has(fight.currentMove.id),fish.id+' adaptive move '+fight.currentMove.id+' missing from GoopDex total');}}});
+
 test('fish adapt move selection when the player repeatedly over-reels',()=>{
   const fight=createFight(FISH.find(x=>x.id==='murkling'),()=>0);
   fight.elapsed=8;
