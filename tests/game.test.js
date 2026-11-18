@@ -85,7 +85,7 @@ test('a correct response to a telegraphed move creates a recovery opening',()=>{
 });
 
 test('fish adapt move selection when the player repeatedly over-reels',()=>{
-  const fight=createFight(FISH.find(x=>x.id==='gloop'),()=>0);
+  const fight=createFight(FISH.find(x=>x.id==='murkling'),()=>0);
   fight.elapsed=8;
   fight.nextMoveAt=8;
   fight.inputTime=10;
