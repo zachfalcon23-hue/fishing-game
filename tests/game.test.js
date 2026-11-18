@@ -352,6 +352,9 @@ test('GoopDex numeric fields are capped during hydration to resist absurd save v
 
 
 
+
+test('reel pointer release ignores other pointers and avoids cancelling unrelated pointer-ups',()=>{const main=readFileSync(new URL('../src/main.js',import.meta.url),'utf8');assert.ok(main.includes("let rb=$('reelBtn'),pointerReel=false,keyboardReel=false,activePointerId=null;"));assert.ok(main.includes("if(activePointerId!==null&&e?.pointerId!==undefined&&e.pointerId!==activePointerId)return;if(pointerReel&&e)e.preventDefault();pointerReel=false;activePointerId=null;syncReel()"));});
+
 test('held reel inputs clear when a fight ends so the next bite needs fresh input',()=>{const main=readFileSync(new URL('../src/main.js',import.meta.url),'utf8');assert.ok(main.includes("if(game.phase===PHASES.CAUGHT||game.phase===PHASES.ESCAPED){reel=false;if(typeof pointerReel!=='undefined')pointerReel=false;if(typeof keyboardReel!=='undefined')keyboardReel=false}"));});
 
 test('fishing simulation pauses and held controls clear when navigating away from Fishing',()=>{const main=readFileSync(new URL('../src/main.js',import.meta.url),'utf8');assert.ok(main.includes("if(view==='fish'&&!document.hidden&&windowFocused){game.update(dt,{reel,tap:tapQueued>0});tapQueued=0;if(game.phase===PHASES.CAUGHT||game.phase===PHASES.ESCAPED){"));assert.ok(main.includes("}else{reel=false;tapQueued=0;"));assert.ok(main.includes("window.addEventListener('blur',()=>{windowFocused=false;pointerReel=false;keyboardReel=false;syncReel()});window.addEventListener('focus',()=>{windowFocused=true});"));assert.ok(main.includes("function changeView(v){if(v!=='fish'){reel=false;tapQueued=0;"));});
