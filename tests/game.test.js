@@ -11,7 +11,7 @@ test('browser UI references valid HTML elements and shipped assets',()=>{
   const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);
   assert.equal(new Set(ids).size,ids.length,'HTML element IDs must be unique');
   const idSet=new Set(ids);
-  const references=[...main.matchAll(/\$\('([^']+)'\\)/g)].map(m=>m[1]);
+  const references=[...main.matchAll(/\$\('([^']+)'\)/g)].map(m=>m[1]);
   const missing=[...new Set(references.filter(id=>!idSet.has(id)))];
   assert.deepEqual(missing,[],'every browser DOM lookup must resolve to an HTML id');
   assert.ok(existsSync(new URL('../src/style.css',import.meta.url)));
