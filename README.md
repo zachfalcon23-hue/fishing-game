@@ -128,3 +128,12 @@ See [`ECONOMY_AUDIT.md`](ECONOMY_AUDIT.md) for modeled expected sale rewards acr
 ### Save-state integrity follow-up
 
 Zone unlock flags are now whitelist-normalized: only known zone IDs with literal `true` are accepted. Invalid truthy values and unknown keys cannot unlock zones during hydration. Owned rods and baits are deduplicated on load. Regression tests cover malformed flags, duplicate equipment, and invalid selected-zone recovery.
+
+
+## Session telemetry and balance evidence
+
+The Stats view includes an in-memory session summary and an **Export session telemetry** action. The JSON export records completed fishing rounds and groups outcomes by zone, day/night, weather, rod, bait, and fight style. It includes cast-to-bite, bite-to-hook, fight, and total-round durations, plus catches, escapes, and earned sale Essence.
+
+Telemetry is local to the current page session: it is not uploaded, does not include player identifiers, and is not written into the progression save. Up to 500 detailed rounds are retained in memory; aggregate event counters continue for the session. Export before closing or reloading the page if you want to keep a playtest sample.
+
+Use multiple sessions across zones and condition combinations before adjusting rarity, fight difficulty, or economy. Small samples should be treated as directional evidence, not definitive balance results.
