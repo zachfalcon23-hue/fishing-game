@@ -6,7 +6,7 @@ function bucketKey(context) { return [context.zone, context.timeOfDay, context.w
 /** Anonymous in-memory playtest telemetry. No identifiers, network calls, or save data. */
 export class SessionTelemetry {
   constructor({ now = () => Date.now() } = {}) {
-    this.now = now; this.startedAt = now(); this.active = null; this.lastPhase = 'idle';
+    this.now = now; this.startedAt = null; this.active = null; this.lastPhase = 'idle';
     this.rounds = []; this.events = { casts: 0, bites: 0, hooks: 0, catches: 0, escapes: 0, sold: 0, kept: 0, essenceEarned: 0 };
   }
   observe(game) {
@@ -49,7 +49,7 @@ export class SessionTelemetry {
     return true;
   }
   summary() {
-    const rounds = this.rounds, elapsedMs = Math.max(0, this.now() - this.startedAt);
+    const rounds = this.rounds, elapsedMs = this.startedAt === null ? 0 : Math.max(0, this.now() - this.startedAt);
     const average = key => { const values = rounds.map(r => r[key]).filter(Number.isFinite); return values.length ? ROUND(values.reduce((a,b)=>a+b,0)/values.length) : null; };
     const groups = {};
     for (const round of rounds) {
@@ -68,5 +68,5 @@ export class SessionTelemetry {
     };
   }
   exportJSON() { return JSON.stringify({schemaVersion:1,exportedAt:new Date(this.now()).toISOString(),summary:this.summary(),rounds:this.rounds},null,2); }
-  reset() { this.startedAt=this.now();this.active=null;this.lastPhase='idle';this.rounds=[];this.events={casts:0,bites:0,hooks:0,catches:0,escapes:0,sold:0,kept:0,essenceEarned:0}; }
+  reset() { this.startedAt=null;this.active=null;this.lastPhase='idle';this.rounds=[];this.events={casts:0,bites:0,hooks:0,catches:0,escapes:0,sold:0,kept:0,essenceEarned:0}; }
 }
