@@ -84,7 +84,8 @@ Current state: feature-complete prototype with automated coverage. It is not yet
 ## Rarity and progression balance baseline
 
 - [x] Source-weight audit calculated Rare+ share under neutral conditions (no gear luck, no time/weather modifiers; Epic+ receives existing 1.5 baseline weight multiplier): Pond 6.0%, Hollow 20.8%, Creek 40.1%, Bay 47.4%, Reach 72.5%.
-- [ ] Recheck the Reach Rare+ share after luck gear correction through player-facing simulation/playtests; its 72.5% neutral baseline is high by design/source weights but not yet playtest validated.
+- [x] Owner reports hands-on playtesting went fine; proceed using that assumption for progression decisions. (No independent browser/device test was performed in this session.)
+- [ ] Recheck the Reach Rare+ share after luck gear correction through player-facing simulation/playtests; its 72.5% neutral baseline is high by design/source weights and still needs a focused rarity-feel review.
 - [ ] Capture measured Essence/hour and catch success per zone before tuning unlock costs or gear payback.
 
 
