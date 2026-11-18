@@ -4,7 +4,7 @@ A browser-based fishing and Goop-collection game prototype built around distinct
 
 ## Play and test
 
-Open `index.html` in a modern browser or serve the repository with a static server. Run `npm test` with Node 20+ for the regression suite.
+Open `index.html` in a modern browser or serve the repository with a static server. Run `npm run check` to syntax-check the browser and game modules, and `npm test` with Node 20+ for the regression suite.
 
 ## The fishing loop
 
@@ -69,6 +69,12 @@ Conditions are stored with the player's save and are shown visually in the Fishi
 - Four rods, four bait choices, Essence purchases, five unlockable locations, quests, achievements, levels, XP, and lifetime stats.
 - Local save data persists progression, specimen records, settings, and the latest catch.
 - Responsive Fishing, GoopDex, Shop, Quests, and Stats views.
+
+## Feedback and accessibility
+
+Original synthesized sound effects provide distinct cues for casting, bites, hooking, fish maneuvers, successful patience taps, catches, and escapes. Sound can be switched off with the **SFX ON/OFF** control. The game remains playable with sound disabled; encounter text and meters communicate the same essential information visually.
+
+The frontend uses pointer-based hold/release controls for tension fights and a dedicated tap control for patience fights. Both controls work with mouse and touch input.
 
 ## Architecture
 
