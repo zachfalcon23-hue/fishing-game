@@ -7,7 +7,7 @@ function memoryStore(){return {v:null,getItem(){return this.v},setItem(k,v){this
 test('fish roster and locations are populated',()=>{
   assert.ok(FISH.length>=50);
   assert.ok(ZONES.length>=4);
-  assert.equal(new Set(FISH.map(f=>f.id)).size,FISH.length);\n  assert.equal(FISH.length,50);\n  assert.ok(FISH.every(f=>CATCH_PROFILES[f.id]));
+  assert.equal(new Set(FISH.map(f=>f.id)).size,FISH.length);\n  assert.equal(FISH.length,50);\n  assert.ok(FISH.every(f=>CATCH_PROFILES[f.id]));\n  const ids=new Set(FISH.map(f=>f.id));\n  assert.ok(ZONES.every(z=>z.fish.every(id=>ids.has(id))),'every zone fish must exist in the GoopDex roster');
 });
 
 test('weighted pick handles empty pools and deterministic outcomes',()=>{
