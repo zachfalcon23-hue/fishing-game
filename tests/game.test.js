@@ -54,6 +54,9 @@ test('weighted pick handles empty pools and deterministic outcomes',()=>{
   assert.equal(weightedPick(pool,()=>.5).id,'b');
 });
 
+
+test('tension fight progress and stamina stay within valid bounds at terminal frames',()=>{const fish=FISH.find(f=>f.id==='gloop');const catchFight=createFight(fish,()=>0);catchFight.fish={...catchFight.fish,pressure:.0001};catchFight.nextMoveAt=999;for(let i=0;i<120&&!catchFight.caught&&!catchFight.escaped;i++)fightTick(catchFight,{reel:true},.06,0);assert.equal(catchFight.caught,true);assert.equal(catchFight.progress,1);const escapeFight=createFight(fish,()=>0);escapeFight.fish={...escapeFight.fish,pressure:.0001};escapeFight.nextMoveAt=999;escapeFight.tension=1;escapeFight.stamina=.001;fightTick(escapeFight,{reel:true},.06,0);assert.equal(escapeFight.escaped,true);assert.equal(escapeFight.stamina,0)});
+
 test('fight tension stays bounded',()=>{
   const fight=createFight(FISH[0]);
   for(let i=0;i<500;i++)fightTick(fight,{reel:i%2===0},.05);
