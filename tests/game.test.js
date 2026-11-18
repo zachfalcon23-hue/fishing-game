@@ -288,3 +288,5 @@ test('shop purchases and location unlock are currency gated',()=>{
   assert.equal(game.unlockZone('hollow'),true);
   assert.equal(game.state.zone,'hollow');
 });
+
+test('save hydration only accepts valid true zone unlock flags and deduplicates owned gear',()=>{const storage={data:{},getItem(k){return this.data[k]??null},setItem(k,v){this.data[k]=v},removeItem(k){delete this.data[k]}};storage.data['goop-fishing-save-v3']=JSON.stringify({version:4,zoneUnlocked:{pond:true,hollow:'true',creek:1,bay:true,reach:false,invalid:true},ownedRods:['twig','carbon','carbon','missing'],ownedBaits:['plain','mint','mint','unknown'],zone:'hollow',rod:'carbon',bait:'mint'});const state=new SaveStore(storage).load();assert.deepEqual(state.zoneUnlocked,{pond:true,bay:true});assert.deepEqual(state.ownedRods,['twig','carbon']);assert.deepEqual(state.ownedBaits,['plain','mint']);assert.equal(state.zone,'pond');assert.equal(state.rod,'carbon');assert.equal(state.bait,'mint');});
