@@ -241,6 +241,10 @@ test('every fishing zone has catchable species in all day/night and clear/rain c
   }
 });
 
+
+test('spawn pools remain finite and selectable across every zone, condition and owned gear profile',()=>{for(const zone of ZONES)for(const timeOfDay of ['day','night'])for(const weather of ['clear','rain'])for(const rod of RODS)for(const bait of BAITS){const pool=FISH.filter(f=>zone.fish.includes(f.id)).map(f=>({...f,weight:gearAdjustedSpawnWeight(f,{timeOfDay,weather},rod,bait)})),eligible=pool.filter(f=>f.weight>0),sum=eligible.reduce((n,f)=>n+f.weight,0);assert.ok(eligible.length>0,zone.id+' has no eligible fish for '+timeOfDay+'/'+weather+'/'+rod.id+'/'+bait.id);assert.ok(Number.isFinite(sum)&&sum>0,zone.id+' has invalid weight total');for(const roll of [0,.1,.5,.9,.999999]){const selected=weightedPick(pool,()=>roll);assert.ok(selected&&eligible.some(f=>f.id===selected.id),zone.id+' selected a zero-weight or unknown fish')}}});
+test('luck gear never changes Common or Uncommon weights and increases all Rare+ weights',()=>{for(const fish of FISH){const base=gearAdjustedSpawnWeight(fish,{},RODS[0],BAITS[0]),best=gearAdjustedSpawnWeight(fish,{},RODS.at(-1),BAITS.at(-1));if(rarityRank(fish.rarity)<2)assert.equal(best,base,fish.id+' common/uncommon baseline changed');else assert.ok(best>=base,fish.id+' Rare+ weight unexpectedly fell with luck gear')}});
+
 test('time of day and weather change which Goops are likely to spawn',()=>{
   const voidling=FISH.find(x=>x.id==='voidling');
   const murkling=FISH.find(x=>x.id==='murkling');
