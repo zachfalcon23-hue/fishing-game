@@ -124,6 +124,35 @@ test('catching a fish records discovered maneuvers and successful reads',()=>{
 });
 
 
+
+test('drift and sleepy Goops use the patience fight mode instead of tension reeling',()=>{
+  const fish=FISH.find(x=>x.pattern==='drift');
+  const fight=createFight(fish,()=>0);
+  assert.equal(fight.style,'patience');
+  fightTick(fight,{reel:true,tap:false},.06);
+  assert.equal(fight.progress,0);
+  assert.match(fight.tapHint,/rhythm/i);
+});
+
+test('steady rhythm taps catch a patience-style Goop',()=>{
+  const fight=createFight(FISH.find(x=>x.pattern==='drift'),()=>0);
+  fightTick(fight,{tap:true},.01);
+  for(let i=0;i<8&&!fight.caught;i++){
+    for(let j=0;j<7;j++)fightTick(fight,{tap:false},.06);
+    fightTick(fight,{tap:true},.01);
+  }
+  assert.equal(fight.caught,true);
+  assert.ok(fight.progress>=1);
+});
+
+test('frantic rhythm taps spook a patience-style Goop into escaping',()=>{
+  const fight=createFight(FISH.find(x=>x.pattern==='sleepy'),()=>0);
+  fightTick(fight,{tap:true},.05);
+  for(let i=0;i<6&&!fight.escaped;i++)fightTick(fight,{tap:true},.05);
+  assert.equal(fight.escaped,true);
+  assert.match(fight.moveResult,/spooked/i);
+});
+
 test('specimen generation stays inside species-specific size ranges and creates grades',()=>{
   const fish=FISH.find(x=>x.id==='glacieroo');
   const values=[.99,.98,.05,.06];
