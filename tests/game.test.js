@@ -395,3 +395,16 @@ test('location, conditions and equipment setup are locked during an active encou
 test('rod control is snapshotted when an encounter hooks so mid-fight equipment changes cannot alter it',()=>{const game=new FishingGame({store:new SaveStore(memoryStore())});game.state.rod='twig';game.fish=FISH[0];game.phase=PHASES.BITE;game.timer=0;game.update(.01,{reel:true});assert.equal(game.phase,PHASES.FIGHT);assert.equal(game.fight.rodControl,RODS.find(r=>r.id==='twig').control);game.state.rod='carbon';assert.equal(game.fight.rodControl,RODS.find(r=>r.id==='twig').control);});
 
 test('active-move feedback does not announce a successful read before the maneuver resolves',()=>{const main=readFileSync(new URL('../src/main.js',import.meta.url),'utf8');assert.ok(main.includes('Counter looks good so far—finish the move.'));assert.ok(!main.includes('Good read. Keep countering.'))});
+
+
+test('save hydration accepts legitimately generated specimen extremes for every Goop',()=>{
+  for(const fish of FISH){
+    for(const [percentile,lengthRoll] of [[0,0],[0,1],[.1,0],[.5,1],[.91,0],[.985,1],[.9999,0],[.9999,1]]){
+      const rolls=[percentile,lengthRoll],specimen={...sampleCatchMetrics(fish,()=>rolls.shift()),id:'catch-1',fishId:fish.id,day:1};
+      const storage=memoryStore();storage.v=JSON.stringify({version:4,total:1,specimens:[specimen]});
+      const restored=new SaveStore(storage).load();
+      assert.equal(restored.specimens.length,1,fish.id+' percentile '+percentile+' length roll '+lengthRoll);
+      assert.equal(restored.lastCatch.fishId,fish.id);
+    }
+  }
+});
