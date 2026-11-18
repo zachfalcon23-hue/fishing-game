@@ -132,7 +132,7 @@ Zone unlock flags are now whitelist-normalized: only known zone IDs with literal
 
 ## Session telemetry and balance evidence
 
-The Stats view includes an in-memory session summary and an **Export session telemetry** action. The JSON export records completed fishing rounds and groups outcomes by zone, day/night, weather, rod, bait, and fight style. It includes cast-to-bite, bite-to-hook, fight, and total-round durations, plus catches, escapes, and earned sale Essence.
+The Stats view includes an in-memory session summary and an **Export session telemetry** action. The JSON export records completed fishing rounds and groups outcomes by zone, day/night, weather, rod, bait, and fight style. It includes cast-to-bite, bite-to-hook, fight, and total-round durations, plus catches, escapes, Sell/Keep decisions, realized sale Essence, and session-normalized catches/Essence per hour. Estimated catch value is kept separate from actual earned Essence: only a completed Sell decision counts as income.
 
 Telemetry is local to the current page session: it is not uploaded, does not include player identifiers, and is not written into the progression save. Up to 500 detailed rounds are retained in memory; aggregate event counters continue for the session. Export before closing or reloading the page if you want to keep a playtest sample.
 
