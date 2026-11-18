@@ -20,3 +20,5 @@ button{min-height:44px}
 
 .save-status{font-size:8px;letter-spacing:.8px;color:#90cbb1;white-space:nowrap;padding:5px 7px;border:1px solid #244149;border-radius:8px;background:#10272b}.save-status.save-failed{color:#ffb3a7;border-color:#9b4e44;background:#351f23}
 @media(max-width:530px){.save-status{display:none}}
+
+.specimen-rank{align-self:flex-start;margin:1px 0 2px;padding:5px 8px;border:1px solid #55716a;border-radius:7px;background:#0c2428;color:#c4e9d6;font-size:10px;font-weight:850;letter-spacing:.25px}.specimen-panel.specimen-trophy{border-color:#d3a84f;background:radial-gradient(ellipse at 100% 0%,#66502b 0,#26332e 48%,#101e22 100%);box-shadow:inset 0 1px 0 #ffffff18,0 0 18px #d3a84f22}.specimen-panel.specimen-record{border-color:#ffe08a;background:radial-gradient(ellipse at 100% 0%,#78602b 0,#30372d 46%,#101e22 100%);box-shadow:inset 0 1px 0 #ffffff24,0 0 26px #ffe08a38}.specimen-panel.specimen-big{border-color:#83bca1}.specimen-panel.specimen-small{border-color:#527d8a}
