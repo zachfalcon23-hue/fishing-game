@@ -1,4 +1,5 @@
-import{FISH,ZONES,RODS,BAITS,QUESTS,ACHIEVEMENTS,PHASES,FishingGame,levelXP,rarityRank,specimenRankLabel,personalityFor,availableMovesFor,questProgress,visualFor}from'./game.js';\nimport{SessionTelemetry}from'./telemetry.js';
+import{FISH,ZONES,RODS,BAITS,QUESTS,ACHIEVEMENTS,PHASES,FishingGame,levelXP,rarityRank,specimenRankLabel,personalityFor,availableMovesFor,questProgress,visualFor}from'./game.js';
+import{SessionTelemetry}from'./telemetry.js';
 const $=id=>document.getElementById(id),canvas=$('gameCanvas'),ctx=canvas.getContext('2d'),game=new FishingGame(),telemetry=new SessionTelemetry();let reel=false,tapQueued=0,clock=0,view='fish',modalOpen=false,lastStaticKey='',windowFocused=document.hasFocus();
 let audioContext=null,soundEnabled=true,lastSoundPhase=PHASES.IDLE,lastMoveCue='',lastSoundFight=null,lastPatienceProgress=0,lastSpook=0;
 function unlockAudio(){try{let Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)return null;if(!audioContext)audioContext=new Audio();if(audioContext.state==='suspended')audioContext.resume().catch(()=>{});return audioContext}catch{return null}}
