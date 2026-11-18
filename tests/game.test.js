@@ -70,6 +70,7 @@ test('casting progresses to bite and hooking',()=>{
   assert.equal(game.phase,PHASES.FIGHT);
 });
 
+test('daily catch counter resets when a catch decision advances to the next day',()=>{const game=new FishingGame({store:new SaveStore(memoryStore())});game.state.today=3;game.phase=PHASES.CAUGHT;game.reward=15;game.state.pendingCatch={fishId:'gloop',reward:15};assert.equal(game.sell(),true);assert.equal(game.state.day,2);assert.equal(game.state.today,0);game.state.today=2;game.phase=PHASES.CAUGHT;game.state.pendingCatch={fishId:'gloop',reward:15};assert.equal(game.keep(),true);assert.equal(game.state.day,3);assert.equal(game.state.today,0)});
 test('catch logs species, XP and sale payout',()=>{
   const game=new FishingGame({rng:()=>0,store:new SaveStore(memoryStore())});
   game.cast();
