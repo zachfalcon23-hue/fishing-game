@@ -14,13 +14,13 @@ test('session telemetry measures one complete catch and attributes its context',
   now = 4000; game.phase = 'bite'; telemetry.observe(game);
   now = 4500; game.phase = 'fight'; game.fight = { style: 'tension' }; game.fish = { id: 'gloop', rarity: 'Common' }; telemetry.observe(game);
   now = 9000; game.phase = 'caught'; game.reward = 12; telemetry.observe(game);
-  const result = telemetry.summary();
+  telemetry.resolveCatch('sold', 12);\n  const result = telemetry.summary();
   assert.equal(result.completedRounds, 1);
   assert.equal(result.catchRate, 1);
   assert.equal(result.averageCastToBiteMs, 3000);
   assert.equal(result.averageBiteToHookMs, 500);
   assert.equal(result.averageFightMs, 4500);
-  assert.equal(result.essencePerCompletedRound, 12);
+  assert.equal(result.averageCatchValue, 12);\n  assert.equal(result.essenceEarned, 12);\n  assert.equal(result.events.sold, 1);\n  assert.equal(result.essencePerHour, 5400);
   assert.equal(result.byContext[0].zone, 'pond');
   assert.equal(result.byContext[0].style, 'tension');
 });
