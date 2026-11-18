@@ -369,6 +369,9 @@ test('GoopDex numeric fields are capped during hydration to resist absurd save v
 
 
 
+
+test('explicit Release clears both keyboard and pointer hold state',()=>{const main=readFileSync(new URL('../src/main.js',import.meta.url),'utf8');assert.ok(main.includes("$('releaseBtn').onclick=()=>{reel=false;pointerReel=false;activePointerId=null;keyboardReel=false;syncReel();render()}"));assert.ok(main.includes("const down=e=>{if(pointerReel||e.button!==undefined&&e.button!==0)return;e.preventDefault();"))});
+
 test('reel pointer release ignores other pointers and avoids cancelling unrelated pointer-ups',()=>{const main=readFileSync(new URL('../src/main.js',import.meta.url),'utf8');assert.ok(main.includes("let rb=$('reelBtn'),pointerReel=false,keyboardReel=false,activePointerId=null;"));assert.ok(main.includes("if(activePointerId!==null&&e?.pointerId!==undefined&&e.pointerId!==activePointerId)return;if(pointerReel&&e)e.preventDefault();pointerReel=false;activePointerId=null;syncReel()"));});
 
 test('held reel inputs clear when a fight ends so the next bite needs fresh input',()=>{const main=readFileSync(new URL('../src/main.js',import.meta.url),'utf8');assert.ok(main.includes("if(game.phase===PHASES.CAUGHT||game.phase===PHASES.ESCAPED){reel=false;if(typeof pointerReel!=='undefined')pointerReel=false;if(typeof keyboardReel!=='undefined')keyboardReel=false}"));});
