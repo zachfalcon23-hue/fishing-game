@@ -139,6 +139,9 @@ test('a correct response to a telegraphed move creates a recovery opening',()=>{
 
 test('patience-style species do not advertise unreachable tension maneuvers',()=>{for(const fish of FISH.filter(f=>['drift','sleepy'].includes(f.pattern))){assert.equal(createFight(fish).style,'patience');assert.equal(availableMovesFor(fish).length,0)}});
 
+
+test('GoopDex hydration rejects moves unavailable to each species fight style',()=>{const storage=memoryStore();storage.v=JSON.stringify({version:4,dex:{puddlit:{count:1,moves:['dive','circle']},murkling:{count:1,moves:['bolt','circle','invalid']}}});const state=new SaveStore(storage).load();assert.deepEqual(state.dex.puddlit.moves,[]);assert.deepEqual(state.dex.murkling.moves,['bolt','circle'])});
+
 test('GoopDex maneuver totals include every move adaptive fights can select',()=>{for(const fish of FISH){if(personalityFor(fish).adaptability<=.3||['drift','sleepy'].includes(fish.pattern))continue;const available=new Set(availableMovesFor(fish).map(m=>m.id));for(const [ratio,reel] of [[.9,true],[.1,false]]){const fight=createFight(fish,()=>0);fight.elapsed=8;fight.nextMoveAt=8;fight.inputTime=10;fight.reelInputTime=10*ratio;fightTick(fight,{reel},.06);assert.ok(available.has(fight.currentMove.id),fish.id+' adaptive move '+fight.currentMove.id+' missing from GoopDex total');}}});
 
 test('fish adapt move selection when the player repeatedly over-reels',()=>{
