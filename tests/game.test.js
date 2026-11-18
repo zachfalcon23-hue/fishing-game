@@ -1,8 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync, existsSync } from 'node:fs';
 import { FISH, ZONES, weightedPick, createFight, fightTick, FishingGame, SaveStore, PHASES, levelXP, BEHAVIOR_INFO, MOVE_INFO, availableMovesFor, personalityFor, CATCH_PROFILES, sampleCatchMetrics, spawnWeightFor, QUESTS, questProgress, visualFor } from '../src/game.js';
 
 function memoryStore(){return {v:null,getItem(){return this.v},setItem(k,v){this.v=v},removeItem(){this.v=null}}}
+
+test('browser UI references valid HTML elements and shipped assets',()=>{
+  const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  const main=readFileSync(new URL('../src/main.js',import.meta.url),'utf8');
+  const ids=[...html.matchAll(/\\bid="([^"]+)"/g)].map(m=>m[1]);
+  assert.equal(new Set(ids).size,ids.length,'HTML element IDs must be unique');
+  const idSet=new Set(ids);
+  const references=[...main.matchAll(/\\$\\('([^']+)'\\)/g)].map(m=>m[1]);
+  const missing=[...new Set(references.filter(id=>!idSet.has(id)))];
+  assert.deepEqual(missing,[],'every browser DOM lookup must resolve to an HTML id');
+  assert.ok(existsSync(new URL('../src/style.css',import.meta.url)));
+  assert.ok(html.includes('src/main.js'));
+});
 
 test('fish roster and locations are populated',()=>{
   assert.ok(FISH.length>=50);
