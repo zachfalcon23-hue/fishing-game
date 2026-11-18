@@ -17,3 +17,6 @@ button{min-height:44px}
 .btn.tiny{min-height:44px;padding:9px 12px}
 #reelBtn{touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+
+.save-status{font-size:8px;letter-spacing:.8px;color:#90cbb1;white-space:nowrap;padding:5px 7px;border:1px solid #244149;border-radius:8px;background:#10272b}.save-status.save-failed{color:#ffb3a7;border-color:#9b4e44;background:#351f23}
+@media(max-width:530px){.save-status{display:none}}
