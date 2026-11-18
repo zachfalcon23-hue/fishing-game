@@ -78,6 +78,7 @@ Conditions are stored with the player's save and are shown visually in the Fishi
 - Save writes report success/failure in the header. A second local backup copy is maintained; backup recovery immediately repairs the corrupt primary save.
 - Pending catch and sell/keep state persist across reloads, so a landed specimen and reward decision are not lost.
 - Quest rewards immediately feed the level-up calculation; XP earned from a quest no longer waits for the next catch to trigger leveling.
+- Daily catch count resets when Sell or Keep advances the fishing day, while lifetime catches remain intact.
 
 ## Feedback and accessibility
 
