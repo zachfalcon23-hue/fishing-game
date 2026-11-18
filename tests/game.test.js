@@ -51,6 +51,9 @@ test('all 50 Goops have a deliberate species silhouette and marking profile',()=
   assert.notDeepEqual(visualFor(FISH.find(f=>f.id==='glacieroo')),visualFor(FISH.find(f=>f.id==='gloop')));
 });
 
+
+test('weighted picker never falls back to zero, negative or non-finite entries at the upper RNG boundary',()=>{const items=[{id:'positive',weight:2},{id:'zero',weight:0},{id:'negative',weight:-3},{id:'nan',weight:NaN}];assert.equal(weightedPick(items,()=>1).id,'positive');assert.equal(weightedPick(items,()=>Infinity).id,'positive');assert.equal(weightedPick(items,()=>-.5).id,'positive');assert.equal(weightedPick([{weight:NaN},{weight:0},{weight:-1}],()=>.5),null)});
+
 test('weighted pick handles empty pools and deterministic outcomes',()=>{
   assert.equal(weightedPick([]),null);
   const pool=[{weight:1,id:'a'},{weight:3,id:'b'}];
