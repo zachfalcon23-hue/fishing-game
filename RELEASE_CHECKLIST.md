@@ -39,6 +39,7 @@ This checklist separates automated verification from hands-on release validation
 - [ ] Android Chrome: portrait/landscape layout, touch hold/release, rhythm taps, and browser back/reload.
 - [ ] iOS Safari: touch behavior, audio unlock, viewport and safe-area handling.
 - [ ] Verify no controls overlap or become unreachable on narrow screens.
+- [ ] Verify specimen size-rank copy and trophy/record reveal styling on desktop and narrow mobile layouts, including the screen-reader announcement.
 
 ### Gameplay and balance
 
