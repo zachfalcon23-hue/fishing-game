@@ -268,6 +268,7 @@ test('specimen collection achievements unlock from trophy and heavyweight milest
   assert.equal(game.state.achievements.recordkeeper,true);
 });
 
+test('quest XP triggers level progression immediately when quest is completed',()=>{const game=new FishingGame({store:new SaveStore(memoryStore())});game.state.xp=79;game.state.total=1;game.checkQuests();assert.equal(game.state.quests.first,true);assert.equal(game.state.level,2);assert.equal(game.state.xp,24);assert.ok(game.state.essence>=30)});
 test('level XP curve scales upward',()=>{
   assert.equal(levelXP(1),80);
   assert.equal(levelXP(2),115);
