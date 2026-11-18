@@ -1,6 +1,6 @@
-# Goop Fishing — Pondbound (v0.3 Fish Intelligence)
+# Goop Fishing — Pondbound 0.4
 
-A browser-based fishing game prototype with a species collection loop, location progression, and skill-driven encounters.
+A browser-based fishing and Goop-collection game prototype built around distinct fish behavior, adaptive encounters, specimen hunting, and changing fishing conditions.
 
 ## Play and test
 
@@ -8,17 +8,33 @@ Open `index.html` in a modern browser or serve the repository with a static serv
 
 ## The fishing loop
 
-- Cast, watch the bobber, hook the bite, and manage line tension while the fish fights.
+- Cast into one of five waters, watch the bobber, hook the bite, and manage line tension.
 - Hold **REEL** to gain line; release to let the line run and reduce pressure.
-- Read the fish's intent panel. Its tell explains the maneuver it is preparing and the counter-action to use.
-- Keep responding during the maneuver. A late correction can still turn a bad read into a successful one.
-- A successful read tires the fish and creates a short recovery opening for the angler.
-- Catch, sell for Essence, or keep the fish to build the collection.
+- Read the fish intent panel. Its tell explains the maneuver it is preparing and the counter-action to use.
+- React during the maneuver. A late correction can still turn a bad read into a successful one.
+- A successful read tires the fish and creates a short recovery opening.
+- Catch, sell for Essence, or keep the catch as part of the growing specimen collection.
+
+## 50 Goops to discover
+
+The roster now contains **50 named Goops** across North Pond, Sunken Hollow, Ember Creek, Moonlit Bay, and Crystal Reach. Species have different rarity, spawn weighting, fighting patterns, temperament, and physical size ranges.
+
+## Specimen hunting: weight, length, trophies and records
+
+Every hooked Goop receives an individual specimen roll:
+- **Weight:** species-specific range, recorded in pounds
+- **Length:** species-specific range, recorded in inches
+- **Size class:** Small, Standard, Big, Trophy, or Record
+- **Physical scale:** the fish rendered in the water scales to its rolled specimen size
+- **Fight strength:** larger specimens exert more pressure
+- **Rewards:** specimen size influences XP and sale value
+- **Records:** the GoopDex tracks each species' best weight, length, and trophy count; the Stats view tracks total caught weight, trophy catches, and the heaviest specimen
+
+A player's specimen log keeps the most recent 120 catches. Each specimen is recorded independently, so catching the same species again can produce a new personal best or the heaviest catch in the collection.
 
 ## Fish Intelligence
 
 Fish are not just different tension curves. Each encounter can use a distinct move set:
-
 - **Tailwind Bolt** — a sudden run; let the line run.
 - **Deepwater Dive** — a hard downward pull; ease off the reel.
 - **Hook Shaker** — violent head movement; pause reeling.
@@ -26,25 +42,33 @@ Fish are not just different tension curves. Each encounter can use a distinct mo
 - **Surface Rush** — a jump that creates slack; reel to keep contact.
 - **Current Circle** — a broadside sweep; maintain steady pressure.
 
-Every maneuver has a readable telegraph, an action window, and a counter. Species inherit a temperament from their fighting style, with individual overrides for signature fish. More adaptable fish can react to the angler's repeated habits: persistent over-reeling encourages moves that reward releasing, while excessive pauses invite moves that test line contact. Adaptation is bounded to move selection; it does not secretly alter the fish's stats.
+Species inherit a temperament from their fighting style, with signature overrides for notable Goops. More adaptable fish can react to repeated over-reeling or excessive pauses. Adaptation changes move selection, not hidden stats.
 
-The encounter UI communicates the current cue, action, counter, and recovery state. The fishing-scene fish also animates during its tell and active maneuver.
+The encounter UI communicates the current cue, action, counter, and recovery state. The fishing-scene fish animates during its tell and active maneuver.
 
-## GoopDex and progression
+## Dynamic conditions
 
-- 29 species across five zones and six rarity bands.
-- The GoopDex records each discovered species' temperament, encountered maneuvers, and successful reads.
-- Four rods, four bait choices, Essence purchases, zone unlocks, quests, achievements, levels, XP, and lifetime stats.
-- Local save data persists progression and field notes.
+Players can set **Day** or **Night**, and **Clear** or **Rain**, before casting. Spawn weights respond to these conditions:
+- Night favors nocturnal, spectral, lunar, and deep-water species while reducing daylight specialists.
+- Rain favors current-riding, mud, reed, and silt species.
+- Clear conditions favor luminous and crystalline species.
+
+Conditions are stored with the player's save and are shown in the Fishing view.
+
+## Collection and progression
+
+- GoopDex discovery, temperament notes, maneuver research, best weight/length, and trophy counts.
+- Four rods, four bait choices, Essence purchases, five unlockable locations, quests, achievements, levels, XP, and lifetime stats.
+- Local save data persists progression, specimen records, settings, and the latest catch.
 - Responsive Fishing, GoopDex, Shop, Quests, and Stats views.
 
 ## Architecture
 
-- `src/game.js` — fish data, save store, encounter simulation, fish-intelligence rules, progression, shops, quests, and achievements.
-- `src/main.js` — canvas animation, screen rendering, encounter telegraphs, and touch/keyboard pointer handling.
-- `src/style.css` — responsive visual system and encounter/field-guide panels.
-- `tests/game.test.js` — Node regression tests for the fishing loop, encounter sequencing, counterplay, adaptation, and GoopDex knowledge.
+- `src/game.js` — fish content, specimen profiles, spawn weighting, save store, encounter simulation, fish-intelligence rules, progression, shops, quests, and achievements.
+- `src/main.js` — canvas animation, specimen-scale rendering, encounter telegraphs, GoopDex/record views, and UI controls.
+- `src/style.css` — responsive visual system, conditions controls, specimen reveal, and field-guide panels.
+- `tests/game.test.js` — Node regression tests for roster integrity, size generation, condition weighting, save migration, encounter counterplay, adaptation, and specimen persistence.
 
-## Prototype status
+## Validation status
 
-This is an integrated gameplay prototype, not a release-ready commercial game. Full browser/device playtesting, encounter balance, accessibility review, audio, and a final art pipeline remain future validation work.
+The project has automated regression coverage. CI is expected to run `npm test` on the feature branch and pull requests. Browser/device playtesting, economy and encounter balance, accessibility review, audio, and a final art pipeline still require hands-on validation before a commercial release.
