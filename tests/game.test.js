@@ -335,6 +335,9 @@ test('GoopDex numeric fields are capped during hydration to resist absurd save v
 
 
 
+
+test('held reel inputs clear when a fight ends so the next bite needs fresh input',()=>{const main=readFileSync(new URL('../src/main.js',import.meta.url),'utf8');assert.ok(main.includes("if(game.phase===PHASES.CAUGHT||game.phase===PHASES.ESCAPED){reel=false;if(typeof pointerReel!=='undefined')pointerReel=false;if(typeof keyboardReel!=='undefined')keyboardReel=false}"));});
+
 test('fishing simulation pauses and held controls clear when navigating away from Fishing',()=>{const main=readFileSync(new URL('../src/main.js',import.meta.url),'utf8');assert.ok(main.includes("if(view==='fish'){game.update(dt,{reel,tap:tapQueued>0});tapQueued=0}else{reel=false;tapQueued=0;"));assert.ok(main.includes("function changeView(v){if(v!=='fish'){reel=false;tapQueued=0;"));});
 
 test('cast snapshots its rod and bait until the encounter ends',()=>{const rodGame=new FishingGame({store:new SaveStore(memoryStore())});rodGame.state.rod='twig';rodGame.state.bait='plain';assert.equal(rodGame.cast(),true);rodGame.phase=PHASES.BITE;rodGame.state.rod='starline';rodGame.update(.01,{reel:true});assert.equal(rodGame.phase,PHASES.FIGHT);assert.equal(rodGame.fight.rodControl,RODS.find(r=>r.id==='twig').control);const baitGame=new FishingGame({store:new SaveStore(memoryStore())});baitGame.state.bait='plain';assert.equal(baitGame.cast(),true);baitGame.phase=PHASES.BITE;baitGame.timer=2.3;baitGame.state.bait='spark';baitGame.update(.01,{reel:false});assert.equal(baitGame.phase,PHASES.ESCAPED)});
