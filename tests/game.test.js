@@ -296,3 +296,6 @@ test('save hydration whitelists quest and achievement flags as literal true valu
 
 
 test('hydration rejects negative pending catch rewards',()=>{const storage={data:{},getItem(k){return this.data[k]??null},setItem(k,v){this.data[k]=v},removeItem(k){delete this.data[k]}};storage.data['goop-fishing-save-v3']=JSON.stringify({version:4,pendingCatch:{fishId:'gloop',reward:-999}});const state=new SaveStore(storage).load();assert.equal(state.pendingCatch,null);});
+
+
+test('dex hydration sanitizes malformed records but preserves valid collection progress',()=>{const storage={data:{},getItem(k){return this.data[k]??null},setItem(k,v){this.data[k]=v},removeItem(k){delete this.data[k]}};storage.data['goop-fishing-save-v3']=JSON.stringify({version:4,dex:{gloop:{count:4,best:90,rarity:'Rare',moves:12,styles:['tension','bad'],reads:-2,attempts:3,bestWeightLb:2.5,bestLengthIn:8,trophies:1},unknown:{count:99},murkling:'invalid'}});const state=new SaveStore(storage).load();assert.deepEqual(state.dex.gloop,{count:4,best:90,rarity:'Rare',moves:[],styles:['tension'],reads:0,attempts:3,bestWeightLb:2.5,bestLengthIn:8,trophies:1});assert.equal(state.dex.unknown,undefined);assert.equal(state.dex.murkling,undefined);});
