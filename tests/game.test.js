@@ -7,7 +7,11 @@ function memoryStore(){return {v:null,getItem(){return this.v},setItem(k,v){this
 test('fish roster and locations are populated',()=>{
   assert.ok(FISH.length>=50);
   assert.ok(ZONES.length>=4);
-  assert.equal(new Set(FISH.map(f=>f.id)).size,FISH.length);\n  assert.equal(FISH.length,50);\n  assert.ok(FISH.every(f=>CATCH_PROFILES[f.id]));\n  const ids=new Set(FISH.map(f=>f.id));\n  assert.ok(ZONES.every(z=>z.fish.every(id=>ids.has(id))),'every zone fish must exist in the GoopDex roster');
+  assert.equal(new Set(FISH.map(f=>f.id)).size,FISH.length);
+  assert.equal(FISH.length,50);
+  assert.ok(FISH.every(f=>CATCH_PROFILES[f.id]));
+  const ids=new Set(FISH.map(f=>f.id));
+  assert.ok(ZONES.every(z=>z.fish.every(id=>ids.has(id))),'every zone fish must exist in the GoopDex roster');
 });
 
 test('weighted pick handles empty pools and deterministic outcomes',()=>{
@@ -25,7 +29,7 @@ test('fight tension stays bounded',()=>{
 
 test('save store safely handles corrupt data',()=>{
   const storage={v:'bad',getItem(){return this.v},setItem(k,v){this.v=v},removeItem(){this.v=null}};
-  assert.equal(new SaveStore(storage).load().version,3);
+  assert.equal(new SaveStore(storage).load().version,4);
 });
 
 test('casting progresses to bite and hooking',()=>{
@@ -52,7 +56,11 @@ test('catch logs species, XP and sale payout',()=>{
   const balanceBeforeSale=game.state.essence;
   assert.equal(game.sell(),true);
   assert.equal(game.state.essence,balanceBeforeSale+reward);
-  assert.equal(game.state.sales,reward);\n  assert.equal(game.state.lastCatch.fishId,'gloop');\n  assert.ok(game.state.lastCatch.weightLb>0);\n  assert.ok(game.state.lastCatch.lengthIn>0);\n  assert.equal(game.state.specimens.length,1);
+  assert.equal(game.state.sales,reward);
+  assert.equal(game.state.lastCatch.fishId,'gloop');
+  assert.ok(game.state.lastCatch.weightLb>0);
+  assert.ok(game.state.lastCatch.lengthIn>0);
+  assert.equal(game.state.specimens.length,1);
 });
 
 test('fish behavior moods cycle and expose species-specific advice',()=>{
