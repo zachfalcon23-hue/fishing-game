@@ -20,6 +20,16 @@ This checklist separates automated verification from hands-on release validation
 - [x] Browser DOM references resolve to unique HTML IDs.
 - [x] JavaScript syntax check and Node regression suite pass in GitHub Actions.
 
+## Phase 1 improvements added in this pass
+
+- [x] Keyboard Space/Enter hold support for reel control.
+- [x] Pointer capture and cancellation/release safeguards for reel control.
+- [x] Release reel state on window focus loss and document visibility interruption.
+- [x] Visible keyboard focus styling and reduced-motion preference support.
+- [x] Minimum 44px control targets for touch and accessibility.
+- [x] Local save success/failure is reported in the header; storage/quota failures are no longer falsely reported as success.
+- [x] Regression tests added for reel input interruption/keyboard support and save storage failure reporting.
+
 ## Manual release validation — still required
 
 ### Browser and device coverage
