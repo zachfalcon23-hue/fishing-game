@@ -29,6 +29,7 @@ This checklist separates automated verification from hands-on release validation
 - [x] Minimum 44px control targets for touch and accessibility.
 - [x] Local save success/failure is reported in the header; storage/quota failures are no longer falsely reported as success.
 - [x] Regression tests added for reel input interruption/keyboard support and save storage failure reporting.
+- [x] Active fish-maneuver feedback stays provisional until the move resolves; regression test prevents premature success copy.
 
 ## Manual release validation — still required
 
