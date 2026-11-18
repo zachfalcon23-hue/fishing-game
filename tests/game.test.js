@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { FISH, ZONES, weightedPick, createFight, fightTick, FishingGame, SaveStore, PHASES, levelXP, BEHAVIOR_INFO, MOVE_INFO, availableMovesFor, personalityFor } from '../src/game.js';
+import { FISH, ZONES, weightedPick, createFight, fightTick, FishingGame, SaveStore, PHASES, levelXP, BEHAVIOR_INFO, MOVE_INFO, availableMovesFor, personalityFor, CATCH_PROFILES, sampleCatchMetrics, spawnWeightFor } from '../src/game.js';
 
 function memoryStore(){return {v:null,getItem(){return this.v},setItem(k,v){this.v=v},removeItem(){this.v=null}}}
 
 test('fish roster and locations are populated',()=>{
-  assert.ok(FISH.length>=25);
+  assert.ok(FISH.length>=50);
   assert.ok(ZONES.length>=4);
-  assert.equal(new Set(FISH.map(f=>f.id)).size,FISH.length);
+  assert.equal(new Set(FISH.map(f=>f.id)).size,FISH.length);\n  assert.equal(FISH.length,50);\n  assert.ok(FISH.every(f=>CATCH_PROFILES[f.id]));
 });
 
 test('weighted pick handles empty pools and deterministic outcomes',()=>{
@@ -52,7 +52,7 @@ test('catch logs species, XP and sale payout',()=>{
   const balanceBeforeSale=game.state.essence;
   assert.equal(game.sell(),true);
   assert.equal(game.state.essence,balanceBeforeSale+reward);
-  assert.equal(game.state.sales,reward);
+  assert.equal(game.state.sales,reward);\n  assert.equal(game.state.lastCatch.fishId,'gloop');\n  assert.ok(game.state.lastCatch.weightLb>0);\n  assert.ok(game.state.lastCatch.lengthIn>0);\n  assert.equal(game.state.specimens.length,1);
 });
 
 test('fish behavior moods cycle and expose species-specific advice',()=>{
@@ -111,6 +111,43 @@ test('catching a fish records discovered maneuvers and successful reads',()=>{
   assert.deepEqual(notes.moves,['dive','circle']);
   assert.equal(notes.reads,1);
   assert.equal(notes.attempts,2);
+});
+
+
+test('specimen generation stays inside species-specific size ranges and creates grades',()=>{
+  const fish=FISH.find(x=>x.id==='glacieroo');
+  const values=[.99,.98,.05,.06];
+  let index=0;
+  const rng=()=>values[index++]??.5;
+  const huge=sampleCatchMetrics(fish,rng);
+  assert.ok(huge.weightLb>=CATCH_PROFILES.glacieroo[0]&&huge.weightLb<=CATCH_PROFILES.glacieroo[1]);
+  assert.ok(huge.lengthIn>=CATCH_PROFILES.glacieroo[2]&&huge.lengthIn<=CATCH_PROFILES.glacieroo[3]);
+  assert.equal(huge.sizeClass,'Record');
+  assert.equal(huge.isRecord,true);
+  assert.ok(huge.valueMultiplier>1);
+});
+
+test('time of day and weather change which Goops are likely to spawn',()=>{
+  const voidling=FISH.find(x=>x.id==='voidling');
+  const murkling=FISH.find(x=>x.id==='murkling');
+  const clearDay=spawnWeightFor(voidling,{timeOfDay:'day',weather:'clear'});
+  const darkNight=spawnWeightFor(voidling,{timeOfDay:'night',weather:'clear'});
+  const dryMurk=spawnWeightFor(murkling,{timeOfDay:'day',weather:'clear'});
+  const rainyMurk=spawnWeightFor(murkling,{timeOfDay:'day',weather:'rain'});
+  assert.ok(darkNight>clearDay);
+  assert.ok(rainyMurk>dryMurk);
+});
+
+test('v3 saves migrate forward without losing existing player progress',()=>{
+  const storage=memoryStore();
+  storage.v=JSON.stringify({version:3,essence:415,level:4,dex:{gloop:{count:3}},ownedRods:['twig','bamboo'],zoneUnlocked:{pond:true,hollow:true}});
+  const loaded=new SaveStore(storage).load();
+  assert.equal(loaded.version,4);
+  assert.equal(loaded.essence,415);
+  assert.equal(loaded.level,4);
+  assert.equal(loaded.dex.gloop.count,3);
+  assert.deepEqual(loaded.specimens,[]);
+  assert.equal(loaded.timeOfDay,'day');
 });
 
 test('level XP curve scales upward',()=>{
