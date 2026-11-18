@@ -123,3 +123,8 @@ This is a source-weight calculation, not a measured gameplay rate. Day/night and
 ### Follow-up source-derived economy simulation
 
 See [`ECONOMY_AUDIT.md`](ECONOMY_AUDIT.md) for modeled expected sale rewards across day/night, clear/rain, and starter/late gear; gross-sale unlock equivalents; and the assumptions/limitations. This calculation is not Essence/hour or measured catch success.
+
+
+### Save-state integrity follow-up
+
+Zone unlock flags are now whitelist-normalized: only known zone IDs with literal `true` are accepted. Invalid truthy values and unknown keys cannot unlock zones during hydration. Owned rods and baits are deduplicated on load. Regression tests cover malformed flags, duplicate equipment, and invalid selected-zone recovery.
