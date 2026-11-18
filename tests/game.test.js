@@ -293,3 +293,6 @@ test('save hydration only accepts valid true zone unlock flags and deduplicates 
 
 
 test('save hydration whitelists quest and achievement flags as literal true values',()=>{const storage={data:{},getItem(k){return this.data[k]??null},setItem(k,v){this.data[k]=v},removeItem(k){delete this.data[k]}};storage.data['goop-fishing-save-v3']=JSON.stringify({version:4,quests:{first:true,sales:'true',unknown:true,rare:1},achievements:{species:true,unknown:true,catches:'true',rare:1}});const state=new SaveStore(storage).load();assert.deepEqual(state.quests,{first:true});assert.deepEqual(state.achievements,{species:true});});
+
+
+test('hydration rejects negative pending catch rewards',()=>{const storage={data:{},getItem(k){return this.data[k]??null},setItem(k,v){this.data[k]=v},removeItem(k){delete this.data[k]}};storage.data['goop-fishing-save-v3']=JSON.stringify({version:4,pendingCatch:{fishId:'gloop',reward:-999}});const state=new SaveStore(storage).load();assert.equal(state.pendingCatch,null);});
