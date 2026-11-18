@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { FISH, ZONES, weightedPick, createFight, fightTick, FishingGame, SaveStore, PHASES, levelXP, BEHAVIOR_INFO, MOVE_INFO, availableMovesFor, personalityFor, CATCH_PROFILES, sampleCatchMetrics, spawnWeightFor, QUESTS, questProgress } from '../src/game.js';
+import { FISH, ZONES, weightedPick, createFight, fightTick, FishingGame, SaveStore, PHASES, levelXP, BEHAVIOR_INFO, MOVE_INFO, availableMovesFor, personalityFor, CATCH_PROFILES, sampleCatchMetrics, spawnWeightFor, QUESTS, questProgress, visualFor } from '../src/game.js';
 
 function memoryStore(){return {v:null,getItem(){return this.v},setItem(k,v){this.v=v},removeItem(){this.v=null}}}
 
@@ -12,6 +12,14 @@ test('fish roster and locations are populated',()=>{
   assert.ok(FISH.every(f=>CATCH_PROFILES[f.id]));
   const ids=new Set(FISH.map(f=>f.id));
   assert.ok(ZONES.every(z=>z.fish.every(id=>ids.has(id))),'every zone fish must exist in the GoopDex roster');
+});
+
+test('all 50 Goops have a deliberate species silhouette and marking profile',()=>{
+  const profiles=FISH.map(f=>visualFor(f));
+  const shapes=new Set(profiles.map(v=>v.shape));
+  assert.ok(shapes.size>=6);
+  assert.ok(profiles.every(v=>typeof v.mark==='string'&&v.mark.length>0));
+  assert.notDeepEqual(visualFor(FISH.find(f=>f.id==='glacieroo')),visualFor(FISH.find(f=>f.id==='gloop')));
 });
 
 test('weighted pick handles empty pools and deterministic outcomes',()=>{
