@@ -100,3 +100,19 @@ Current state: feature-complete prototype with automated coverage. It is not yet
 - [x] Zone unlock hydration accepts only known IDs with literal `true` flags; malformed truthy values cannot unlock zones.
 - [x] Rod and bait ownership arrays are deduplicated during hydration.
 - [x] Regression coverage validates corrupted unlock flags, duplicate gear, and selected-zone fallback.
+
+## Extended edge-case audit — automated
+
+- [x] All 50 Goops run through deterministic fight simulations with finite, bounded progress, stamina, tension, and spook values.
+- [x] Tension fights clamp terminal progress to 100% and stamina to zero.
+- [x] Fight simulation pauses outside the Fishing view and held inputs are cleared during navigation.
+- [x] Cast-time rod and bait modifiers remain fixed through the encounter.
+- [x] Location, weather/time, equipment purchases, and equipment selection are blocked during active encounters.
+- [x] Startup survives a browser environment whose localStorage getter throws; saves report failure rather than crashing.
+- [x] Specimen IDs reject malformed, zero, leading-zero, and unsafe integer forms; new IDs avoid collisions when the saved catch total is stale.
+- [x] The 120-specimen rolling log is sorted and deduplicated; all-time weight and length records remain valid after older specimens roll out.
+- [x] Record pointers reconcile against the rolling specimen log without replacing an older record holder on an equal measurement.
+- [x] The latest catch and a recovered pending Sell/Keep decision must reference the same specimen.
+- [x] GoopDex hydration rejects empty discoveries and constrains counts, progress, measurements, rarity, moves, styles, reads, attempts, and trophy totals to registered game data.
+- [x] Hydrated progression counters are whole-number values within their defined limits.
+- [x] Regression checks cover record recovery, pending-catch consistency, stale-counter ID collisions, and record ties.
