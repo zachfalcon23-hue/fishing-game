@@ -9,6 +9,7 @@ test('reel control supports pointer and keyboard holds and safely releases on in
 
 test('SaveStore reports unavailable storage and quota failures instead of false success',()=>{const absent=new SaveStore(null);assert.equal(absent.save(absent.fresh()),false);assert.equal(absent.lastSaveSucceeded,false);const blocked={getItem(){return null},setItem(){throw new Error('quota')}};const store=new SaveStore(blocked);assert.equal(store.save(store.fresh()),false);assert.equal(store.lastSaveSucceeded,false);const healthy=memoryStore(),good=new SaveStore(healthy);assert.equal(good.save(good.fresh()),true);assert.equal(good.lastSaveSucceeded,true)});
 
+test('SaveStore recovers a corrupted primary save from the last valid backup',()=>{const storage=memoryStore();const store=new SaveStore(storage);const data={...store.fresh(),essence:777,total:12};assert.equal(store.save(data),true);storage.v='corrupt';storage.backup=JSON.stringify(data);storage.getItem=function(k){return k==='goop-fishing-save-v3-backup'?this.backup:this.v};const restored=new SaveStore(storage).load();assert.equal(restored.essence,777);assert.equal(restored.total,12)});
 test('browser UI references valid HTML elements and shipped assets',()=>{
   const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
   const main=readFileSync(new URL('../src/main.js',import.meta.url),'utf8');
