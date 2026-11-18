@@ -46,6 +46,12 @@ const weightLb=Number((p[0]+(p[1]-p[0])*q).toFixed(2)),lengthIn=Number((p[2]+(p[
 const sizeClass=q>=.985?'Record':q>=.91?'Trophy':q>=.72?'Big':q<.1?'Small':'Standard';
 return{weightLb,lengthIn,sizeScale:Number((.82+q*.56).toFixed(3)),percentile:Number((q*100).toFixed(3)),sizeClass,isTrophy:q>=.91,isRecord:q>=.985,valueMultiplier:Number((.78+q*.66).toFixed(3)),xpMultiplier:Number((.9+q*.25).toFixed(3))};
 }
+export function specimenRankLabel(specimen){
+const raw=specimen?.percentile;
+if(!Number.isFinite(raw))return'Size rank unavailable';
+const percentile=Math.min(100,Math.max(0,raw)),top=Math.max(0,100-percentile),digits=top<1?2:top%1===0?0:1;
+return`Top ${Number(top.toFixed(digits)).toString()}% size roll`;
+}
 export function gearAdjustedSpawnWeight(fish,conditions={},rod=RODS[0],bait=BAITS[0]){const rarityLuck=rarityRank(fish?.rarity)>=2?1+(rod?.luck||0)+(bait?.luck||0):1;return spawnWeightFor(fish,conditions)*rarityLuck*(rarityRank(fish?.rarity)>1?1.5:1)}
 export function spawnWeightFor(fish,conditions={}){
 let weight=fish.weight||1,time=conditions.timeOfDay||'day',weather=conditions.weather||'clear';
