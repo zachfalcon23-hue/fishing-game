@@ -129,3 +129,14 @@ Current state: feature-complete prototype with automated coverage. It is not yet
 - [x] Luck gear preserves Common/Uncommon spawn weights and does not reduce any Rare+ weight.
 - [x] Fishing pauses when the tab is hidden, the window loses focus, or the player leaves the Fishing view; held inputs are cleared on interruption and terminal encounter states.
 - [x] Pointer release is scoped to the active reel pointer and does not suppress unrelated pointer-up events.
+
+
+## Session telemetry — implemented, requires field samples
+
+- [x] Capture cast, bite, hook, catch, and escape transitions in a local session-only collector.
+- [x] Measure cast-to-bite, bite-to-hook, fight, and total round duration when those stages occur.
+- [x] Attribute completed rounds to zone, time, weather, rod, bait, fish, rarity, and fight style.
+- [x] Provide a JSON export from the Stats view; do not transmit or persist telemetry automatically.
+- [ ] Collect representative samples from all five zones and four time/weather combinations.
+- [ ] Compare tension versus patience catch rates and fight duration using sufficient samples.
+- [ ] Use exported field data to validate Essence/hour, upgrade payback, and rarity pacing before balance changes.
