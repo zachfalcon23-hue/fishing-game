@@ -49,8 +49,9 @@ test('catch logs species, XP and sale payout',()=>{
   assert.equal(game.state.total,1);
   assert.ok(game.state.xp>0);
   const reward=game.reward;
+  const balanceBeforeSale=game.state.essence;
   assert.equal(game.sell(),true);
-  assert.equal(game.state.essence,reward);
+  assert.equal(game.state.essence,balanceBeforeSale+reward);
   assert.equal(game.state.sales,reward);
 });
 
