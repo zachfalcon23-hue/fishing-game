@@ -46,6 +46,14 @@ Species inherit a temperament from their fighting style, with signature override
 
 The encounter UI communicates the current cue, action, counter, and recovery state. The fishing-scene fish animates during its tell and active maneuver.
 
+## Two fight styles
+
+Fishing uses more than one control mechanic:
+- **Tension fights** — hold to reel and release to manage pressure, read fish maneuver tells, and counter their attacks.
+- **Patience fights** — Drift- and Sleepy-pattern Goops invite a steady tap rhythm. Correct timing builds approach progress; frantic taps raise spook, while long pauses lose the fish's interest.
+
+The correct control is surfaced in the encounter HUD. The player must recognize the fish's behavior and switch from reeling to rhythmic taps when the encounter calls for it.
+
 ## Dynamic conditions
 
 Players can set **Day** or **Night**, and **Clear** or **Rain**, before casting. Spawn weights respond to these conditions:
