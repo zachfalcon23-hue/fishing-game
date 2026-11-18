@@ -117,6 +117,7 @@ Current state: feature-complete prototype with automated coverage. It is not yet
 - [x] Hydrated progression counters are whole-number values within their defined limits.
 - [x] Regression checks cover record recovery, pending-catch consistency, stale-counter ID collisions, and record ties.
 - [x] Hydrated specimen weight/length are validated against percentile-derived catch profiles, including legacy one-decimal rounding tolerance.
+- [x] Empty legacy specimen logs can recover a validated `lastCatch` or pending specimen without trusting mismatched or invalid records.
 - [x] Spawn-pool weights remain finite and selectable across every zone, time/weather combination, rod, and bait.
 - [x] Luck gear preserves Common/Uncommon spawn weights and does not reduce any Rare+ weight.
 - [x] Fishing pauses when the tab is hidden, the window loses focus, or the player leaves the Fishing view; held inputs are cleared on interruption and terminal encounter states.
