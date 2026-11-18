@@ -61,6 +61,8 @@ test('catch logs species, XP and sale payout',()=>{
   assert.ok(game.state.lastCatch.weightLb>0);
   assert.ok(game.state.lastCatch.lengthIn>0);
   assert.equal(game.state.specimens.length,1);
+  assert.equal(game.state.lastCatch.collectionLengthRecord,true);
+  assert.ok(game.state.longestSpecimen.lengthIn>0);
 });
 
 test('fish behavior moods cycle and expose species-specific advice',()=>{
