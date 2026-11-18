@@ -53,7 +53,7 @@ Players can set **Day** or **Night**, and **Clear** or **Rain**, before casting.
 - Rain favors current-riding, mud, reed, and silt species.
 - Clear conditions favor luminous and crystalline species.
 
-Conditions are stored with the player's save and are shown in the Fishing view.
+Conditions are stored with the player's save and are shown visually in the Fishing view (daylight or moonlight, plus animated rain).
 
 ## Collection and progression
 
