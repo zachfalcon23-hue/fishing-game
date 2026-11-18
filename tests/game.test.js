@@ -25,7 +25,8 @@ test('browser UI references valid HTML elements and shipped assets',()=>{
   assert.ok(html.includes('src/main.js'));
 });
 
-test('luck gear increases Rare+ spawn odds without inflating common species',()=>{const rare=FISH.find(f=>f.id==='glimmer'),common=FISH.find(f=>f.id==='gloop'),epic=FISH.find(f=>f.id==='voidling'),baseRare=gearAdjustedSpawnWeight(rare,{},RODS[0],BAITS[0]),luckRare=gearAdjustedSpawnWeight(rare,{},RODS.find(r=>r.id==='carbon'),BAITS.find(b=>b.id==='mint')),baseCommon=gearAdjustedSpawnWeight(common,{},RODS[0],BAITS[0]),luckCommon=gearAdjustedSpawnWeight(common,{},RODS.find(r=>r.id==='carbon'),BAITS.find(b=>b.id==='mint')),baseEpic=gearAdjustedSpawnWeight(epic,{},RODS[0],BAITS[0]),luckEpic=gearAdjustedSpawnWeight(epic,{},RODS.find(r=>r.id==='carbon'),BAITS.find(b=>b.id==='mint'));assert.equal(luckRare,baseRare*1.2);assert.equal(luckCommon,baseCommon);assert.equal(luckEpic,baseEpic*1.2);});\ntest('fish roster and locations are populated',()=>{
+test('luck gear increases Rare+ spawn odds without inflating common species',()=>{const rare=FISH.find(f=>f.id==='glimmer'),common=FISH.find(f=>f.id==='gloop'),epic=FISH.find(f=>f.id==='voidling'),baseRare=gearAdjustedSpawnWeight(rare,{},RODS[0],BAITS[0]),luckRare=gearAdjustedSpawnWeight(rare,{},RODS.find(r=>r.id==='carbon'),BAITS.find(b=>b.id==='mint')),baseCommon=gearAdjustedSpawnWeight(common,{},RODS[0],BAITS[0]),luckCommon=gearAdjustedSpawnWeight(common,{},RODS.find(r=>r.id==='carbon'),BAITS.find(b=>b.id==='mint')),baseEpic=gearAdjustedSpawnWeight(epic,{},RODS[0],BAITS[0]),luckEpic=gearAdjustedSpawnWeight(epic,{},RODS.find(r=>r.id==='carbon'),BAITS.find(b=>b.id==='mint'));assert.equal(luckRare,baseRare*1.2);assert.equal(luckCommon,baseCommon);assert.equal(luckEpic,baseEpic*1.2);});
+test('fish roster and locations are populated',()=>{
   assert.ok(FISH.length>=50);
   assert.ok(ZONES.length>=4);
   assert.equal(new Set(FISH.map(f=>f.id)).size,FISH.length);
