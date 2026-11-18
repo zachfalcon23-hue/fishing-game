@@ -79,6 +79,7 @@ Conditions are stored with the player's save and are shown visually in the Fishi
 - Pending catch and sell/keep state persist across reloads, so a landed specimen and reward decision are not lost.
 - Quest rewards immediately feed the level-up calculation; XP earned from a quest no longer waits for the next catch to trigger leveling.
 - Daily catch count resets when Sell or Keep advances the fishing day, while lifetime catches remain intact.
+- Save hydration normalizes malformed-but-valid JSON (wrong field types, invalid equipment/zone, negative or nonnumeric counters) to safe defaults while preserving valid fields.
 
 ## Feedback and accessibility
 
