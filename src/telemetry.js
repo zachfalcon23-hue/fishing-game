@@ -12,6 +12,7 @@ export class SessionTelemetry {
   observe(game) {
     const phase = game?.phase || 'idle', now = this.now();
     if (phase === 'cast' && this.lastPhase !== 'cast') {
+      if (this.startedAt === null) this.startedAt = now;
       this.active = { startedAt: now, biteAt: null, hookedAt: null, context: {
         zone: game.zone?.()?.id || game.state?.zone || 'unknown', timeOfDay: game.state?.timeOfDay || 'unknown',
         weather: game.state?.weather || 'unknown', rod: game.state?.rod || 'unknown', bait: game.state?.bait || 'unknown', style: 'unknown'
