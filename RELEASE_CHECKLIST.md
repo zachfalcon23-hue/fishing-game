@@ -57,6 +57,7 @@ This checklist separates automated verification from hands-on release validation
 - [x] Pending catch and sell-or-keep decision survive reload; regression tested.
 - [x] Corrupted primary is immediately restored from valid backup; regression tested.
 - [x] Quest XP is immediately processed through level-up progression; regression tested.
+- [x] Daily catch count resets on Sell and Keep day advancement; regression tested.
 - [ ] Test corrupt, missing, and storage-quota save scenarios in a browser.
 - [x] Local save backup and corrupted-primary recovery covered by automated regression tests.
 - [x] Pending catch and sell/keep decision survive reload; regression tested.
