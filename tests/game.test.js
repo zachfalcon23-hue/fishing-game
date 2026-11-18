@@ -256,6 +256,9 @@ test('time of day and weather change which Goops are likely to spawn',()=>{
   assert.ok(rainyMurk>dryMurk);
 });
 
+
+test('legacy saves without a specimen log recover a validated last or pending specimen',()=>{const storage=memoryStore();const specimen={id:'catch-1',fishId:'gloop',weightLb:.83,lengthIn:6.5,percentile:50};storage.v=JSON.stringify({version:3,total:1,lastCatch:specimen,pendingCatch:{fishId:'gloop',reward:5,specimen}});const state=new SaveStore(storage).load();assert.equal(state.specimens.length,1);assert.equal(state.lastCatch.id,'catch-1');assert.equal(state.pendingCatch.specimen.id,'catch-1');assert.equal(state.pendingCatch.reward,5)});
+
 test('v3 saves migrate forward without losing existing player progress',()=>{
   const storage=memoryStore();
   storage.v=JSON.stringify({version:3,essence:415,level:4,dex:{gloop:{count:3}},ownedRods:['twig','bamboo'],zoneUnlocked:{pond:true,hollow:true}});
