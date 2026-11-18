@@ -77,6 +77,7 @@ Conditions are stored with the player's save and are shown visually in the Fishi
 - Fishing-scene narration updates for screen readers across ready, cast, bite, fight, catch, and escape states; encounter feedback uses a live status region.
 - Save writes report success/failure in the header. A second local backup copy is maintained; backup recovery immediately repairs the corrupt primary save.
 - Pending catch and sell/keep state persist across reloads, so a landed specimen and reward decision are not lost.
+- Casting is blocked while a landed specimen awaits Sell or Keep, preventing overwriting an unresolved catch.
 - Quest rewards immediately feed the level-up calculation; XP earned from a quest no longer waits for the next catch to trigger leveling.
 - Daily catch count resets when Sell or Keep advances the fishing day, while lifetime catches remain intact.
 - Save hydration normalizes malformed-but-valid JSON (wrong field types, invalid equipment/zone, negative or nonnumeric counters) to safe defaults while preserving valid fields.
