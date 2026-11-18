@@ -70,6 +70,13 @@ Conditions are stored with the player's save and are shown visually in the Fishi
 - Local save data persists progression, specimen records, settings, and the latest catch.
 - Responsive Fishing, GoopDex, Shop, Quests, and Stats views.
 
+## Phase 1 reliability and accessibility pass
+
+- Reel input supports mouse/touch and keyboard hold (Space/Enter), with interruption release safeguards.
+- Interactive controls have visible keyboard focus styling, minimum 44px targets, and reduced-motion support.
+- Fishing-scene narration updates for screen readers across ready, cast, bite, fight, catch, and escape states; encounter feedback uses a live status region.
+- Save writes report success/failure in the header. A second local backup copy is maintained, and a corrupted primary save can recover from the backup.
+
 ## Feedback and accessibility
 
 Original synthesized sound effects provide distinct cues for casting, bites, hooking, fish maneuvers, successful patience taps, catches, and escapes. Sound can be switched off with the **SFX ON/OFF** control. The game remains playable with sound disabled; encounter text and meters communicate the same essential information visually.
