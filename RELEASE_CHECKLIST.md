@@ -54,6 +54,7 @@ This checklist separates automated verification from hands-on release validation
 ### Saves, accessibility, and polish
 
 - [ ] Test upgrade from an actual existing v3 browser save.
+- [x] Pending catch and sell-or-keep decision survive reload; regression tested.
 - [ ] Test corrupt, missing, and storage-quota save scenarios in a browser.
 - [x] Local save backup and corrupted-primary recovery covered by automated regression tests.
 - [x] Pending catch and sell/keep decision survive reload; regression tested.
