@@ -75,7 +75,9 @@ Conditions are stored with the player's save and are shown visually in the Fishi
 - Reel input supports mouse/touch and keyboard hold (Space/Enter), with interruption release safeguards.
 - Interactive controls have visible keyboard focus styling, minimum 44px targets, and reduced-motion support.
 - Fishing-scene narration updates for screen readers across ready, cast, bite, fight, catch, and escape states; encounter feedback uses a live status region.
-- Save writes report success/failure in the header. A second local backup copy is maintained, and a corrupted primary save can recover from the backup.
+- Save writes report success/failure in the header. A second local backup copy is maintained; backup recovery immediately repairs the corrupt primary save.
+- Pending catch and sell/keep state persist across reloads, so a landed specimen and reward decision are not lost.
+- Quest rewards immediately feed the level-up calculation; XP earned from a quest no longer waits for the next catch to trigger leveling.
 
 ## Feedback and accessibility
 
