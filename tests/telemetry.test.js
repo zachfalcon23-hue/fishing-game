@@ -14,13 +14,17 @@ test('session telemetry measures one complete catch and attributes its context',
   now = 4000; game.phase = 'bite'; telemetry.observe(game);
   now = 4500; game.phase = 'fight'; game.fight = { style: 'tension' }; game.fish = { id: 'gloop', rarity: 'Common' }; telemetry.observe(game);
   now = 9000; game.phase = 'caught'; game.reward = 12; telemetry.observe(game);
-  telemetry.resolveCatch('sold', 12);\n  const result = telemetry.summary();
+  telemetry.resolveCatch('sold', 12);
+  const result = telemetry.summary();
   assert.equal(result.completedRounds, 1);
   assert.equal(result.catchRate, 1);
   assert.equal(result.averageCastToBiteMs, 3000);
   assert.equal(result.averageBiteToHookMs, 500);
   assert.equal(result.averageFightMs, 4500);
-  assert.equal(result.averageCatchValue, 12);\n  assert.equal(result.essenceEarned, 12);\n  assert.equal(result.events.sold, 1);\n  assert.equal(result.essencePerHour, 5400);
+  assert.equal(result.averageCatchValue, 12);
+  assert.equal(result.essenceEarned, 12);
+  assert.equal(result.events.sold, 1);
+  assert.equal(result.essencePerHour, 5400);
   assert.equal(result.byContext[0].zone, 'pond');
   assert.equal(result.byContext[0].style, 'tension');
 });
@@ -74,4 +78,18 @@ test('telemetry caps retained rounds and reset clears all session data', () => {
   telemetry.reset();
   assert.equal(telemetry.summary().completedRounds, 0);
   assert.equal(telemetry.summary().events.casts, 0);
+});
+
+test('kept specimens do not count their estimated sale value as earned Essence', () => {
+  let now = 0;
+  const telemetry = new SessionTelemetry({ now: () => now });
+  const game = makeGame();
+  game.phase = 'cast'; telemetry.observe(game);
+  now = 100; game.phase = 'caught'; game.reward = 99; telemetry.observe(game);
+  telemetry.resolveCatch('kept');
+  const summary = telemetry.summary();
+  assert.equal(summary.averageCatchValue, 99);
+  assert.equal(summary.essenceEarned, 0);
+  assert.equal(summary.events.kept, 1);
+  assert.equal(summary.essencePerHour, 0);
 });
