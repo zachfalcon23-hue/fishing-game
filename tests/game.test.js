@@ -189,6 +189,25 @@ test('specimen generation stays inside species-specific size ranges and creates 
   assert.ok(huge.valueMultiplier>1);
 });
 
+test('every species specimen roll stays inside its authored weight and length range',()=>{
+  for(const fish of FISH){
+    let call=0;
+    const specimen=sampleCatchMetrics(fish,()=>{call++;return .5});
+    const [minWeight,maxWeight,minLength,maxLength]=CATCH_PROFILES[fish.id];
+    assert.ok(specimen.weightLb>=minWeight&&specimen.weightLb<=maxWeight,fish.id+' weight out of range');
+    assert.ok(specimen.lengthIn>=minLength&&specimen.lengthIn<=maxLength,fish.id+' length out of range');
+    assert.ok(specimen.sizeScale>=.82&&specimen.sizeScale<=1.38,fish.id+' visual scale out of range');
+    assert.equal(call,2);
+  }
+});
+
+test('every fishing zone has catchable species in all day/night and clear/rain combinations',()=>{
+  for(const zone of ZONES)for(const timeOfDay of ['day','night'])for(const weather of ['clear','rain']){
+    const total=FISH.filter(f=>zone.fish.includes(f.id)).reduce((sum,fish)=>sum+spawnWeightFor(fish,{timeOfDay,weather}),0);
+    assert.ok(total>0,zone.id+' empty spawn pool at '+timeOfDay+'/'+weather);
+  }
+});
+
 test('time of day and weather change which Goops are likely to spawn',()=>{
   const voidling=FISH.find(x=>x.id==='voidling');
   const murkling=FISH.find(x=>x.id==='murkling');
