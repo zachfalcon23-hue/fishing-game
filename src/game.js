@@ -98,7 +98,7 @@ stormblob:{label:'Tempestuous',aggression:.98,cunning:.55,patience:.25,adaptabil
 prism:{label:'Deceptive',aggression:.78,cunning:.98,patience:.55,adaptability:.95}
 };
 export function personalityFor(fish){const base=BASE_PERSONALITIES[fish?.pattern]||BASE_PERSONALITIES.steady,override=PERSONALITY_OVERRIDES[fish?.id]||{},rank=rarityRank(fish?.rarity||'Common'),rarityLift=Math.max(0,rank)*.035;return{...base,...override,aggression:Math.min(1,(override.aggression??base.aggression)+rarityLift),cunning:Math.min(1,(override.cunning??base.cunning)+rarityLift*.5),adaptability:Math.min(1,(override.adaptability??base.adaptability)+rarityLift*.7)}}
-export function availableMovesFor(fish){return(FISH_MOVE_SETS[fish?.pattern]||FISH_MOVE_SETS.steady).map(id=>MOVE_INFO[id])}
+export function availableMovesFor(fish){let base=FISH_MOVE_SETS[fish?.pattern]||FISH_MOVE_SETS.steady,ids=personalityFor(fish).adaptability>.3?[...new Set([...base,'bolt','headshake','surface','circle'])]:base;return ids.map(id=>MOVE_INFO[id])}
 
 const PATTERN_VISUALS={steady:{shape:'round',mark:'soft'},pulse:{shape:'fin',mark:'rings'},dart:{shape:'sleek',mark:'stripe'},drift:{shape:'long',mark:'current'},sleepy:{shape:'lantern',mark:'glow'},wild:{shape:'spiky',mark:'prism'}};
 const FISH_VISUAL_OVERRIDES={
