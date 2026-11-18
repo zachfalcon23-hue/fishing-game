@@ -73,3 +73,10 @@ This checklist separates automated verification from hands-on release validation
 ## Release decision
 
 Current state: feature-complete prototype with automated coverage. It is not yet a verified commercial release until the manual items above have been completed and reviewed.
+
+## Economy and progression audit additions
+
+- [x] Rod/bait luck materially affects Rare-or-better spawn odds, not all fish weights uniformly (uniform scaling previously canceled during weighted selection).
+- [x] Common and Uncommon spawn weights are unaffected by rarity luck gear.
+- [ ] Validate actual catch success rates and Essence/hour through browser playtesting; automated spawn-weight checks are not a substitute.
+- [ ] Review zone-unlock/gear payback using measured catch success, not assumed rates.
