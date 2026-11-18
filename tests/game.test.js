@@ -7,6 +7,8 @@ function memoryStore(){return {v:null,getItem(){return this.v},setItem(k,v){this
 
 test('reel control supports pointer and keyboard holds and safely releases on interruptions',()=>{const main=readFileSync(new URL('../src/main.js',import.meta.url),'utf8');const css=readFileSync(new URL('../src/style.css',import.meta.url),'utf8');assert.ok(main.includes("rb.addEventListener('keydown',keyDown)"));assert.ok(main.includes("window.addEventListener('keyup',keyUp)"));assert.ok(main.includes("window.addEventListener('blur'"));assert.ok(main.includes("document.addEventListener('visibilitychange'"));assert.ok(main.includes("rb.addEventListener('lostpointercapture',up)"));assert.ok(css.includes('#reelBtn{touch-action:none'));assert.ok(css.includes('prefers-reduced-motion:reduce'));assert.ok(css.includes(':focus-visible'));});
 
+test('SaveStore reports unavailable storage and quota failures instead of false success',()=>{const absent=new SaveStore(null);assert.equal(absent.save(absent.fresh()),false);assert.equal(absent.lastSaveSucceeded,false);const blocked={getItem(){return null},setItem(){throw new Error('quota')}};const store=new SaveStore(blocked);assert.equal(store.save(store.fresh()),false);assert.equal(store.lastSaveSucceeded,false);const healthy=memoryStore(),good=new SaveStore(healthy);assert.equal(good.save(good.fresh()),true);assert.equal(good.lastSaveSucceeded,true)});
+
 test('browser UI references valid HTML elements and shipped assets',()=>{
   const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
   const main=readFileSync(new URL('../src/main.js',import.meta.url),'utf8');
