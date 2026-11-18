@@ -55,6 +55,8 @@ This checklist separates automated verification from hands-on release validation
 
 - [ ] Test upgrade from an actual existing v3 browser save.
 - [x] Pending catch and sell-or-keep decision survive reload; regression tested.
+- [x] Corrupted primary is immediately restored from valid backup; regression tested.
+- [x] Quest XP is immediately processed through level-up progression; regression tested.
 - [ ] Test corrupt, missing, and storage-quota save scenarios in a browser.
 - [x] Local save backup and corrupted-primary recovery covered by automated regression tests.
 - [x] Pending catch and sell/keep decision survive reload; regression tested.
