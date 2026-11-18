@@ -331,6 +331,9 @@ test('hydration caps progression counters and lifetime totals against extreme sa
 
 
 
+
+test('lifetime catch total reconciles upward to the sum of registered GoopDex catch counts',()=>{const storage=memoryStore();storage.v=JSON.stringify({version:4,total:2,dex:{gloop:{count:3},murkling:{count:4},unknown:{count:99}}});const state=new SaveStore(storage).load();assert.equal(state.total,7);assert.equal(state.dex.gloop.count,3);assert.equal(state.dex.murkling.count,4);assert.equal(state.dex.unknown,undefined)});
+
 test('hydration keeps daily, rare and trophy catch totals within lifetime catches',()=>{const storage=memoryStore();storage.v=JSON.stringify({version:4,total:2,today:50,rareCaught:40,trophyCount:30});const state=new SaveStore(storage).load();assert.equal(state.total,2);assert.equal(state.today,2);assert.equal(state.rareCaught,2);assert.equal(state.trophyCount,2)});
 
 test('hydration converts progression counters and dex statistics to valid integer ranges',()=>{const storage=memoryStore();storage.v=JSON.stringify({version:4,trophyCount:4.8,totalWeightLb:1.239,essence:10.9,day:2.9,today:3.9,total:10.9,sales:9.8,xp:7.9,level:1.9,rareCaught:3.7,upgrades:1.9,dex:{gloop:{count:1.9,best:120.9,rarity:'Legendary',moves:['dive','dive','invalid'],styles:['tension','tension','invalid'],reads:5.8,attempts:2.9,bestWeightLb:999,bestLengthIn:999,trophies:9.7}}});const state=new SaveStore(storage).load();assert.equal(state.trophyCount,4);assert.equal(state.totalWeightLb,1.24);assert.equal(state.essence,10);assert.equal(state.day,2);assert.equal(state.today,3);assert.equal(state.total,10);assert.equal(state.sales,9);assert.equal(state.xp,7);assert.equal(state.level,1);assert.equal(state.rareCaught,3);assert.equal(state.upgrades,1);assert.deepEqual(state.dex.gloop,{count:1,best:100,rarity:'Common',moves:['dive'],styles:['tension'],reads:2,attempts:2,bestWeightLb:1.4,bestLengthIn:9,trophies:1})});
