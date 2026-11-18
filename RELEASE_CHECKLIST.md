@@ -55,6 +55,7 @@ This checklist separates automated verification from hands-on release validation
 
 - [ ] Test upgrade from an actual existing v3 browser save.
 - [x] Pending catch and sell-or-keep decision survive reload; regression tested.
+- [x] Casting cannot bypass Sell/Keep for a landed catch; regression tested.
 - [x] Corrupted primary is immediately restored from valid backup; regression tested.
 - [x] Quest XP is immediately processed through level-up progression; regression tested.
 - [x] Daily catch count resets on Sell and Keep day advancement; regression tested.
