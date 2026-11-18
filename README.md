@@ -97,7 +97,7 @@ The frontend uses pointer-based hold/release controls for tension fights and a d
 
 ## Validation status
 
-The project has automated regression coverage for content, visual profiles, DOM references, specimen metrics, conditions, saves, both fight styles, and progression. CI runs the syntax check before `npm test` on the feature branch and pull requests. Browser/device playtesting, economy and encounter balance, accessibility review, audio, and a final art pipeline still require hands-on validation before a commercial release.
+The project has automated regression coverage for content, visual profiles, DOM references, specimen metrics, conditions, saves, both fight styles, and progression. CI runs the syntax check before `npm test` on the feature branch and pull requests. Browser/device playtesting is assumed successful by the project owner for this development gate; this session did not independently perform a browser/device test. Economy telemetry, accessibility review, audio, and final art pipeline still require validation before a commercial release.
 
 ### Economy/progression audit — gear luck correction
 
