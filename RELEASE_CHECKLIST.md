@@ -93,3 +93,9 @@ Current state: feature-complete prototype with automated coverage. It is not yet
 - [x] Unlock gross-sale equivalents calculated (not presented as actual catches-to-unlock, since quests, levels, spending, and misses alter balance).
 - [ ] Validate reward variance in Moonlit Bay and high Rare+ share in Crystal Reach through hands-on play.
 - [ ] Capture casts/hour, bite timing, hook success, fight win rate/duration, and actual Essence/hour before economy tuning.
+
+
+## Save integrity follow-up
+- [x] Zone unlock hydration accepts only known IDs with literal `true` flags; malformed truthy values cannot unlock zones.
+- [x] Rod and bait ownership arrays are deduplicated during hydration.
+- [x] Regression coverage validates corrupted unlock flags, duplicate gear, and selected-zone fallback.
