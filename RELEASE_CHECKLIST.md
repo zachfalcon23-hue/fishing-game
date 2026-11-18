@@ -56,6 +56,7 @@ This checklist separates automated verification from hands-on release validation
 - [ ] Test upgrade from an actual existing v3 browser save.
 - [ ] Test corrupt, missing, and storage-quota save scenarios in a browser.
 - [x] Local save backup and corrupted-primary recovery covered by automated regression tests.
+- [x] Pending catch and sell/keep decision survive reload; regression tested.
 - [ ] Test keyboard navigation and non-pointer access to all game actions.
 - [ ] Review contrast, text sizing, reduced motion, and screen-reader labels.
 - [ ] Confirm sound toggle behavior and audio levels on real devices.
