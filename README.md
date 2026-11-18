@@ -98,3 +98,9 @@ The frontend uses pointer-based hold/release controls for tension fights and a d
 ## Validation status
 
 The project has automated regression coverage for content, visual profiles, DOM references, specimen metrics, conditions, saves, both fight styles, and progression. CI runs the syntax check before `npm test` on the feature branch and pull requests. Browser/device playtesting, economy and encounter balance, accessibility review, audio, and a final art pipeline still require hands-on validation before a commercial release.
+
+### Economy/progression audit — gear luck correction
+
+- Audit finding: rod and bait luck were multiplied uniformly into every fish's spawn weight. Since weighted selection normalizes by total pool weight, this multiplier canceled out and **did not change encounter odds**. Luck upgrades therefore had no gameplay effect on rarity despite their descriptions.
+- Fix: luck is now applied only to Rare-or-better species spawn weights; Common and Uncommon weights remain unchanged. Existing Epic/Legendary baseline weighting remains intact. This gives luck gear a measurable rarity effect while avoiding an across-the-board spawn inflation.
+- Cost baseline: zone unlocks total 3,280 Essence (160 + 420 + 900 + 1,800); rods total 1,310 and baits total 305. These costs are documented as audit context, not a claim of a fully simulated payback curve.
