@@ -56,6 +56,7 @@ test('fight tension stays bounded',()=>{
   assert.ok(fight.tension>=0&&fight.tension<=1);
 });
 
+test('valid JSON with malformed save shapes is safely normalized',()=>{const storage={data:{},getItem(k){return this.data[k]??null},setItem(k,v){this.data[k]=v},removeItem(k){delete this.data[k]}};storage.data['goop-fishing-save-v3']=JSON.stringify({version:4,essence:-50,level:0,total:'bad',dex:'not-an-object',zoneUnlocked:['broken'],quests:null,achievements:4,specimens:'bad-list',ownedRods:'invalid',ownedBaits:null,zone:'unknown',rod:'missing',bait:'missing',pendingCatch:{fishId:'unknown',reward:'bad'}});const state=new SaveStore(storage).load();assert.deepEqual(state.dex,{});assert.deepEqual(state.quests,{});assert.deepEqual(state.achievements,{});assert.deepEqual(state.specimens,[]);assert.deepEqual(state.ownedRods,['twig']);assert.deepEqual(state.ownedBaits,['plain']);assert.equal(state.essence,0);assert.equal(state.total,0);assert.equal(state.level,1);assert.equal(state.zone,'pond');assert.equal(state.rod,'twig');assert.equal(state.bait,'plain');assert.equal(state.pendingCatch,null);const game=new FishingGame({store:new SaveStore(storage)});assert.equal(game.cast(),true)});
 test('save store safely handles corrupt data',()=>{
   const storage={v:'bad',getItem(){return this.v},setItem(k,v){this.v=v},removeItem(){this.v=null}};
   assert.equal(new SaveStore(storage).load().version,4);
