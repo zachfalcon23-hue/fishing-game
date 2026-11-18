@@ -103,7 +103,7 @@ const PATTERN_VISUALS={steady:{shape:'round',mark:'soft'},pulse:{shape:'fin',mar
 const FISH_VISUAL_OVERRIDES={
 gloop:{shape:'round',mark:'soft'},murkling:{shape:'long',mark:'stripe'},flicker:{shape:'sleek',mark:'spark'},puddlit:{shape:'wing',mark:'bubble'},drowsy:{shape:'lantern',mark:'glow'},voidling:{shape:'spiky',mark:'void'},
 sprout:{shape:'sprout',mark:'leaf'},bubblegum:{shape:'round',mark:'bubble'},tadgoop:{shape:'sleek',mark:'spark'},mudball:{shape:'round',mark:'earth'},oldboot:{shape:'shell',mark:'rust'},
-briney:{shape:'long',mark:'current'},glimmer:{shape:'fin',mark:'spark'},mossback:{shape:'shell',mark:'moss'},ripple:{shape:'wing',mark:'current'},nightcap:{shape:'lantern',mark:'glow'},kelpkin:{shape:'long',mark:'leaf'},tin:{shape:'shell',mark:'rust'},
+briney:{shape:'long',mark:'current'},glimmer:{shape:'fin',mark:'spark'},mossback:{shape:'shell',mark:'moss'},ripple:{shape:'wing',mark:'current'},nightcap:{shape:'lantern',mark:'glow'},kelpkin:{shape:'long',mark:'leaf'},
 flarefin:{shape:'fin',mark:'flame'},cinder:{shape:'round',mark:'ember'},sizzle:{shape:'sleek',mark:'spark'},sunspot:{shape:'spiky',mark:'sun'},sunbud:{shape:'sprout',mark:'sun'},
 lunar:{shape:'wing',mark:'moon'},ghostfin:{shape:'wing',mark:'ghost'},starry:{shape:'fin',mark:'star'},stormblob:{shape:'spiky',mark:'storm'},
 crystalisk:{shape:'shell',mark:'crystal'},prism:{shape:'spiky',mark:'prism'},sapphire:{shape:'shell',mark:'crystal'},
