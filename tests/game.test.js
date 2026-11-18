@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { FISH, ZONES, weightedPick, createFight, fightTick, FishingGame, SaveStore, PHASES, levelXP, BEHAVIOR_INFO, MOVE_INFO, availableMovesFor, personalityFor, CATCH_PROFILES, sampleCatchMetrics, spawnWeightFor } from '../src/game.js';
+import { FISH, ZONES, weightedPick, createFight, fightTick, FishingGame, SaveStore, PHASES, levelXP, BEHAVIOR_INFO, MOVE_INFO, availableMovesFor, personalityFor, CATCH_PROFILES, sampleCatchMetrics, spawnWeightFor, QUESTS, questProgress } from '../src/game.js';
 
 function memoryStore(){return {v:null,getItem(){return this.v},setItem(k,v){this.v=v},removeItem(){this.v=null}}}
 
@@ -156,6 +156,36 @@ test('v3 saves migrate forward without losing existing player progress',()=>{
   assert.equal(loaded.dex.gloop.count,3);
   assert.deepEqual(loaded.specimens,[]);
   assert.equal(loaded.timeOfDay,'day');
+});
+
+
+test('player conditions persist and emit a change event',()=>{
+  const storage=memoryStore();
+  const game=new FishingGame({store:new SaveStore(storage)});
+  let event=null;
+  game.events=[];
+  game.setConditions('night','rain');
+  assert.equal(game.state.timeOfDay,'night');
+  assert.equal(game.state.weather,'rain');
+  assert.equal(new SaveStore(storage).load().weather,'rain');
+  assert.equal(game.events.at(-1).type,'conditionsChanged');
+});
+
+test('trophy and total-weight quests read specimen progression',()=>{
+  const state={total:10,dex:{gloop:{count:1}},sales:55,rareCaught:2,trophyCount:3,totalWeightLb:125};
+  assert.equal(questProgress(QUESTS.find(q=>q.id==='trophies'),state),3);
+  assert.equal(questProgress(QUESTS.find(q=>q.id==='heavy'),state),125);
+});
+
+test('specimen collection achievements unlock from trophy and heavyweight milestones',()=>{
+  const game=new FishingGame({store:new SaveStore(memoryStore())});
+  game.state.trophyCount=5;
+  game.state.heaviestSpecimen={weightLb:55};
+  game.state.dex=Object.fromEntries(FISH.slice(0,10).map(f=>[f.id,{count:1,bestWeightLb:1}]));
+  game.checkAchievements();
+  assert.equal(game.state.achievements.trophy,true);
+  assert.equal(game.state.achievements.heavyweight,true);
+  assert.equal(game.state.achievements.recordkeeper,true);
 });
 
 test('level XP curve scales upward',()=>{
