@@ -10,7 +10,7 @@ export const ZONE_SCENE_PROFILES={
   pond:{skyDay:'#79c4dc',skyNight:'#09152e',waterDay:'#24556a',waterNight:'#193a55',deepDay:'#092e47',deepNight:'#071c31',shore:'#3b735d',accent:'#a9d78a',landmark:'reeds-and-willows',description:'Quiet reed beds, willow banks, and shallow green water.'},
   hollow:{skyDay:'#8b9a9d',skyNight:'#101626',waterDay:'#354c59',waterNight:'#17283d',deepDay:'#101f2b',deepNight:'#080f20',shore:'#59645a',accent:'#8e9d83',landmark:'sunken-ruins',description:'Broken stonework, bare branches, and dark marsh water.'},
   creek:{skyDay:'#e7a06d',skyNight:'#291b2a',waterDay:'#754b43',waterNight:'#3d2939',deepDay:'#2d2732',deepNight:'#171522',shore:'#754a38',accent:'#ff9a55',landmark:'ember-rocks',description:'Warm rock shelves, glowing seams, and drifting steam.'},
-  bay:{skyDay:'#9bbbd1',skyNight:'#101b3b',waterDay:'#426b82',waterNight:'#203b62',deepDay:'#102d49',deepNight:'#09182f',shore:'#42566e',accent:'#c5d5ff',landmark:'moonlit-lighthouse',description:'Distant headlands, a beacon tower, and broad silver tides.'},
+  bay:{skyDay:'#9bbbd1',skyNight:'#101b3b',waterDay:'#426b82',waterNight:'#203b62',deepDay:'#102d49',deepNight:'#09182f',shore:'#42566e',accent:'#c5d5ff',landmark:'moonlit-lighthouse',description:'Layered headlands, a working lighthouse, a weathered pier, and silver-lit tidal water.'},
   reach:{skyDay:'#a8d8dc',skyNight:'#101c3c',waterDay:'#4c8190',waterNight:'#243e68',deepDay:'#163b50',deepNight:'#0b1d38',shore:'#567b82',accent:'#9af2ed',landmark:'crystal-spires',description:'Faceted crystal outcrops and luminous glacial water.'}
 };
 const FISH_ROWS=[
