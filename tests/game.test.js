@@ -541,3 +541,13 @@ test('equipment and zone selection roll back when save fails',()=>{
     assert.deepEqual(game.state,before,method);
   }
 });
+ 
+test('fishing view includes an accessible quick-start guide for both fight styles',()=>{
+  const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  const css=readFileSync(new URL('../src/style.css',import.meta.url),'utf8');
+  const guide=html.match(/<details id="quickStart" class="quick-start" open>([\\s\\S]*?)<\\/details>/)?.[1]||'';
+  assert.ok(guide.includes('<summary>'));
+  for(const instruction of ['CAST LINE','HOLD TO REEL','TAP IN RHYTHM','SELL CATCH','KEEP CATCH']) assert.ok(guide.includes(instruction),instruction);
+  assert.ok(css.includes('.quick-start-grid{display:grid'));
+  assert.ok(css.includes('@media(max-width:420px)'));
+});
