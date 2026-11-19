@@ -92,6 +92,8 @@ test('all five fishing zones have distinct palettes and rendered environmental l
   assert.equal(new Set(profiles.map(profile=>profile.landmark)).size,ZONES.length);
   assert.ok(main.includes('drawZoneLandmarks(z,w,h,night,clock)'),'the active zone must be rendered into the fishing scene');
   for(const profile of profiles)assert.ok(main.includes("scene.landmark==='"+profile.landmark+"'"),profile.landmark+' must have a dedicated renderer');
+  const creek=main.slice(main.indexOf("scene.landmark==='ember-rocks'"),main.indexOf("scene.landmark==='moonlit-lighthouse'"));
+  for(const feature of ['Cinderstone shelves','Molten Goop seams','Bubbling Goop Vents','Emberroot clumps','Heated riffles'])assert.ok(creek.includes(feature),'Ember Creek landmark must include '+feature);
   const hollow=main.slice(main.indexOf("scene.landmark==='sunken-ruins'"),main.indexOf("scene.landmark==='ember-rocks'"));
   for(const feature of ['Goopstone Arch','Glooproot Grove','Goopstone monoliths','Goo Lanterns','Murk pools','marsh lights'])assert.ok(hollow.includes(feature),'Sunken Hollow landmark must include '+feature);
   const bay=main.slice(main.indexOf("scene.landmark==='moonlit-lighthouse'"),main.indexOf("scene.landmark==='crystal-spires'"));
