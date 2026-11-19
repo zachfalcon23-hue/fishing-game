@@ -38,6 +38,18 @@ try {
   browser = await browserEngine.launch({ headless: true });
   for (const viewport of [{ name: 'desktop', width: 1440, height: 1000 }, { name: 'mobile', width: 390, height: 844 }]) {
     const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height }, reducedMotion: 'reduce' });
+    await context.addInitScript(() => {
+      window.__pondSmoke = { raf: 0, focus: [], phases: [] };
+      const nativeRaf = window.requestAnimationFrame.bind(window);
+      window.requestAnimationFrame = callback => nativeRaf(timestamp => {
+        window.__pondSmoke.raf++;
+        callback(timestamp);
+        window.__pondSmoke.focus.push(document.hasFocus());
+        window.__pondSmoke.phases.push(document.querySelector('#phaseTag')?.textContent || '');
+        if (window.__pondSmoke.focus.length > 8) window.__pondSmoke.focus.shift();
+        if (window.__pondSmoke.phases.length > 8) window.__pondSmoke.phases.shift();
+      });
+    });
     const page = await context.newPage();
     const pageErrors = [];
     const consoleErrors = [];
@@ -106,7 +118,12 @@ try {
 
     await page.locator('#castBtn').click();
     await page.waitForFunction(() => document.querySelector('#phaseTag')?.textContent === 'CASTING');
-    await page.waitForFunction(() => document.querySelector('#phaseTag')?.textContent === 'BITE!', undefined, { timeout: 5000 });
+    try {
+      await page.waitForFunction(() => document.querySelector('#phaseTag')?.textContent === 'BITE!', undefined, { timeout: 5000 });
+    } catch (error) {
+      const diagnostic = await page.evaluate(() => ({ phase: document.querySelector('#phaseTag')?.textContent, focused: document.hasFocus(), hidden: document.hidden, visibility: document.visibilityState, raf: window.__pondSmoke?.raf, recentFocus: window.__pondSmoke?.focus, recentPhases: window.__pondSmoke?.phases }));
+      throw new Error(`${viewport.name}/${engineName}: fishing loop did not reach BITE: ${JSON.stringify(diagnostic)}; ${error.message}`);
+    }
     await page.locator('#reelBtn').focus();
     await page.keyboard.down('Space');
     await page.waitForFunction(() => document.querySelector('#phaseTag')?.textContent === 'FIGHT', undefined, { timeout: 3000 });
