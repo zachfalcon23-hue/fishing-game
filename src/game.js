@@ -50,11 +50,11 @@ moonmote:[.5,3,5,15],tidetwirl:[4,20,14,38],abyssaloo:[18,75,28,68],cometide:[12
 quartzle:[2,12,10,28],opalisk:[7,28,18,42],shardfin:[10,40,20,52],auroragloop:[20,82,28,70],glacieroo:[35,140,36,84],rootwhisper:[8,34,18,48],lanternlurker:[18,76,26,64],cindercoil:[12,52,22,56],moonveil:[22,92,30,72],prismwisp:[20,88,28,70]
 };
 export const HIDDEN_GOOPS=[
-  {id:'rootwhisper',zone:'pond',habitat:'goopwillow-roots',when:{timeOfDay:'night',weather:'clear'},weight:1.05,clues:['A soft green pulse moves beneath the Goopwillow roots.','The roots answer your line with three slow taps.','A pale shape coils beneath the roots. Something rare is near.']},
-  {id:'lanternlurker',zone:'hollow',habitat:'lantern-grotto',when:{timeOfDay:'night',weather:'rain'},weight:.82,clues:['One Goo Lantern dims while the others burn brighter.','A second shadow follows the lantern light below.','A pair of amber eyes opens beneath the grotto.']},
-  {id:'cindercoil',zone:'creek',habitat:'steamvent-run',when:{timeOfDay:'day',weather:'clear'},weight:.92,clues:['A steam vent exhales in a perfect spiral.','The bubbles begin circling your hook.','A hot coil flashes beneath the vent shelf.']},
-  {id:'moonveil',zone:'bay',habitat:'moonwake-channel',when:{timeOfDay:'night',weather:'clear'},weight:.72,clues:['The moonlit current briefly flows against the tide.','A silver ribbon circles the line, then vanishes.','The water turns glass-still. A shape is rising.']},
-  {id:'prismwisp',zone:'reach',habitat:'prism-pool',when:{timeOfDay:'day',weather:'clear'},weight:.68,clues:['A tiny rainbow flickers beneath the Prism Pool.','The reflected colors gather into a moving spiral.','Every prism flashes at once. A living shard is close.']}
+  {id:'rootwhisper',zone:'pond',habitat:'goopwillow-roots',when:{timeOfDay:'night',weather:'clear'},weight:5.5,clues:['A soft green pulse moves beneath the Goopwillow roots.','The roots answer your line with three slow taps.','A pale shape coils beneath the roots. Something rare is near.']},
+  {id:'lanternlurker',zone:'hollow',habitat:'lantern-grotto',when:{timeOfDay:'night',weather:'rain'},weight:4.5,clues:['One Goo Lantern dims while the others burn brighter.','A second shadow follows the lantern light below.','A pair of amber eyes opens beneath the grotto.']},
+  {id:'cindercoil',zone:'creek',habitat:'steamvent-run',when:{timeOfDay:'day',weather:'clear'},weight:5,clues:['A steam vent exhales in a perfect spiral.','The bubbles begin circling your hook.','A hot coil flashes beneath the vent shelf.']},
+  {id:'moonveil',zone:'bay',habitat:'moonwake-channel',when:{timeOfDay:'night',weather:'clear'},weight:4,clues:['The moonlit current briefly flows against the tide.','A silver ribbon circles the line, then vanishes.','The water turns glass-still. A shape is rising.']},
+  {id:'prismwisp',zone:'reach',habitat:'prism-pool',when:{timeOfDay:'day',weather:'clear'},weight:3.8,clues:['A tiny rainbow flickers beneath the Prism Pool.','The reflected colors gather into a moving spiral.','Every prism flashes at once. A living shard is close.']}
 ];
 export function sampleCatchMetrics(fish,rng=Math.random){
 const p=CATCH_PROFILES[fish.id]||[.25,5,4,20],q=Math.min(.9999,Math.max(0,rng())),lengthQ=Math.min(.9999,Math.max(0,q+(rng()-.5)*.12));
