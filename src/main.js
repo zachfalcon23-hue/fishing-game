@@ -21,7 +21,7 @@ ctx.strokeStyle=glow;ctx.lineWidth=3;for(let i=0;i<9;i++){let x=w*(.77+i*.024);c
 polygon([[0,.56],[0,.43],[.08,.39],[.12,.45],[.17,.56]],stone);
 ctx.strokeStyle=night?'#46556a':'#6c7770';ctx.lineWidth=13;ctx.beginPath();ctx.moveTo(w*.08,h*.55);ctx.lineTo(w*.08,h*.43);ctx.quadraticCurveTo(w*.16,h*.29,w*.24,h*.43);ctx.lineTo(w*.24,h*.55);ctx.stroke();
 ctx.strokeStyle=stone;ctx.lineWidth=9;ctx.beginPath();ctx.moveTo(w*.78,h*.55);ctx.lineTo(w*.78,h*.4);ctx.lineTo(w*.84,h*.37);ctx.lineTo(w*.9,h*.43);ctx.lineTo(w*.9,h*.55);ctx.stroke();
-for(let i=0;i<5;i++){let x=w*(.3+i*.075);polygon([[x/h,.53],[x/h,.45-(i%2)*.035],[x/h+.035,.43-(i%2)*.035],[x/h+.07,.53]],night?'#29394b':'#68766f')}
+for(let i=0;i<5;i++){let x=w*(.3+i*.075);polygon([[x/w,.53],[x/w,.45-(i%2)*.035],[x/w+.035,.43-(i%2)*.035],[x/w+.07,.53]],night?'#29394b':'#68766f')}
 }else if(scene.landmark==='ember-rocks'){
 polygon([[0,.56],[0,.48],[.06,.42],[.12,.47],[.19,.4],[.25,.56]],night?'#392b35':'#744d43');
 polygon([[.77,.56],[.82,.45],[.88,.48],[.93,.39],[1,.46],[1,.56]],night?'#392b35':'#744d43');
