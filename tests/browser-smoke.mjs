@@ -153,6 +153,21 @@ try {
   assert.equal(kept.specimens.length, 1);
   console.log('PASS catch resolution: Keep preserves specimen without awarding sale Essence');
   await keepContext.close();
+
+  const quotaContext = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  await quotaContext.addInitScript(() => {
+    Storage.prototype.setItem = function () { throw new DOMException('storage quota exceeded', 'QuotaExceededError'); };
+  });
+  const quotaPage = await quotaContext.newPage();
+  const quotaErrors = [];
+  quotaPage.on('pageerror', error => quotaErrors.push(error.message));
+  await quotaPage.goto(origin, { waitUntil: 'networkidle' });
+  await quotaPage.locator('[data-time="night"]').evaluate(button => button.click());
+  await quotaPage.waitForFunction(() => document.querySelector('#saveStatus')?.textContent === 'SAVE FAILED');
+  assert.match(await quotaPage.locator('#conditionsName').innerText(), /Night/, 'game controls remain usable when persistence fails');
+  assert.deepEqual(quotaErrors, [], 'storage quota failures must not crash the browser app');
+  console.log('PASS storage failure: quota exception is reported without crashing gameplay');
+  await quotaContext.close();
 } finally {
   if (browser) await browser.close();
   await new Promise(resolveClose => server.close(resolveClose));
