@@ -24,7 +24,7 @@ This checklist separates automated verification from hands-on release validation
 - [x] Browser smoke harness seeds a corrupted primary save with a valid backup, verifies recovery/repair, and resolves the recovered catch through Sell.
 - [x] Browser smoke harness resolves a seeded pending catch through Keep and verifies that estimated sale value is not credited.
 - [x] Browser smoke harness simulates a storage quota exception, verifies SAVE FAILED feedback, and confirms the game remains interactive without uncaught exceptions.
-- [x] GitHub Actions installs a pinned Playwright version and Chromium, then runs the browser smoke harness after the existing Node checks.
+- [x] GitHub Actions installs a pinned Playwright version and runs the browser smoke harness in a Chromium/Firefox/WebKit matrix after the existing Node checks (matrix execution must pass before this is considered verified).
 
 ## Phase 1 improvements added in this pass
 
@@ -42,7 +42,8 @@ This checklist separates automated verification from hands-on release validation
 ### Browser and device coverage
 
 - [ ] Desktop Chrome: first-time launch, reload, navigation, and complete fishing loop.
-- [ ] Desktop Firefox and Safari: layout, Canvas rendering, pointer input, and WebAudio.
+- [ ] Verify Firefox and WebKit browser-matrix runs pass in CI; this is automated compatibility coverage, not a substitute for Safari on Apple hardware.
+- [ ] Desktop Safari: layout, Canvas rendering, pointer input, and WebAudio.
 - [ ] Android Chrome: portrait/landscape layout, touch hold/release, rhythm taps, and browser back/reload.
 - [ ] iOS Safari: touch behavior, audio unlock, viewport and safe-area handling.
 - [ ] Verify no controls overlap or become unreachable on narrow screens.
