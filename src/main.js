@@ -28,10 +28,18 @@ polygon([[.77,.56],[.82,.45],[.88,.48],[.93,.39],[1,.46],[1,.56]],night?'#392b35
 ctx.strokeStyle=glow;ctx.lineWidth=3;for(let i=0;i<4;i++){let x=w*(.035+i*.052);ctx.beginPath();ctx.moveTo(x,h*.49);ctx.lineTo(x+w*.025,h*.53);ctx.lineTo(x+w*.04,h*.51);ctx.stroke()}
 ctx.strokeStyle=night?'rgba(255,170,115,.38)':'rgba(255,221,160,.58)';ctx.lineWidth=2;for(let i=0;i<3;i++){let x=w*(.83+i*.045);ctx.beginPath();ctx.moveTo(x,h*.43);ctx.bezierCurveTo(x-16,h*.36-clock%2*3,x+18,h*.34,x+2,h*.28);ctx.stroke()}
 }else if(scene.landmark==='moonlit-lighthouse'){
-// Layered headlands establish the bay's distant coastline and a sheltered inlet.
+// Soft coastal cloud bands and distant seabirds give the open bay a readable horizon.
+ctx.strokeStyle=night?'rgba(171,196,225,.16)':'rgba(245,249,244,.34)';ctx.lineWidth=5;
+for(let i=0;i<3;i++){let x=w*(.12+i*.19),y=h*(.17+(i%2)*.065);ctx.beginPath();ctx.moveTo(x,y);ctx.quadraticCurveTo(x+w*.035,y-h*.018,x+w*.075,y);ctx.quadraticCurveTo(x+w*.105,y+h*.012,x+w*.13,y-h*.003);ctx.stroke()}
+ctx.strokeStyle=night?'rgba(196,213,235,.62)':'rgba(55,77,88,.68)';ctx.lineWidth=2;
+for(let i=0;i<3;i++){let x=w*(.25+i*.045),y=h*(.285+(i%2)*.018);ctx.beginPath();ctx.moveTo(x-7,y+3);ctx.quadraticCurveTo(x,y-3,x+7,y+3);ctx.stroke()}
+// Multiple headland layers create depth and frame the sheltered channel.
 polygon([[0,.56],[0,.47],[.055,.43],[.11,.445],[.16,.405],[.225,.455],[.29,.56]],night?'#253b56':'#526f80');
+polygon([[.19,.56],[.24,.49],[.3,.465],[.36,.485],[.42,.45],[.49,.49],[.54,.56]],night?'#304b63':'#668596');
 polygon([[.69,.56],[.755,.47],[.82,.445],[.9,.46],[.95,.425],[1,.47],[1,.56]],night?'#263d5d':'#617f8c');
 polygon([[.73,.56],[.79,.505],[.84,.49],[.9,.505],[.95,.48],[1,.51],[1,.56]],night?'#1c304b':'#465f70');
+// A tiny cliffside settlement breaks up the left headland without crowding the cast lane.
+for(let i=0;i<4;i++){let x=w*(.105+i*.035),y=h*(.408+(i%2)*.018);ctx.fillStyle=night?'#27384d':'#b8aa91';ctx.fillRect(x,y,9,10);ctx.fillStyle=night?glow:'#765f50';ctx.beginPath();ctx.moveTo(x-2,y);ctx.lineTo(x+4,y-5);ctx.lineTo(x+11,y);ctx.closePath();ctx.fill();if(night){ctx.fillStyle='#ffe5a1';ctx.fillRect(x+3,y+3,2,3)}}
 // Bay pier, pilings, and mooring posts give the foreground a navigable shoreline.
 ctx.strokeStyle=night?'#344a62':'#806f60';ctx.lineWidth=7;ctx.beginPath();ctx.moveTo(w*.08,h*.505);ctx.lineTo(w*.39,h*.505);ctx.stroke();
 ctx.lineWidth=4;for(let i=0;i<5;i++){let x=w*(.11+i*.065);ctx.beginPath();ctx.moveTo(x,h*.5);ctx.lineTo(x,h*.565);ctx.stroke()}
