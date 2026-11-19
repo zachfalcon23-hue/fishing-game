@@ -59,12 +59,13 @@ export class SessionTelemetry {
       if (round.decision === 'sold') { group.sold++; group.essenceEarned += round.saleEssence; }
       if (Number.isFinite(round.fightMs)) { group.fightMs += round.fightMs; group.fightSamples++; }
     }
-    return { elapsedMs, events:{...this.events}, completedRounds:rounds.length,
-      catchRate:rounds.length?ROUND(rounds.filter(r=>r.outcome==='caught').length/rounds.length):null,
+    const completedRounds = this.events.catches + this.events.escapes;
+    return { elapsedMs, events:{...this.events}, completedRounds, retainedRounds:rounds.length,
+      catchRate:completedRounds?ROUND(this.events.catches/completedRounds):null,
       averageCastToBiteMs:average('castToBiteMs'),averageBiteToHookMs:average('biteToHookMs'),averageFightMs:average('fightMs'),averageRoundMs:average('totalMs'),
       averageCatchValue:rounds.length?ROUND(rounds.reduce((sum,r)=>sum+r.catchValue,0)/rounds.length):null,
       essenceEarned:this.events.essenceEarned,essencePerHour:ratePerHour(this.events.essenceEarned,elapsedMs),
-      catchesPerHour:ratePerHour(this.events.catches,elapsedMs),roundsPerHour:ratePerHour(rounds.length,elapsedMs),
+      catchesPerHour:ratePerHour(this.events.catches,elapsedMs),roundsPerHour:ratePerHour(completedRounds,elapsedMs),
       byContext:Object.values(groups).map(g=>({zone:g.zone,timeOfDay:g.timeOfDay,weather:g.weather,rod:g.rod,bait:g.bait,style:g.style,rounds:g.rounds,catches:g.catches,escapes:g.escapes,sold:g.sold,catchRate:ROUND(g.catches/g.rounds),essenceEarned:ROUND(g.essenceEarned),averageFightMs:g.fightSamples?ROUND(g.fightMs/g.fightSamples):null}))
     };
   }

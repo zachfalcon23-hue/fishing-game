@@ -80,6 +80,28 @@ test('telemetry caps retained rounds and reset clears all session data', () => {
   assert.equal(telemetry.summary().events.casts, 0);
 });
 
+
+test('session catch rate and completed-round count stay cumulative after detailed history is capped', () => {
+  let now = 0;
+  const telemetry = new SessionTelemetry({ now: () => now });
+  const game = makeGame();
+  for (let i = 0; i < 510; i++) {
+    game.phase = 'cast'; telemetry.observe(game);
+    now++;
+    game.phase = i < 10 ? 'caught' : 'escaped'; telemetry.observe(game);
+    now++;
+    game.phase = 'idle'; telemetry.observe(game);
+  }
+
+  const summary = telemetry.summary();
+  assert.equal(summary.events.catches, 10);
+  assert.equal(summary.events.escapes, 500);
+  assert.equal(summary.catchRate, 0.02);
+  assert.equal(summary.completedRounds, 510);
+  assert.equal(summary.retainedRounds, 500);
+  assert.equal(summary.roundsPerHour, Math.round((510 * 3600000 / now) * 100) / 100);
+});
+
 test('kept specimens do not count their estimated sale value as earned Essence', () => {
   let now = 0;
   const telemetry = new SessionTelemetry({ now: () => now });
