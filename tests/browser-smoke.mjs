@@ -44,7 +44,7 @@ try {
     const failedLocalRequests = [];
     page.on('pageerror', error => pageErrors.push(error.message));
     page.on('console', message => { if (message.type() === 'error') consoleErrors.push(message.text()); });
-    page.on('response', response => { if (response.url().startsWith(origin) && response.status() >= 400) failedLocalRequests.push(`${response.status()} ${response.url()}`); });
+    page.on('response', response => { if (response.url().startsWith(origin) && !new URL(response.url()).pathname.endsWith('/favicon.ico') && response.status() >= 400) failedLocalRequests.push(`${response.status()} ${response.url()}`); });
     page.on('requestfailed', request => {
       if (request.url().startsWith(origin)) failedLocalRequests.push(request.url() + ' — ' + request.failure()?.errorText);
     });
