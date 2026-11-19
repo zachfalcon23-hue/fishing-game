@@ -63,6 +63,10 @@ Players can set **Day** or **Night**, and **Clear** or **Rain**, before casting.
 
 Conditions are stored with the player's save and are shown visually in the Fishing view (daylight or moonlight, plus animated rain).
 
+## Five distinct fishing environments
+
+Each location now has its own scene palette, shoreline landmarks, and environmental description: reed beds and willows at North Pond, sunken stone ruins in Sunken Hollow, ember-lit rock shelves at Ember Creek, a moonlit lighthouse at Moonlit Bay, and crystal spires at Crystal Reach. Day/night lighting and rain remain layered over each location's identity. The zone-profile regression test verifies complete coverage, unique palettes, and a dedicated renderer for every landmark.
+
 ## Collection and progression
 
 - GoopDex discovery, temperament notes, maneuver research, observed fight styles, best weight/length, and trophy counts.
