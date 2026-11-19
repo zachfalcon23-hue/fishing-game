@@ -67,8 +67,10 @@ try {
     await page.locator('#castBtn').click();
     await page.waitForFunction(() => document.querySelector('#phaseTag')?.textContent === 'CASTING');
     await page.waitForFunction(() => document.querySelector('#phaseTag')?.textContent === 'BITE!', { timeout: 5000 });
-    await page.locator('#reelBtn').click();
-    await page.waitForFunction(() => document.querySelector('#phaseTag')?.textContent === 'FIGHT', { timeout: 3000 });
+    await page.locator('#reelBtn').focus();
+    await page.keyboard.down('Space');
+    await page.waitForFunction(() => document.querySelector('#phaseTag')?.textContent === 'FIGHT', undefined, { timeout: 3000 });
+    await page.keyboard.up('Space');
     assert.equal(await page.locator('#fightUi').isVisible(), true);
 
     const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('goop-fishing-save-v3')));
