@@ -48,6 +48,10 @@ try {
     assert.match(await page.title(), /Pondbound 0\.4/);
     assert.equal(await page.locator('#castBtn').isVisible(), true);
     assert.equal(await page.locator('#dexSearch').count(), 1);
+    await page.locator('[data-time="night"]').click();
+    await page.waitForFunction(() => document.querySelector('#conditionsName')?.textContent === 'Night · Clear');
+    await page.locator('[data-weather="rain"]').click();
+    await page.waitForFunction(() => document.querySelector('#conditionsName')?.textContent === 'Night · Rain');
     assert.equal(await page.getByRole('navigation', { name: 'Game sections' }).count(), 1);
     assert.equal(await page.getByRole('button', { name: 'CAST LINE' }).count(), 1);
     await page.locator('#castBtn').focus();
@@ -82,10 +86,7 @@ try {
     await page.locator('#dexSearch').fill('');
     await page.locator('.nav-btn[data-view="fish"]').click();
 
-    await page.locator('[data-time="night"]').evaluate(button => button.click());
-    await page.waitForFunction(() => document.querySelector('#conditionsName')?.textContent.includes('Night'));
-    await page.locator('[data-weather="rain"]').evaluate(button => button.click());
-    await page.waitForFunction(() => document.querySelector('#conditionsName')?.textContent === 'Night · Rain');
+    assert.equal(await page.locator('#conditionsName').innerText(), 'Night · Rain', 'condition selection must survive navigation');
 
     await page.locator('#castBtn').click();
     await page.waitForFunction(() => document.querySelector('#phaseTag')?.textContent === 'CASTING');
