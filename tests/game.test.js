@@ -93,7 +93,7 @@ test('all five fishing zones have distinct palettes and rendered environmental l
   assert.ok(main.includes('drawZoneLandmarks(z,w,h,night,clock)'),'the active zone must be rendered into the fishing scene');
   for(const profile of profiles)assert.ok(main.includes("scene.landmark==='"+profile.landmark+"'"),profile.landmark+' must have a dedicated renderer');
   const bay=main.slice(main.indexOf("scene.landmark==='moonlit-lighthouse'"),main.indexOf("scene.landmark==='crystal-spires'"));
-  for(const feature of ['Layered headlands','Bay pier','slow beacon sweep','navigation buoys'])assert.ok(bay.includes(feature),'Moonlit Bay landmark must include '+feature);
+  for(const feature of ['Soft coastal cloud bands','distant seabirds','Multiple headland layers','cliffside settlement','Bay pier','slow beacon sweep','navigation buoys','Foam traces the tide line','Low tide rocks','moving highlights'])assert.ok(bay.includes(feature),'Moonlit Bay landmark must include '+feature);
 });
 
 test('all 50 Goops have a deliberate species silhouette and marking profile',()=>{
