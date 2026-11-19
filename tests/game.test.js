@@ -415,3 +415,14 @@ test('GoopDex search and filter controls expose accessible names',()=>{
   assert.match(html,/<input id="dexSearch"[^>]*aria-label="Search GoopDex species"/);
   assert.match(html,/<select id="dexFilter"[^>]*aria-label="Filter GoopDex species"/);
 });
+
+
+test('fight meters expose named progress values for assistive technology',()=>{
+  const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  const main=readFileSync(new URL('../src/main.js',import.meta.url),'utf8');
+  for(const id of ['tensionMeter','staminaMeter','patienceMeter','spookMeter','intentMeter']){
+    assert.match(html,new RegExp('id="'+id+'" role="progressbar"'));
+  }
+  for(const label of ['Fishing line tension','Goop energy','Goop approach progress','Goop spook level','Fish maneuver timing']) assert.ok(html.includes('aria-label="'+label+'"'));
+  for(const id of ['tensionMeter','staminaMeter','patienceMeter','spookMeter','intentMeter']) assert.ok(main.includes("$('"+id+"').setAttribute('aria-valuenow'"));
+});
