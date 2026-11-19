@@ -20,6 +20,9 @@ This checklist separates automated verification from hands-on release validation
 - [x] Browser DOM references resolve to unique HTML IDs.
 - [x] JavaScript syntax check and Node regression suite pass in GitHub Actions.
 - [x] Chromium browser smoke harness covers desktop and mobile viewports, page startup, navigation, GoopDex search, conditions, cast/bite/fight transitions, save hydration after reload, uncaught exceptions, and failed local requests.
+- [x] Browser smoke harness checks horizontal overflow and minimum 44px primary fishing controls at desktop/mobile viewport sizes.
+- [x] Browser smoke harness seeds a corrupted primary save with a valid backup, verifies recovery/repair, and resolves the recovered catch through Sell.
+- [x] Browser smoke harness resolves a seeded pending catch through Keep and verifies that estimated sale value is not credited.
 - [x] GitHub Actions installs a pinned Playwright version and Chromium, then runs the browser smoke harness after the existing Node checks.
 
 ## Phase 1 improvements added in this pass
@@ -64,7 +67,8 @@ This checklist separates automated verification from hands-on release validation
 - [x] Quest XP is immediately processed through level-up progression; regression tested.
 - [x] Daily catch count resets on Sell and Keep day advancement; regression tested.
 - [x] Malformed-but-valid JSON save shapes are normalized safely; regression tested.
-- [ ] Test corrupt, missing, and storage-quota save scenarios in a browser.
+- [x] Browser-test corrupted-primary recovery from backup and confirm the recovered primary is repaired.
+- [ ] Browser-test missing-save startup and storage-quota failure behavior in a real browser.
 - [x] Local save backup and corrupted-primary recovery covered by automated regression tests.
 - [x] Pending catch and sell/keep decision survive reload; regression tested.
 - [ ] Test keyboard navigation and non-pointer access to all game actions.
