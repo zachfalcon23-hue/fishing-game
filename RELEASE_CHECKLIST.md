@@ -11,6 +11,7 @@ This checklist separates automated verification from hands-on release validation
 
 
 - [x] 50 registered Goops with unique IDs.
+- [x] All five fishing zones have distinct scene palettes, shoreline landmarks, and environmental descriptions; regression coverage verifies profile completeness and renderer coverage.
 - [x] Every Goop has a weight and length profile.
 - [x] Every Goop has a visual silhouette/marking profile.
 - [x] Every zone spawn reference resolves to a registered Goop.
