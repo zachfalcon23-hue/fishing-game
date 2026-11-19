@@ -3,6 +3,12 @@
 This checklist separates automated verification from hands-on release validation. Do not mark manual checks complete without testing the deployed build.
 
 ## Automated checks
+## Current CI verification status
+
+- [ ] Current PR head has a successful Chromium, Firefox, and WebKit workflow run.
+- [x] Last runner-backed baseline (`066dc2d`) passed `npm run check` and all 94 Node regression tests; its browser smoke test failed at the cast-to-bite transition in all three engines.
+- [ ] Newer gameplay/save commits require fresh syntax, Node, and browser verification. The latest PR-head run (`#541`, commit `f832776`) failed before runner setup: all three jobs had zero steps, no runner name, no logs, and no artifacts. This is an Actions execution blocker, not a passing result.
+
 
 - [x] 50 registered Goops with unique IDs.
 - [x] Every Goop has a weight and length profile.
