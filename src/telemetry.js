@@ -71,3 +71,21 @@ export class SessionTelemetry {
   exportJSON() { return JSON.stringify({schemaVersion:1,exportedAt:new Date(this.now()).toISOString(),summary:this.summary(),rounds:this.rounds},null,2); }
   reset() { this.startedAt=null;this.active=null;this.lastPhase='idle';this.rounds=[];this.events={casts:0,bites:0,hooks:0,catches:0,escapes:0,sold:0,kept:0,essenceEarned:0}; }
 }
+
+
+/** Download JSON without revoking its object URL before the browser consumes it. */
+export function downloadJSONFile(payload, filename, { documentRef = globalThis.document, urlApi = globalThis.URL, schedule = globalThis.setTimeout, BlobCtor = globalThis.Blob } = {}) {
+  const blob = new BlobCtor([payload], { type: 'application/json' });
+  const url = urlApi.createObjectURL(blob);
+  const anchor = documentRef.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.hidden = true;
+  try {
+    documentRef.body.append(anchor);
+    anchor.click();
+  } finally {
+    anchor.remove();
+    schedule(() => urlApi.revokeObjectURL(url), 1000);
+  }
+}
