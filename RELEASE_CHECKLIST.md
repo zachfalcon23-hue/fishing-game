@@ -19,7 +19,7 @@ This checklist separates automated verification from hands-on release validation
 - [x] Trophy/weight quest and collection achievement logic is covered.
 - [x] Browser DOM references resolve to unique HTML IDs.
 - [x] JavaScript syntax check and Node regression suite pass in GitHub Actions.
-- [x] Chromium browser smoke harness covers desktop and mobile viewports, page startup, navigation, GoopDex search, conditions, cast/bite/fight transitions, save hydration after reload, uncaught exceptions, and failed local requests.
+- [x] Cross-browser smoke harness covers desktop and mobile viewports, page startup, navigation, GoopDex search, conditions, cast/bite/fight transitions, save hydration after reload, uncaught exceptions, console errors, and failed/non-success local requests.
 - [x] Browser smoke harness checks horizontal overflow and minimum 44px primary fishing controls at desktop/mobile viewport sizes.
 - [x] Browser smoke harness seeds a corrupted primary save with a valid backup, verifies recovery/repair, and resolves the recovered catch through Sell.
 - [x] Browser smoke harness resolves a seeded pending catch through Keep and verifies that estimated sale value is not credited.
