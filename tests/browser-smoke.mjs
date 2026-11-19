@@ -3,7 +3,12 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { chromium } from 'playwright';
+import { chromium, firefox, webkit } from 'playwright';
+
+const engines = { chromium, firefox, webkit };
+const engineName = process.env.PLAYWRIGHT_BROWSER || 'chromium';
+const browserEngine = engines[engineName];
+if (!browserEngine) throw new Error(`Unsupported PLAYWRIGHT_BROWSER: ${engineName}`);
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8' };
@@ -30,7 +35,7 @@ try {
   });
   const address = server.address();
   const origin = `http://127.0.0.1:${address.port}`;
-  browser = await chromium.launch({ headless: true });
+  browser = await browserEngine.launch({ headless: true });
   for (const viewport of [{ name: 'desktop', width: 1440, height: 1000 }, { name: 'mobile', width: 390, height: 844 }]) {
     const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height }, reducedMotion: 'reduce' });
     const page = await context.newPage();
@@ -113,7 +118,7 @@ try {
     assert.equal(await page.locator('#castBtn').isEnabled(), true, 'an in-progress fight is intentionally reset to a fresh cast state on reload');
     assert.deepEqual(pageErrors, [], `${viewport.name}: uncaught browser exceptions`);
     assert.deepEqual(failedLocalRequests, [], `${viewport.name}: local app requests must succeed`);
-    console.log(`PASS ${viewport.name}: startup, navigation, GoopDex search, conditions, cast → bite → fight, save/reload`);
+    console.log(`PASS ${engineName}/${viewport.name}: startup, navigation, GoopDex search, conditions, cast → bite → fight, save/reload`);
     await context.close();
   }
 
@@ -141,7 +146,7 @@ try {
   assert.equal(sold.pendingCatch, null);
   assert.equal(sold.day, 2);
   assert.deepEqual(recoveryErrors, [], 'backup recovery and selling must not throw browser exceptions');
-  console.log('PASS save recovery: corrupt primary restored from backup; pending catch sold exactly once');
+  console.log(`PASS ${engineName}: corrupt primary restored from backup; pending catch sold exactly once`);
   await recoveryContext.close();
 
   const keepContext = await browser.newContext({ viewport: { width: 1280, height: 900 } });
@@ -158,7 +163,7 @@ try {
   assert.equal(kept.pendingCatch, null);
   assert.equal(kept.day, 2);
   assert.equal(kept.specimens.length, 1);
-  console.log('PASS catch resolution: Keep preserves specimen without awarding sale Essence');
+  console.log(`PASS ${engineName}: Keep preserves specimen without awarding sale Essence`);
   await keepContext.close();
 
   const quotaContext = await browser.newContext({ viewport: { width: 1280, height: 900 } });
@@ -173,7 +178,7 @@ try {
   await quotaPage.waitForFunction(() => document.querySelector('#saveStatus')?.textContent === 'SAVE FAILED');
   assert.match(await quotaPage.locator('#conditionsName').innerText(), /Night/, 'game controls remain usable when persistence fails');
   assert.deepEqual(quotaErrors, [], 'storage quota failures must not crash the browser app');
-  console.log('PASS storage failure: quota exception is reported without crashing gameplay');
+  console.log(`PASS ${engineName}: storage quota failure reported without crashing gameplay`);
   await quotaContext.close();
 } finally {
   if (browser) await browser.close();
