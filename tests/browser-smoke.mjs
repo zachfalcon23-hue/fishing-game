@@ -64,9 +64,10 @@ try {
     await page.locator('#dexSearch').fill('');
     await page.locator('.nav-btn[data-view="fish"]').click();
 
-    await page.locator('[data-time="night"]').click();
-    await page.locator('[data-weather="rain"]').click();
-    assert.match(await page.locator('#conditionsName').innerText(), /Night · Rain/);
+    await page.locator('[data-time="night"]').evaluate(button => button.click());
+    await page.waitForFunction(() => document.querySelector('#conditionsName')?.textContent.includes('Night'));
+    await page.locator('[data-weather="rain"]').evaluate(button => button.click());
+    await page.waitForFunction(() => document.querySelector('#conditionsName')?.textContent === 'Night · Rain');
 
     await page.locator('#castBtn').click();
     await page.waitForFunction(() => document.querySelector('#phaseTag')?.textContent === 'CASTING');
