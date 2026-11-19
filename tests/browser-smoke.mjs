@@ -166,6 +166,27 @@ try {
   console.log(`PASS ${engineName}: Keep preserves specimen without awarding sale Essence`);
   await keepContext.close();
 
+  const decisionFailureContext = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  await decisionFailureContext.addInitScript(save => {
+    const serialized = JSON.stringify(save);
+    localStorage.setItem('goop-fishing-save-v3', serialized);
+    localStorage.setItem('goop-fishing-save-v3-backup', serialized);
+    Storage.prototype.setItem = function () { throw new DOMException('storage quota exceeded', 'QuotaExceededError'); };
+  }, recoveredSave);
+  const decisionFailurePage = await decisionFailureContext.newPage();
+  const decisionFailureErrors = [];
+  decisionFailurePage.on('pageerror', error => decisionFailureErrors.push(error.message));
+  await decisionFailurePage.goto(origin, { waitUntil: 'networkidle' });
+  await decisionFailurePage.locator('#catchActions').waitFor({ state: 'visible' });
+  await decisionFailurePage.locator('#sellBtn').click();
+  await decisionFailurePage.waitForFunction(() => document.querySelector('#saveStatus')?.textContent === 'SAVE FAILED');
+  assert.equal(await decisionFailurePage.locator('#essence').innerText(), '777', 'failed persistence must not award the sale reward');
+  assert.equal(await decisionFailurePage.locator('#catchActions').isVisible(), true, 'failed persistence must leave Sell/Keep available for retry');
+  assert.ok(JSON.parse(await decisionFailurePage.evaluate(() => localStorage.getItem('goop-fishing-save-v3'))).pendingCatch, 'the persisted pending catch must remain available');
+  assert.deepEqual(decisionFailureErrors, [], 'failed catch decisions must not throw browser exceptions');
+  console.log(`PASS ${engineName}: failed Sell write rolls back and preserves pending catch for retry`);
+  await decisionFailureContext.close();
+
   const quotaContext = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   await quotaContext.addInitScript(() => {
     Storage.prototype.setItem = function () { throw new DOMException('storage quota exceeded', 'QuotaExceededError'); };
