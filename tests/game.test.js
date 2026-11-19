@@ -94,6 +94,8 @@ test('all five fishing zones have distinct palettes and rendered environmental l
   for(const profile of profiles)assert.ok(main.includes("scene.landmark==='"+profile.landmark+"'"),profile.landmark+' must have a dedicated renderer');
   const reach=main.slice(main.indexOf("scene.landmark==='crystal-spires'"),main.indexOf('ctx.restore();',main.indexOf("scene.landmark==='crystal-spires'")));
   for(const feature of ['Great Goopglass Spires','Prismroot fans','Floating Goopglass shards','Prism beams','Gooice shelves','Luminous Prism Pools','Goopwater'])assert.ok(reach.includes(feature),'Crystal Reach landmark must include '+feature);
+  const pond=main.slice(main.indexOf("scene.landmark==='reeds-and-willows'"),main.indexOf("scene.landmark==='sunken-ruins'"));
+  for(const feature of ['Grandmother Goopwillow','Gloopvine curtains','Goopbulb lantern fruits','Tadgoop stepping stones','Bubbling Goo vents','Reedlet flags','Gloopglow lily pads','Gentle Goopwater rings'])assert.ok(pond.includes(feature),'North Pond landmark must include '+feature);
   const creek=main.slice(main.indexOf("scene.landmark==='ember-rocks'"),main.indexOf("scene.landmark==='moonlit-lighthouse'"));
   for(const feature of ['Cinderstone shelves','Molten Goop seams','Bubbling Goop Vents','Emberroot clumps','Heated riffles'])assert.ok(creek.includes(feature),'Ember Creek landmark must include '+feature);
   const hollow=main.slice(main.indexOf("scene.landmark==='sunken-ruins'"),main.indexOf("scene.landmark==='ember-rocks'"));
