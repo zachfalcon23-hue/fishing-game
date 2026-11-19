@@ -39,7 +39,7 @@ try {
   for (const viewport of [{ name: 'desktop', width: 1440, height: 1000 }, { name: 'mobile', width: 390, height: 844 }]) {
     const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height }, reducedMotion: 'reduce' });
     await context.addInitScript(() => {
-      window.__pondSmoke = { raf: 0, focus: [], phases: [], lastTimestamp: null, rafDelta: null, game: null };
+      window.__pondSmoke = { raf: 0, focus: [], phases: [], lastTimestamp: null, rafDelta: null, game: null, cast: null, loopCalls: 0, lastLoop: null };
       const nativeRaf = window.requestAnimationFrame.bind(window);
       window.requestAnimationFrame = callback => nativeRaf(timestamp => {
         window.__pondSmoke.raf++;
@@ -123,7 +123,7 @@ try {
     try {
       await page.waitForFunction(() => document.querySelector('#phaseTag')?.textContent === 'BITE!', undefined, { timeout: 5000 });
     } catch (error) {
-      const diagnostic = await page.evaluate(() => ({ phase: document.querySelector('#phaseTag')?.textContent, focused: document.hasFocus(), hidden: document.hidden, visibility: document.visibilityState, activeViews: [...document.querySelectorAll('.view.active')].map(element => element.id), activeNavigation: document.querySelector('.nav-btn.active')?.dataset.view, raf: window.__pondSmoke?.raf, recentFocus: window.__pondSmoke?.focus, recentPhases: window.__pondSmoke?.phases, game: window.__pondSmoke?.game, rafDelta: window.__pondSmoke?.rafDelta, lastTimestamp: window.__pondSmoke?.lastTimestamp }));
+      const diagnostic = await page.evaluate(() => ({ phase: document.querySelector('#phaseTag')?.textContent, focused: document.hasFocus(), hidden: document.hidden, visibility: document.visibilityState, activeViews: [...document.querySelectorAll('.view.active')].map(element => element.id), activeNavigation: document.querySelector('.nav-btn.active')?.dataset.view, cast: window.__pondSmoke?.cast, loopCalls: window.__pondSmoke?.loopCalls, lastLoop: window.__pondSmoke?.lastLoop, game: window.__pondSmoke?.game, raf: window.__pondSmoke?.raf, recentFocus: window.__pondSmoke?.focus, recentPhases: window.__pondSmoke?.phases, rafDelta: window.__pondSmoke?.rafDelta, lastTimestamp: window.__pondSmoke?.lastTimestamp }));
       throw new Error(`${viewport.name}/${engineName}: fishing loop did not reach BITE: ${JSON.stringify(diagnostic)}; ${error.message}`);
     }
     await page.locator('#reelBtn').focus();
