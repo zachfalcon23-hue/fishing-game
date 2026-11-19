@@ -28,12 +28,30 @@ polygon([[.77,.56],[.82,.45],[.88,.48],[.93,.39],[1,.46],[1,.56]],night?'#392b35
 ctx.strokeStyle=glow;ctx.lineWidth=3;for(let i=0;i<4;i++){let x=w*(.035+i*.052);ctx.beginPath();ctx.moveTo(x,h*.49);ctx.lineTo(x+w*.025,h*.53);ctx.lineTo(x+w*.04,h*.51);ctx.stroke()}
 ctx.strokeStyle=night?'rgba(255,170,115,.38)':'rgba(255,221,160,.58)';ctx.lineWidth=2;for(let i=0;i<3;i++){let x=w*(.83+i*.045);ctx.beginPath();ctx.moveTo(x,h*.43);ctx.bezierCurveTo(x-16,h*.36-clock%2*3,x+18,h*.34,x+2,h*.28);ctx.stroke()}
 }else if(scene.landmark==='moonlit-lighthouse'){
-polygon([[0,.56],[0,.48],[.08,.42],[.15,.46],[.22,.56]],stone);
-polygon([[.73,.56],[.8,.45],[.9,.42],[1,.5],[1,.56]],stone);
-ctx.fillStyle=night?'#d6d9e8':'#d8d0b9';ctx.fillRect(w*.84,h*.29,w*.045,h*.19);
-ctx.fillStyle=glow;ctx.fillRect(w*.832,h*.27,w*.061,h*.035);
-ctx.fillStyle=night?'rgba(196,216,255,.16)':'rgba(255,239,190,.18)';ctx.beginPath();ctx.moveTo(w*.84,h*.285);ctx.lineTo(w*.55,h*.39);ctx.lineTo(w*.84,h*.35);ctx.closePath();ctx.fill();
-ctx.fillStyle=night?'#263d5d':'#617f8c';ctx.fillRect(w*.855,h*.33,w*.014,h*.035);
+// Layered headlands establish the bay's distant coastline and a sheltered inlet.
+polygon([[0,.56],[0,.47],[.055,.43],[.11,.445],[.16,.405],[.225,.455],[.29,.56]],night?'#253b56':'#526f80');
+polygon([[.69,.56],[.755,.47],[.82,.445],[.9,.46],[.95,.425],[1,.47],[1,.56]],night?'#263d5d':'#617f8c');
+polygon([[.73,.56],[.79,.505],[.84,.49],[.9,.505],[.95,.48],[1,.51],[1,.56]],night?'#1c304b':'#465f70');
+// Bay pier, pilings, and mooring posts give the foreground a navigable shoreline.
+ctx.strokeStyle=night?'#344a62':'#806f60';ctx.lineWidth=7;ctx.beginPath();ctx.moveTo(w*.08,h*.505);ctx.lineTo(w*.39,h*.505);ctx.stroke();
+ctx.lineWidth=4;for(let i=0;i<5;i++){let x=w*(.11+i*.065);ctx.beginPath();ctx.moveTo(x,h*.5);ctx.lineTo(x,h*.565);ctx.stroke()}
+ctx.strokeStyle=glow;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(w*.08,h*.49);ctx.lineTo(w*.39,h*.49);ctx.stroke();
+// The lighthouse has a tapered stone tower, lantern room, balcony, roof, door and lit windows.
+polygon([[.817,.49],[.828,.305],[.851,.305],[.864,.49]],night?'#c2cbdc':'#d8d0b9',night?'#71859e':'#8e887d');
+ctx.fillStyle=night?'#7e91a9':'#a9a18f';ctx.fillRect(w*.823,h*.405,w*.035,h*.018);
+ctx.fillStyle=night?'#f5e5a8':'#fff0c5';ctx.fillRect(w*.832,h*.355,w*.012,h*.027);ctx.fillRect(w*.847,h*.355,w*.009,h*.027);
+ctx.fillStyle=night?'#172b43':'#675c52';ctx.fillRect(w*.836,h*.452,w*.012,h*.038);
+ctx.strokeStyle=night?'#8195ae':'#8e887d';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(w*.812,h*.32);ctx.lineTo(w*.87,h*.32);ctx.stroke();
+ctx.fillStyle=night?'#dce4f1':'#e5dfcf';ctx.fillRect(w*.824,h*.275,w*.038,h*.042);
+ctx.fillStyle=night?'#293b54':'#766d60';ctx.fillRect(w*.82,h*.267,w*.046,h*.012);
+polygon([[.819,.267],[.843,.235],[.867,.267]],night?'#435875':'#7b7469');
+ctx.fillStyle=glow;ctx.fillRect(w*.832,h*.283,w*.021,h*.022);
+// A slow beacon sweep makes the landmark feel alive without obscuring the play area.
+ctx.save();ctx.translate(w*.842,h*.294);ctx.rotate(Math.sin(clock*.32)*.1-.08);
+ctx.fillStyle=night?'rgba(196,216,255,.19)':'rgba(255,239,190,.14)';ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(-w*.3,-h*.105);ctx.lineTo(-w*.3,-h*.045);ctx.closePath();ctx.fill();ctx.restore();
+// Small navigation buoys and broken moon reflections mark the channel.
+for(let i=0;i<3;i++){let x=w*(.48+i*.105),y=h*(.59+(i%2)*.018);ctx.fillStyle=i===1?'#d98b78':glow;ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.fill();ctx.fillStyle='rgba(210,224,235,.35)';ctx.fillRect(x-1,y+5,2,13)}
+ctx.strokeStyle=night?'rgba(205,220,255,.28)':'rgba(255,239,190,.24)';ctx.lineWidth=2;for(let i=0;i<7;i++){let x=w*(.74+i*.018),y=h*(.62+(i%3)*.025);ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+12+Math.sin(clock+i)*5,y+2);ctx.stroke()}
 }else if(scene.landmark==='crystal-spires'){
 const crystal=(x,y,scale)=>{polygon([[x,y],[x-.035*scale,.13*scale+y],[x-.018*scale,.22*scale+y],[x+.012*scale,.18*scale+y],[x+.04*scale,.23*scale+y],[x+.03*scale,.1*scale+y]],night?'#426c86':'#79aeb2',glow);polygon([[x,y],[x-.018*scale,.22*scale+y],[x+.012*scale,.18*scale+y]],night?'#8ad9e1':'#c9ffff')};
 crystal(.1,.31,1.05);crystal(.19,.39,.7);crystal(.82,.34,.9);crystal(.91,.4,.62);
