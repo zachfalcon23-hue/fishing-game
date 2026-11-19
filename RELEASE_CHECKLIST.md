@@ -23,6 +23,7 @@ This checklist separates automated verification from hands-on release validation
 - [x] Browser smoke harness checks horizontal overflow and minimum 44px primary fishing controls at desktop/mobile viewport sizes.
 - [x] Browser smoke harness seeds a corrupted primary save with a valid backup, verifies recovery/repair, and resolves the recovered catch through Sell.
 - [x] Browser smoke harness resolves a seeded pending catch through Keep and verifies that estimated sale value is not credited.
+- [x] Browser smoke harness simulates a storage quota exception, verifies SAVE FAILED feedback, and confirms the game remains interactive without uncaught exceptions.
 - [x] GitHub Actions installs a pinned Playwright version and Chromium, then runs the browser smoke harness after the existing Node checks.
 
 ## Phase 1 improvements added in this pass
@@ -68,7 +69,7 @@ This checklist separates automated verification from hands-on release validation
 - [x] Daily catch count resets on Sell and Keep day advancement; regression tested.
 - [x] Malformed-but-valid JSON save shapes are normalized safely; regression tested.
 - [x] Browser-test corrupted-primary recovery from backup and confirm the recovered primary is repaired.
-- [ ] Browser-test missing-save startup and storage-quota failure behavior in a real browser.
+- [x] Browser-test missing-save startup and storage-quota failure behavior in Chromium.
 - [x] Local save backup and corrupted-primary recovery covered by automated regression tests.
 - [x] Pending catch and sell/keep decision survive reload; regression tested.
 - [ ] Test keyboard navigation and non-pointer access to all game actions.
