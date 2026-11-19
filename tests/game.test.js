@@ -119,7 +119,9 @@ test('hidden Goop clues progress and persist only at their exact habitat and con
   assert.match(game.message,/soft green pulse/i);
   const restored=new FishingGame({rng:()=>.999,store:new SaveStore(storage)});
   assert.equal(restored.state.hiddenTracks.rootwhisper,1);
-  restored.habitatId='gloopglow-beds';
+  restored.state.timeOfDay='night';
+  restored.habitatId='goopwillow-roots';
+  restored.state.timeOfDay='day';
   restored.phase=PHASES.ESCAPED;
   assert.equal(restored.cast(),true);
   assert.equal(restored.state.hiddenTracks.rootwhisper,1);
