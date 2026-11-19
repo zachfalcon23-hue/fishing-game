@@ -26,7 +26,7 @@ This checklist separates automated verification from hands-on release validation
 - [x] Browser smoke harness simulates a storage quota exception, verifies SAVE FAILED feedback, and confirms the game remains interactive without uncaught exceptions.
 - [x] Sell and Keep decisions roll back in-memory changes when persistence fails, preserving the pending catch for retry.
 - [x] Sell and Keep are idempotent; repeated clicks cannot duplicate Essence or advance the fishing day twice (regression-tested).
-- [x] Browser smoke harness verifies a failed Sell write does not award Essence, discard the pending catch, or hide the retry actions.
+- [x] Browser smoke harness verifies a failed Sell write does not award Essence, discard the pending catch, or hide retry actions; after storage is restored, retry commits the sale, realized Essence, and day advance exactly once.
 - [x] GitHub Actions installs a pinned Playwright version and runs the browser smoke harness in a Chromium/Firefox/WebKit matrix after the existing Node checks (matrix execution must pass before this is considered verified).
 
 ## Phase 1 improvements added in this pass
