@@ -6,9 +6,13 @@ on:
       - feature/maximal-one-shot-v0-2
       - test/browser-smoke-harness
   pull_request:
+concurrency:
+  group: pondbound-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   test:
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
