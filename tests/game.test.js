@@ -117,6 +117,8 @@ test('habitat selection is locked during encounters and changes the cast habitat
   game.phase=PHASES.ESCAPED;
   assert.equal(game.selectHabitat(habitats[2].id),true);
   assert.equal(game.selectHabitat('not-a-habitat'),false);
+  game.reset();
+  assert.equal(game.habitatId,ZONE_HABITATS.pond[0].id);
 });
 test('environmental event discoveries persist, reward once, and reject unknown save entries',()=>{
   const storage={data:{},getItem(k){return this.data[k]??null},setItem(k,v){this.data[k]=v},removeItem(k){delete this.data[k]}};
@@ -136,6 +138,17 @@ test('environmental event discoveries persist, reward once, and reject unknown s
   storage.data['goop-fishing-save-v3']=JSON.stringify({...reloaded.state,discoveries:{'gloopglow-bloom':true,'fake-event':true}});
   const sanitized=new SaveStore(storage).load();
   assert.deepEqual(sanitized.discoveries,{'gloopglow-bloom':true});
+});
+test('failed discovery persistence never grants uncommitted discovery rewards',()=>{
+  const blocked={getItem(){return null},setItem(){throw new Error('quota')},removeItem(){}};
+  const game=new FishingGame({rng:()=>0,store:new SaveStore(blocked)});
+  game.state.timeOfDay='night';
+  assert.equal(game.cast(),true);
+  assert.equal(game.encounterEvent.id,'gloopglow-bloom');
+  assert.equal(game.state.discoveries['gloopglow-bloom'],undefined);
+  assert.equal(game.state.essence,0);
+  assert.equal(game.state.xp,0);
+  assert.doesNotMatch(game.message,/NEW DISCOVERY/);
 });
 test('North Pond environmental events alter spawn odds and improve catch rewards and XP',()=>{
   const game=new FishingGame({rng:()=>0,store:new SaveStore(memoryStore())});
