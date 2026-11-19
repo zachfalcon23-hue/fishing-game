@@ -48,6 +48,8 @@ try {
 
     const response = await page.goto(origin, { waitUntil: 'networkidle' });
     assert.equal(response.status(), 200, `${viewport.name}: app document should load`);
+    await page.bringToFront();
+    await page.waitForFunction(() => document.hasFocus(), undefined, { timeout: 5000 });
     await page.locator('#phaseTag').waitFor({ state: 'visible' });
     await page.locator('#gameCanvas').waitFor({ state: 'visible' });
     assert.match(await page.title(), /Pondbound 0\.4/);
@@ -101,7 +103,7 @@ try {
 
     await page.locator('#castBtn').click();
     await page.waitForFunction(() => document.querySelector('#phaseTag')?.textContent === 'CASTING');
-    await page.waitForFunction(() => document.querySelector('#phaseTag')?.textContent === 'BITE!', { timeout: 5000 });
+    await page.waitForFunction(() => document.querySelector('#phaseTag')?.textContent === 'BITE!', undefined, { timeout: 5000 });
     await page.locator('#reelBtn').focus();
     await page.keyboard.down('Space');
     await page.waitForFunction(() => document.querySelector('#phaseTag')?.textContent === 'FIGHT', undefined, { timeout: 3000 });
