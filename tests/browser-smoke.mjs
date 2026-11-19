@@ -40,8 +40,11 @@ try {
     const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height }, reducedMotion: 'reduce' });
     const page = await context.newPage();
     const pageErrors = [];
+    const consoleErrors = [];
     const failedLocalRequests = [];
     page.on('pageerror', error => pageErrors.push(error.message));
+    page.on('console', message => { if (message.type() === 'error') consoleErrors.push(message.text()); });
+    page.on('response', response => { if (response.url().startsWith(origin) && response.status() >= 400) failedLocalRequests.push(`${response.status()} ${response.url()}`); });
     page.on('requestfailed', request => {
       if (request.url().startsWith(origin)) failedLocalRequests.push(request.url() + ' — ' + request.failure()?.errorText);
     });
@@ -119,6 +122,7 @@ try {
     assert.match(await page.locator('#conditionsName').innerText(), /Night · Rain/);
     assert.equal(await page.locator('#castBtn').isEnabled(), true, 'an in-progress fight is intentionally reset to a fresh cast state on reload');
     assert.deepEqual(pageErrors, [], `${viewport.name}: uncaught browser exceptions`);
+    assert.deepEqual(consoleErrors, [], `${viewport.name}: browser console errors`);
     assert.deepEqual(failedLocalRequests, [], `${viewport.name}: local app requests must succeed`);
     console.log(`PASS ${engineName}/${viewport.name}: startup, navigation, GoopDex search, conditions, cast → bite → fight, save/reload`);
     await context.close();
