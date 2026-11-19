@@ -90,7 +90,22 @@ for(let i=0;i<5;i++){let x=w*(.035+i*.035),y=h*(.615+(i%2)*.025);ctx.fillStyle=n
 for(let i=0;i<13;i++){let x=w*(.34+((i*.137+clock*.012)% .57)),y=h*(.64+(i%5)*.045);let length=9+(i%4)*5;ctx.strokeStyle=night?'rgba(160,197,230,.18)':'rgba(188,225,220,.22)';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(x,y);ctx.quadraticCurveTo(x+length*.5,y-2-Math.sin(clock*1.4+i)*1.5,x+length,y);ctx.stroke()}
 }else if(scene.landmark==='crystal-spires'){
 const crystal=(x,y,scale)=>{polygon([[x,y],[x-.035*scale,.13*scale+y],[x-.018*scale,.22*scale+y],[x+.012*scale,.18*scale+y],[x+.04*scale,.23*scale+y],[x+.03*scale,.1*scale+y]],night?'#426c86':'#79aeb2',glow);polygon([[x,y],[x-.018*scale,.22*scale+y],[x+.012*scale,.18*scale+y]],night?'#8ad9e1':'#c9ffff')};
+// Great Goopglass Spires rise from both banks and frame the open fishing lane.
 crystal(.1,.31,1.05);crystal(.19,.39,.7);crystal(.82,.34,.9);crystal(.91,.4,.62);
+crystal(.045,.45,.48);crystal(.965,.46,.5);
+// Prismroot fans spread luminous mineral growth around the base of the formations.
+for(let i=0;i<6;i++){let x=w*(.045+i*.025),y=h*(.49+(i%2)*.018);ctx.strokeStyle=night?'rgba(130,226,231,.72)':'rgba(196,255,244,.85)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x-5,y-10-(i%3)*3);ctx.moveTo(x,y);ctx.lineTo(x+5,y-13-(i%2)*4);ctx.stroke();ctx.fillStyle=night?'#6ebdc9':'#b8ece0';ctx.beginPath();ctx.arc(x,y-14-(i%2)*3,2.5,0,Math.PI*2);ctx.fill()}
+// Floating Goopglass shards drift slowly above the water on either side of the cast.
+for(let i=0;i<7;i++){let x=w*(.12+((i*.119+clock*.006)% .76)),y=h*(.25+(i%3)*.055+Math.sin(clock*.7+i)*.008);ctx.save();ctx.translate(x,y);ctx.rotate(Math.sin(clock*.45+i)*.12);polygon([[0,-7],[-4,0],[0,7],[4,0]],night?'#7edce5':'#d0fff4',glow);ctx.restore()}
+// Prism beams refract through the mist, kept faint so the fish and bobber remain legible.
+ctx.strokeStyle=night?'rgba(151,229,244,.17)':'rgba(222,255,249,.34)';ctx.lineWidth=2;
+for(let i=0;i<3;i++){let x=w*(.16+i*.31);ctx.beginPath();ctx.moveTo(x,h*.12);ctx.lineTo(x+w*.09,h*.43);ctx.stroke()}
+// Gooice shelves cling to the banks with layered translucent mineral edges.
+for(let i=0;i<4;i++){let x=w*(.015+i*.035),y=h*(.555+(i%2)*.018);polygon([[x/w,y/h],[x/w+.025,y/h-.035],[x/w+.052,y/h-.008],[x/w+.075,y/h-.027],[x/w+.09,y/h]],night?'#315a70':'#83b9b6',night?'#5e9eae':'#c1e9d9')}
+// Luminous Prism Pools pulse gently at the shoreline; the center stays clear for casting.
+for(let i=0;i<5;i++){let x=w*(.025+i*.035),y=h*(.625+(i%2)*.02);ctx.fillStyle=night?'rgba(107,220,232,.2)':'rgba(173,245,226,.26)';ctx.beginPath();ctx.ellipse(x,y,15,4,0,0,Math.PI*2);ctx.fill();ctx.strokeStyle=night?'rgba(159,245,255,.45)':'rgba(215,255,240,.65)';ctx.lineWidth=1.5;ctx.beginPath();ctx.ellipse(x,y,9+Math.sin(clock+i)*2,2.5,0,0,Math.PI*2);ctx.stroke()}
+// Shimmer ripples travel across the Goopwater as tiny spectral highlights.
+for(let i=0;i<12;i++){let x=w*(.31+((i*.137+clock*.011)% .62)),y=h*(.65+(i%5)*.045);ctx.strokeStyle=night?'rgba(143,222,244,.2)':'rgba(214,255,244,.3)';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(x,y);ctx.quadraticCurveTo(x+8,y-2-Math.sin(clock+i)*1.3,x+17,y);ctx.stroke()}
 }
 ctx.restore();
 }
