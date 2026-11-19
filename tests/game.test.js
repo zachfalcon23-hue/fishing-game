@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
-import { FISH, ZONES, ZONE_SCENE_PROFILES, weightedPick, createFight, fightTick, FishingGame, SaveStore, PHASES, levelXP, BEHAVIOR_INFO, MOVE_INFO, availableMovesFor, personalityFor, CATCH_PROFILES, sampleCatchMetrics, spawnWeightFor, gearAdjustedSpawnWeight, RODS, BAITS, QUESTS, questProgress, visualFor, rarityRank, specimenRankLabel } from '../src/game.js';
+import { FISH, ZONES, ZONE_SCENE_PROFILES, ZONE_EVENTS, rollZoneEvent, weightedPick, createFight, fightTick, FishingGame, SaveStore, PHASES, levelXP, BEHAVIOR_INFO, MOVE_INFO, availableMovesFor, personalityFor, CATCH_PROFILES, sampleCatchMetrics, spawnWeightFor, gearAdjustedSpawnWeight, RODS, BAITS, QUESTS, questProgress, visualFor, rarityRank, specimenRankLabel } from '../src/game.js';
 
 function memoryStore(){return {v:null,getItem(){return this.v},setItem(k,v){this.v=v},removeItem(){this.v=null}}}
 
@@ -83,6 +83,31 @@ test('fish roster and locations are populated',()=>{
   assert.ok(ZONES.every(z=>z.fish.every(id=>ids.has(id))),'every zone fish must exist in the GoopDex roster');
 });
 
+test('zone ecology events only trigger under their authored conditions and use bounded odds',()=>{
+  assert.equal(rollZoneEvent('pond',{timeOfDay:'day',weather:'clear'},()=>0),'null');
+  assert.equal(rollZoneEvent('pond',{timeOfDay:'night',weather:'clear'},()=>.1).id,'gloopglow-bloom');
+  assert.equal(rollZoneEvent('pond',{timeOfDay:'day',weather:'rain'},()=>.1).id,'tadgoop-rush');
+  assert.equal(rollZoneEvent('hollow',{timeOfDay:'night',weather:'clear'},()=>.1),null);
+  assert.equal(rollZoneEvent('hollow',{timeOfDay:'night',weather:'rain'},()=>.1).id,'murk-lantern-drift');
+  assert.equal(rollZoneEvent('creek',{timeOfDay:'day',weather:'clear'},()=>.1).id,'cinderwake');
+  assert.equal(rollZoneEvent('bay',{timeOfDay:'night',weather:'clear'},()=>.1).id,'moonwake');
+  assert.equal(rollZoneEvent('reach',{timeOfDay:'day',weather:'clear'},()=>.1).id,'prismfall');
+  assert.equal(rollZoneEvent('pond',{timeOfDay:'night',weather:'clear'},()=>.99),null);
+  assert.equal(rollZoneEvent('unknown',{timeOfDay:'night',weather:'clear'},()=>0),null);
+});
+test('North Pond environmental events alter spawn odds and improve catch rewards and XP',()=>{
+  const game=new FishingGame({rng:()=>0,store:new SaveStore(memoryStore())});
+  game.state.timeOfDay='night';
+  assert.equal(game.cast(),true);
+  assert.equal(game.encounterEvent.id,'gloopglow-bloom');
+  assert.match(game.message,/Gloopglow Bloom/);
+  assert.equal(game.events.at(-1).data.zoneEvent,'gloopglow-bloom');
+  game.fish=FISH.find(f=>f.id==='gloop');
+  game.fight={style:'tension',specimen:sampleCatchMetrics(game.fish,()=>0),progress:1,movesRead:0,movesAttempted:0,moveHistory:[],caught:true};
+  game.finishCatch();
+  assert.equal(game.state.xp,Math.round(game.fish.xp*.9*1.15));
+  assert.equal(game.reward,Math.round(game.fish.value*.78*1.2));
+});
 test('all five fishing zones have distinct palettes and rendered environmental landmarks',()=>{
   const main=readFileSync(new URL('../src/main.js',import.meta.url),'utf8');
   assert.deepEqual(Object.keys(ZONE_SCENE_PROFILES).sort(),ZONES.map(zone=>zone.id).sort());
