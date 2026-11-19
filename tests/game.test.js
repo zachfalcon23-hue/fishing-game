@@ -27,6 +27,26 @@ test('parseable but structurally damaged primary saves recover from the valid ba
 test('unrecognized primary and backup saves fail closed to fresh state',()=>{const storage={data:{},getItem(k){return this.data[k]??null},setItem(k,v){this.data[k]=v},removeItem(k){delete this.data[k]}};const store=new SaveStore(storage);storage.data[store.k]=JSON.stringify({version:4,essence:'999999',dex:[],ownedRods:{},zoneUnlocked:[]});storage.data[store.backupKey]=JSON.stringify({version:4});const loaded=store.load();assert.equal(loaded.essence,0);assert.equal(loaded.total,0);assert.equal(store.lastLoadRecovered,false)});
 
 test('caught specimens and sell-or-keep decisions survive a reload',()=>{const storage={data:{},getItem(k){return this.data[k]??null},setItem(k,v){this.data[k]=v},removeItem(k){delete this.data[k]}};const game=new FishingGame({rng:()=>0,store:new SaveStore(storage)});game.fish=FISH[0];game.fight={style:'tension',specimen:sampleCatchMetrics(FISH[0],()=>0),progress:1,movesRead:0,movesAttempted:0,moveHistory:[],caught:true};game.finishCatch();const expectedReward=game.reward;assert.ok(game.state.pendingCatch);const recovered=new FishingGame({rng:()=>0,store:new SaveStore(storage)});assert.equal(recovered.phase,PHASES.CAUGHT);assert.equal(recovered.fish.id,FISH[0].id);assert.equal(recovered.reward,expectedReward);const beforeSale=recovered.state.essence;assert.equal(recovered.sell(),true);assert.equal(recovered.state.pendingCatch,null);assert.equal(recovered.state.essence,beforeSale+expectedReward);const freshReload=new FishingGame({rng:()=>0,store:new SaveStore(storage)});assert.equal(freshReload.phase,PHASES.IDLE);assert.equal(freshReload.state.pendingCatch,null)});
+test('a landed catch clearly reports save failure and can be committed by a later decision retry',()=>{
+  const storage={data:{},failNextWrite:true,getItem(k){return this.data[k]??null},setItem(k,v){if(this.failNextWrite){this.failNextWrite=false;throw new Error('quota')}this.data[k]=v},removeItem(k){delete this.data[k]}};
+  const store=new SaveStore(storage),game=new FishingGame({rng:()=>0,store});
+  game.fish=FISH[0];
+  game.fight={style:'tension',specimen:sampleCatchMetrics(FISH[0],()=>0),progress:1,movesRead:0,movesAttempted:0,moveHistory:[],caught:true};
+  game.finishCatch();
+  const reward=game.reward;
+  assert.equal(game.phase,PHASES.CAUGHT);
+  assert.ok(game.state.pendingCatch);
+  assert.equal(store.lastSaveSucceeded,false);
+  assert.match(game.message,/local save failed/i);
+  assert.match(game.message,/Keep this page open/i);
+  assert.equal(game.sell(),true);
+  assert.equal(store.lastSaveSucceeded,true);
+  const restored=new FishingGame({rng:()=>0,store:new SaveStore(storage)});
+  assert.equal(restored.phase,PHASES.IDLE);
+  assert.equal(restored.state.pendingCatch,null);
+  assert.equal(restored.state.essence,reward);
+});
+
 test('Sell is idempotent and cannot credit the same catch twice',()=>{const game=new FishingGame({rng:()=>0,store:new SaveStore(memoryStore())});game.fish=FISH[0];game.fight={style:'tension',specimen:sampleCatchMetrics(FISH[0],()=>0),progress:1,movesRead:0,movesAttempted:0,moveHistory:[],caught:true};game.finishCatch();const reward=game.reward,beforeEssence=game.state.essence,beforeSales=game.state.sales,beforeDay=game.state.day;assert.equal(game.sell(),true);assert.equal(game.sell(),false);assert.equal(game.state.essence,beforeEssence+reward);assert.equal(game.state.sales,beforeSales+reward);assert.equal(game.state.day,beforeDay+1)});
 
 test('Keep is idempotent and cannot advance the fishing day twice',()=>{const game=new FishingGame({rng:()=>0,store:new SaveStore(memoryStore())});game.fish=FISH[0];game.fight={style:'tension',specimen:sampleCatchMetrics(FISH[0],()=>0),progress:1,movesRead:0,movesAttempted:0,moveHistory:[],caught:true};game.finishCatch();const total=game.state.total,beforeEssence=game.state.essence,beforeDay=game.state.day;assert.equal(game.keep(),true);assert.equal(game.keep(),false);assert.equal(game.state.essence,beforeEssence);assert.equal(game.state.day,beforeDay+1);assert.equal(game.state.total,total)});
