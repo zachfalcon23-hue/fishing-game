@@ -141,6 +141,7 @@ test('landing a hidden Goop records it in the GoopDex and removes its secret spa
   game.fight={style:'tension',specimen:sampleCatchMetrics(secret,()=>0),progress:1,movesRead:0,movesAttempted:0,moveHistory:[],caught:true};
   game.finishCatch();
   assert.equal(game.state.dex.rootwhisper.count,1);
+  assert.match(game.message,/SECRET GOOP DISCOVERED: Rootwhisper/);
   assert.equal(game.state.hiddenTracks.rootwhisper,undefined);
   assert.equal(game.phase,PHASES.CAUGHT);
   assert.equal(game.keep(),true);
