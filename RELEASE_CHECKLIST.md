@@ -40,6 +40,8 @@ This checklist separates automated verification from hands-on release validation
 - [x] Regression tests added for reel input interruption/keyboard support and save storage failure reporting.
 - [x] Active fish-maneuver feedback stays provisional until the move resolves; regression test prevents premature success copy.
 
+- [x] Specimen record flags are reconciled on catch and reload; failed-save rollback, empty spawn-pool rejection, pending-catch hydration, and persistent rare-achievement checks have regression coverage.
+
 ## Manual release validation — still required
 
 ### Browser and device coverage
