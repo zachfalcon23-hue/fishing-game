@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "node --check src/game.js && node --check src/telemetry.js && node --check src/main.js && node --check tests/browser-smoke.mjs",
+    "check": "node --check src/game.js && node --check src/telemetry.js && node --check src/main.js && node --check tests/game.test.js && node --check tests/telemetry.test.js && node --check tests/browser-smoke.mjs",
     "test": "node --test",
     "test:browser": "node tests/browser-smoke.mjs",
     "start": "npx serve ."
