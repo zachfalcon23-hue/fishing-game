@@ -19,6 +19,8 @@ This checklist separates automated verification from hands-on release validation
 - [x] Trophy/weight quest and collection achievement logic is covered.
 - [x] Browser DOM references resolve to unique HTML IDs.
 - [x] JavaScript syntax check and Node regression suite pass in GitHub Actions.
+- [x] Chromium browser smoke harness covers desktop and mobile viewports, page startup, navigation, GoopDex search, conditions, cast/bite/fight transitions, save hydration after reload, uncaught exceptions, and failed local requests.
+- [x] GitHub Actions installs a pinned Playwright version and Chromium, then runs the browser smoke harness after the existing Node checks.
 
 ## Phase 1 improvements added in this pass
 
