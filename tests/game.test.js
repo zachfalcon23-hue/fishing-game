@@ -132,6 +132,21 @@ test('hidden Goop clues progress and persist only at their exact habitat and con
   assert.equal(restored.state.hiddenTracks.rootwhisper,3);
   assert.equal(restored.fish.id,'rootwhisper');
 });
+test('landing a hidden Goop records it in the GoopDex and removes its secret spawn',()=>{
+  const game=new FishingGame({rng:()=>.999,store:new SaveStore(memoryStore())});
+  const secret=FISH.find(f=>f.id==='rootwhisper');
+  game.fish=secret;
+  game.fight={style:'tension',specimen:sampleCatchMetrics(secret,()=>0),progress:1,movesRead:0,movesAttempted:0,moveHistory:[],caught:true};
+  game.finishCatch();
+  assert.equal(game.state.dex.rootwhisper.count,1);
+  assert.equal(game.state.hiddenTracks.rootwhisper,undefined);
+  assert.equal(game.phase,PHASES.CAUGHT);
+  assert.equal(game.keep(),true);
+  game.habitatId='goopwillow-roots';
+  game.state.timeOfDay='night';
+  assert.equal(game.cast(),true);
+  assert.notEqual(game.fish.id,'rootwhisper');
+});
 test('hidden Goop progress is sanitized and discovered species stop appearing as secrets',()=>{
   const storage={data:{},getItem(k){return this.data[k]??null},setItem(k,v){this.data[k]=v},removeItem(k){delete this.data[k]}};
   const store=new SaveStore(storage),state=store.fresh();
