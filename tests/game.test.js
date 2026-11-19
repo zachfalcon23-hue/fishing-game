@@ -408,3 +408,10 @@ test('save hydration accepts legitimately generated specimen extremes for every 
     }
   }
 });
+
+
+test('GoopDex search and filter controls expose accessible names',()=>{
+  const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  assert.match(html,/<input id="dexSearch"[^>]*aria-label="Search GoopDex species"/);
+  assert.match(html,/<select id="dexFilter"[^>]*aria-label="Filter GoopDex species"/);
+});
