@@ -48,6 +48,19 @@ try {
     assert.match(await page.title(), /Pondbound 0\.4/);
     assert.equal(await page.locator('#castBtn').isVisible(), true);
     assert.equal(await page.locator('#dexSearch').count(), 1);
+    assert.equal(await page.getByRole('navigation', { name: 'Game sections' }).count(), 1);
+    assert.equal(await page.getByRole('button', { name: 'CAST LINE' }).count(), 1);
+    await page.locator('#castBtn').focus();
+    await page.keyboard.press('Tab');
+    assert.equal(await page.evaluate(() => document.activeElement.id), 'reelBtn', `${viewport.name}: keyboard tab order reaches reel control`);
+    await page.keyboard.press('Shift+Tab');
+    assert.equal(await page.evaluate(() => document.activeElement.id), 'castBtn', `${viewport.name}: keyboard reverse tab order returns to cast control`);
+    for (const [id, label] of [['tensionMeter', 'Fishing line tension'], ['staminaMeter', 'Goop energy'], ['patienceMeter', 'Goop approach progress'], ['spookMeter', 'Goop spook level'], ['intentMeter', 'Fish maneuver timing']]) {
+      const meter = page.locator(`#${id}`);
+      assert.equal(await meter.getAttribute('role'), 'progressbar');
+      assert.equal(await meter.getAttribute('aria-label'), label);
+      assert.ok(Number.isFinite(Number(await meter.getAttribute('aria-valuenow'))));
+    }
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), `${viewport.name}: page must not overflow horizontally`);
     for (const selector of ['#castBtn', '#reelBtn', '#releaseBtn']) {
       const height = await page.locator(selector).evaluate(element => element.getBoundingClientRect().height);
