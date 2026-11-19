@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
-import { FISH, ZONES, ZONE_SCENE_PROFILES, ZONE_EVENTS, rollZoneEvent, weightedPick, createFight, fightTick, FishingGame, SaveStore, PHASES, levelXP, BEHAVIOR_INFO, MOVE_INFO, availableMovesFor, personalityFor, CATCH_PROFILES, sampleCatchMetrics, spawnWeightFor, gearAdjustedSpawnWeight, RODS, BAITS, QUESTS, questProgress, visualFor, rarityRank, specimenRankLabel } from '../src/game.js';
+import { FISH, ZONES, ZONE_SCENE_PROFILES, ZONE_EVENTS, ZONE_HABITATS, rollZoneEvent, weightedPick, createFight, fightTick, FishingGame, SaveStore, PHASES, levelXP, BEHAVIOR_INFO, MOVE_INFO, availableMovesFor, personalityFor, CATCH_PROFILES, sampleCatchMetrics, spawnWeightFor, gearAdjustedSpawnWeight, RODS, BAITS, QUESTS, questProgress, visualFor, rarityRank, specimenRankLabel } from '../src/game.js';
 
 function memoryStore(){return {v:null,getItem(){return this.v},setItem(k,v){this.v=v},removeItem(){this.v=null}}}
 
@@ -95,6 +95,28 @@ test('zone ecology events only trigger under their authored conditions and use b
   assert.equal(rollZoneEvent('pond',{timeOfDay:'night',weather:'clear'},()=>.99),null);
   assert.equal(rollZoneEvent('unknown',{timeOfDay:'night',weather:'clear'},()=>0),null);
   assert.deepEqual(Object.keys(ZONE_EVENTS).sort(),ZONES.map(zone=>zone.id).sort());
+});
+test('each fishing zone offers three valid habitat hotspots with distinct Goop spawn biases',()=>{
+  assert.deepEqual(Object.keys(ZONE_HABITATS).sort(),ZONES.map(zone=>zone.id).sort());
+  for(const zone of ZONES){
+    const habitats=ZONE_HABITATS[zone.id];
+    assert.equal(habitats.length,3,zone.id+' should have three habitats');
+    assert.equal(new Set(habitats.map(h=>h.id)).size,3);
+    for(const habitat of habitats)assert.ok(Object.keys(habitat.boosts).every(id=>zone.fish.includes(id)),habitat.id+' may only boost fish available in its zone');
+  }
+});
+test('habitat selection is locked during encounters and changes the cast habitat',()=>{
+  const game=new FishingGame({rng:()=>0,store:new SaveStore(memoryStore())});
+  const habitats=ZONE_HABITATS.pond;
+  assert.equal(game.habitatId,habitats[0].id);
+  assert.equal(game.selectHabitat(habitats[1].id),true);
+  assert.equal(game.habitatId,habitats[1].id);
+  assert.equal(game.cast(),true);
+  assert.equal(game.events.at(-1).data.habitat,habitats[1].id);
+  assert.equal(game.selectHabitat(habitats[2].id),false);
+  game.phase=PHASES.ESCAPED;
+  assert.equal(game.selectHabitat(habitats[2].id),true);
+  assert.equal(game.selectHabitat('not-a-habitat'),false);
 });
 test('environmental event discoveries persist, reward once, and reject unknown save entries',()=>{
   const storage={data:{},getItem(k){return this.data[k]??null},setItem(k,v){this.data[k]=v},removeItem(k){delete this.data[k]}};
