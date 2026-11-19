@@ -125,7 +125,7 @@ test('North Pond environmental events alter spawn odds and improve catch rewards
   game.fish=FISH.find(f=>f.id==='gloop');
   game.fight={style:'tension',specimen:sampleCatchMetrics(game.fish,()=>0),progress:1,movesRead:0,movesAttempted:0,moveHistory:[],caught:true};
   game.finishCatch();
-  assert.equal(game.state.xp,Math.round(game.fish.xp*.9*1.15)+25);
+  assert.equal(game.state.xp,Math.round(game.fish.xp*.9*1.15)+33);
   assert.equal(game.reward,Math.round(game.fish.value*1.015*.78*1.2));
 });
 test('all five fishing zones have distinct palettes and rendered environmental landmarks',()=>{
