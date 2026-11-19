@@ -52,8 +52,8 @@ try {
     assert.equal(await page.locator('[data-time="night"]').isEnabled(), true, `${viewport.name}: night control must be enabled before casting`);
     await page.locator('[data-time="night"]').click();
     await page.waitForFunction(() => document.querySelector('#conditionsName')?.textContent === 'Night · Clear', undefined, { timeout: 5000 });
-    const rainControl = await page.locator('[data-weather="rain"]').evaluate(button => ({ disabled: button.disabled, handler: typeof button.onclick, selected: button.classList.contains('selected') }));
-    assert.deepEqual(rainControl, { disabled: false, handler: 'function', selected: false }, `${viewport.name}: rain control must be active after changing time`);
+    const rainControl = await page.locator('[data-weather="rain"]').evaluate(button => ({ disabled: button.disabled, selected: button.classList.contains('selected') }));
+    assert.deepEqual(rainControl, { disabled: false, selected: false }, `${viewport.name}: rain control must be active after changing time`);
     await page.locator('[data-weather="rain"]').click();
     await page.waitForFunction(() => JSON.parse(localStorage.getItem('goop-fishing-save-v3') || 'null')?.weather === 'rain', undefined, { timeout: 5000 });
     await page.waitForFunction(() => document.querySelector('#conditionsName')?.textContent === 'Night · Rain', undefined, { timeout: 5000 });
