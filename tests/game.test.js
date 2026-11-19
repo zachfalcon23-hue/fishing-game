@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
-import { FISH, ZONES, ZONE_SCENE_PROFILES, ZONE_EVENTS, ZONE_HABITATS, rollZoneEvent, weightedPick, createFight, fightTick, FishingGame, SaveStore, PHASES, levelXP, BEHAVIOR_INFO, MOVE_INFO, availableMovesFor, personalityFor, CATCH_PROFILES, sampleCatchMetrics, spawnWeightFor, gearAdjustedSpawnWeight, RODS, BAITS, QUESTS, questProgress, visualFor, rarityRank, specimenRankLabel } from '../src/game.js';
+import { FISH, ZONES, ZONE_SCENE_PROFILES, ZONE_EVENTS, ZONE_HABITATS, HIDDEN_GOOPS, rollZoneEvent, weightedPick, createFight, fightTick, FishingGame, SaveStore, PHASES, levelXP, BEHAVIOR_INFO, MOVE_INFO, availableMovesFor, personalityFor, CATCH_PROFILES, sampleCatchMetrics, spawnWeightFor, gearAdjustedSpawnWeight, RODS, BAITS, QUESTS, questProgress, visualFor, rarityRank, specimenRankLabel } from '../src/game.js';
 
 function memoryStore(){return {v:null,getItem(){return this.v},setItem(k,v){this.v=v},removeItem(){this.v=null}}}
 
@@ -77,7 +77,8 @@ test('fish roster and locations are populated',()=>{
   assert.ok(FISH.length>=50);
   assert.ok(ZONES.length>=4);
   assert.equal(new Set(FISH.map(f=>f.id)).size,FISH.length);
-  assert.equal(FISH.length,50);
+  assert.equal(FISH.length,55);
+  assert.equal(FISH.filter(f=>f.hidden).length,5);
   assert.ok(FISH.every(f=>CATCH_PROFILES[f.id]));
   const ids=new Set(FISH.map(f=>f.id));
   assert.ok(ZONES.every(z=>z.fish.every(id=>ids.has(id))),'every zone fish must exist in the GoopDex roster');
@@ -95,6 +96,50 @@ test('zone ecology events only trigger under their authored conditions and use b
   assert.equal(rollZoneEvent('pond',{timeOfDay:'night',weather:'clear'},()=>.99),null);
   assert.equal(rollZoneEvent('unknown',{timeOfDay:'night',weather:'clear'},()=>0),null);
   assert.deepEqual(Object.keys(ZONE_EVENTS).sort(),ZONES.map(zone=>zone.id).sort());
+});
+test('five hidden Goops have valid habitat clues, catch profiles, and are excluded from ordinary zone pools',()=>{
+  assert.equal(HIDDEN_GOOPS.length,5);
+  assert.equal(new Set(HIDDEN_GOOPS.map(secret=>secret.id)).size,5);
+  for(const secret of HIDDEN_GOOPS){
+    const fish=FISH.find(item=>item.id===secret.id);
+    assert.ok(fish?.hidden,secret.id+' must be marked hidden');
+    assert.ok(CATCH_PROFILES[secret.id],secret.id+' must have a catch profile');
+    assert.equal(ZONES.find(zone=>zone.id===secret.zone).fish.includes(secret.id),false);
+    assert.equal(ZONE_HABITATS[secret.zone].some(h=>h.id===secret.habitat),true);
+    assert.equal(secret.clues.length,3);
+  }
+});
+test('hidden Goop clues progress and persist only at their exact habitat and conditions',()=>{
+  const storage={data:{},getItem(k){return this.data[k]??null},setItem(k,v){this.data[k]=v},removeItem(k){delete this.data[k]}};
+  const game=new FishingGame({rng:()=>.999,store:new SaveStore(storage)});
+  game.habitatId='goopwillow-roots';
+  game.state.timeOfDay='night';
+  assert.equal(game.cast(),true);
+  assert.equal(game.state.hiddenTracks.rootwhisper,1);
+  assert.match(game.message,/soft green pulse/i);
+  const restored=new FishingGame({rng:()=>.999,store:new SaveStore(storage)});
+  assert.equal(restored.state.hiddenTracks.rootwhisper,1);
+  restored.habitatId='gloopglow-beds';
+  restored.phase=PHASES.ESCAPED;
+  assert.equal(restored.cast(),true);
+  assert.equal(restored.state.hiddenTracks.rootwhisper,1);
+  restored.habitatId='goopwillow-roots';
+  restored.phase=PHASES.ESCAPED;
+  assert.equal(restored.cast(),true);
+  assert.equal(restored.state.hiddenTracks.rootwhisper,2);
+  restored.phase=PHASES.ESCAPED;
+  assert.equal(restored.cast(),true);
+  assert.equal(restored.state.hiddenTracks.rootwhisper,3);
+  assert.equal(restored.fish.id,'rootwhisper');
+});
+test('hidden Goop progress is sanitized and discovered species stop appearing as secrets',()=>{
+  const storage={data:{},getItem(k){return this.data[k]??null},setItem(k,v){this.data[k]=v},removeItem(k){delete this.data[k]}};
+  const store=new SaveStore(storage),state=store.fresh();
+  state.hiddenTracks={rootwhisper:9,'fake-goop':3,lanternlurker:-1};
+  assert.equal(store.save(state),true);
+  const loaded=new SaveStore(storage).load();
+  assert.deepEqual(loaded.hiddenTracks,{rootwhisper:3});
+  assert.equal(FISH.filter(f=>f.hidden).length,5);
 });
 test('each fishing zone offers three valid habitat hotspots with distinct Goop spawn biases',()=>{
   assert.deepEqual(Object.keys(ZONE_HABITATS).sort(),ZONES.map(zone=>zone.id).sort());
