@@ -60,6 +60,13 @@ ctx.fillStyle=night?'rgba(196,216,255,.19)':'rgba(255,239,190,.14)';ctx.beginPat
 // Small navigation buoys and broken moon reflections mark the channel.
 for(let i=0;i<3;i++){let x=w*(.48+i*.105),y=h*(.59+(i%2)*.018);ctx.fillStyle=i===1?'#d98b78':glow;ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.fill();ctx.fillStyle='rgba(210,224,235,.35)';ctx.fillRect(x-1,y+5,2,13)}
 ctx.strokeStyle=night?'rgba(205,220,255,.28)':'rgba(255,239,190,.24)';ctx.lineWidth=2;for(let i=0;i<7;i++){let x=w*(.74+i*.018),y=h*(.62+(i%3)*.025);ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+12+Math.sin(clock+i)*5,y+2);ctx.stroke()}
+// Foam traces the tide line along both rocky edges; the open center stays clear for fishing.
+ctx.strokeStyle=night?'rgba(194,218,238,.24)':'rgba(225,242,235,.46)';ctx.lineWidth=2;
+for(let i=0;i<5;i++){let y=h*(.585+i*.012),left=w*(.015+i*.012),right=w*(.94+i*.012);ctx.beginPath();ctx.moveTo(left,y);ctx.quadraticCurveTo(left+w*.045,y-4,left+w*.09,y+2);ctx.stroke();ctx.beginPath();ctx.moveTo(right,y+3);ctx.quadraticCurveTo(right-w*.035,y-3,right-w*.075,y+2);ctx.stroke()}
+// Low tide rocks and a few sea-grass clumps anchor the foreground shoreline.
+for(let i=0;i<5;i++){let x=w*(.035+i*.035),y=h*(.615+(i%2)*.025);ctx.fillStyle=night?'#263c50':'#596f70';ctx.beginPath();ctx.ellipse(x,y,9+(i%3)*3,4+(i%2)*2,-.18,0,Math.PI*2);ctx.fill();ctx.strokeStyle=glow;ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(x,y+2);ctx.quadraticCurveTo(x-5,y-10,x-7,y-14);ctx.moveTo(x+2,y+2);ctx.quadraticCurveTo(x+8,y-8,x+9,y-12);ctx.stroke()}
+// Broken wavelets and moving highlights keep the bay from reading as a flat water plane.
+for(let i=0;i<13;i++){let x=w*(.34+((i*.137+clock*.012)% .57)),y=h*(.64+(i%5)*.045);let length=9+(i%4)*5;ctx.strokeStyle=night?'rgba(160,197,230,.18)':'rgba(188,225,220,.22)';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(x,y);ctx.quadraticCurveTo(x+length*.5,y-2-Math.sin(clock*1.4+i)*1.5,x+length,y);ctx.stroke()}
 }else if(scene.landmark==='crystal-spires'){
 const crystal=(x,y,scale)=>{polygon([[x,y],[x-.035*scale,.13*scale+y],[x-.018*scale,.22*scale+y],[x+.012*scale,.18*scale+y],[x+.04*scale,.23*scale+y],[x+.03*scale,.1*scale+y]],night?'#426c86':'#79aeb2',glow);polygon([[x,y],[x-.018*scale,.22*scale+y],[x+.012*scale,.18*scale+y]],night?'#8ad9e1':'#c9ffff')};
 crystal(.1,.31,1.05);crystal(.19,.39,.7);crystal(.82,.34,.9);crystal(.91,.4,.62);
