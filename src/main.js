@@ -13,10 +13,25 @@ const scene=ZONE_SCENE_PROFILES[zone?.id]||ZONE_SCENE_PROFILES.pond,ground=h*.56
 const polygon=(points,fill,stroke=null)=>{ctx.beginPath();ctx.moveTo(points[0][0]*w,points[0][1]*h);for(let i=1;i<points.length;i++)ctx.lineTo(points[i][0]*w,points[i][1]*h);ctx.closePath();ctx.fillStyle=fill;ctx.fill();if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=2;ctx.stroke()}};
 ctx.save();ctx.lineCap='round';ctx.lineJoin='round';
 if(scene.landmark==='reeds-and-willows'){
-ctx.strokeStyle=stone;ctx.lineWidth=13;ctx.beginPath();ctx.moveTo(w*.08,ground);ctx.quadraticCurveTo(w*.1,h*.36,w*.17,h*.3);ctx.stroke();
-ctx.lineWidth=5;for(let i=0;i<5;i++){let x=w*(.13+i*.018);ctx.beginPath();ctx.moveTo(w*.1,h*.43);ctx.quadraticCurveTo(x,h*.28,x+w*.025,h*(.26+(i%2)*.035));ctx.stroke()}
-ctx.fillStyle=night?'#263f43':'#4d8064';for(let i=0;i<7;i++){let x=w*(.035+i*.014),y=h*(.39+(i%3)*.025);ctx.beginPath();ctx.ellipse(x,y,18,10,-.4,0,Math.PI*2);ctx.fill()}
-ctx.strokeStyle=glow;ctx.lineWidth=3;for(let i=0;i<9;i++){let x=w*(.77+i*.024);ctx.beginPath();ctx.moveTo(x,ground);ctx.quadraticCurveTo(x-8,h*.46,x+4,h*(.39+(i%3)*.025));ctx.stroke()}
+// Grandmother Goopwillow: a sweeping old tree guards the left bank.
+ctx.strokeStyle=stone;ctx.lineWidth=16;ctx.beginPath();ctx.moveTo(w*.08,ground);ctx.quadraticCurveTo(w*.1,h*.36,w*.17,h*.3);ctx.stroke();
+ctx.lineWidth=5;for(let i=0;i<7;i++){let x=w*(.13+i*.018);ctx.beginPath();ctx.moveTo(w*.1,h*.43);ctx.quadraticCurveTo(x,h*(.28-(i%2)*.025),x+w*.025,h*(.26+(i%3)*.025));ctx.stroke()}
+ctx.fillStyle=night?'#263f43':'#4d8064';for(let i=0;i<10;i++){let x=w*(.025+i*.014),y=h*(.36+(i%4)*.027);ctx.beginPath();ctx.ellipse(x,y,19,11,-.4,0,Math.PI*2);ctx.fill()}
+// Gloopvine curtains drape from the willow and sway in the pond breeze.
+ctx.strokeStyle=night?'#568c78':'#8bc68c';ctx.lineWidth=3;for(let i=0;i<8;i++){let x=w*(.105+i*.014),y=h*(.34+(i%3)*.025);ctx.beginPath();ctx.moveTo(x,y);ctx.quadraticCurveTo(x-5+Math.sin(clock*.8+i)*3,y+13,x+Math.sin(clock+i)*4,y+27);ctx.stroke()}
+// Goopbulb lantern fruits glow among the leaves after dusk.
+for(let i=0;i<6;i++){let x=w*(.065+(i%3)*.045),y=h*(.31+Math.floor(i/3)*.045);ctx.fillStyle=night?'rgba(177,255,150,.2)':'rgba(174,226,134,.25)';ctx.beginPath();ctx.arc(x,y,9,0,Math.PI*2);ctx.fill();ctx.fillStyle=night?'#c8ff9a':'#b5df8a';ctx.beginPath();ctx.arc(x,y,3.5,0,Math.PI*2);ctx.fill()}
+// Tadgoop stepping stones and slime-moss pads break up the near shoreline.
+for(let i=0;i<7;i++){let x=w*(.025+i*.035),y=h*(.555+(i%2)*.012);ctx.fillStyle=night?'#294c4d':'#587b61';ctx.beginPath();ctx.ellipse(x,y,12+(i%3)*3,5,0,0,Math.PI*2);ctx.fill();ctx.fillStyle=glow;ctx.beginPath();ctx.ellipse(x-2,y-3,5,1.8,0,0,Math.PI*2);ctx.fill()}
+// Bubbling Goo vents pop softly in the shallow margin.
+for(let i=0;i<5;i++){let x=w*(.18+i*.045),y=h*(.62+(i%2)*.025),rise=(clock*.018+i*.17)%1;ctx.strokeStyle=night?'rgba(158,238,174,.48)':'rgba(194,255,191,.62)';ctx.lineWidth=1.4;ctx.beginPath();ctx.arc(x,y-rise*19,2+rise*2,0,Math.PI*2);ctx.stroke();ctx.fillStyle=night?'rgba(114,215,147,.16)':'rgba(166,239,164,.22)';ctx.beginPath();ctx.ellipse(x,y,8,2.5,0,0,Math.PI*2);ctx.fill()}
+// Reedlet flags ripple along the right bank, framing but never blocking the cast.
+ctx.strokeStyle=glow;ctx.lineWidth=3;for(let i=0;i<11;i++){let x=w*(.75+i*.023),tipY=h*(.39+(i%4)*.022);ctx.beginPath();ctx.moveTo(x,ground);ctx.quadraticCurveTo(x-8,h*.46,x+4+Math.sin(clock+i)*2,tipY);ctx.stroke();ctx.fillStyle=night?'#9acb92':'#9dc77e';ctx.beginPath();ctx.ellipse(x+5,tipY,7,3,Math.sin(clock+i)*.15,0,Math.PI*2);ctx.fill()}
+// Gloopglow lily pads and blooms drift in the sheltered water.
+for(let i=0;i<6;i++){let x=w*(.23+((i*.107+clock*.003)% .52)),y=h*(.68+(i%3)*.055);ctx.fillStyle=night?'rgba(93,172,130,.48)':'rgba(91,151,104,.58)';ctx.beginPath();ctx.ellipse(x,y,11,4,Math.sin(clock*.5+i)*.12,0,Math.PI*2);ctx.fill();ctx.fillStyle=night?'#caffb0':'#e1f2a5';ctx.beginPath();ctx.arc(x,y-2,2.2,0,Math.PI*2);ctx.fill()}
+// Gentle Goopwater rings and drifting sparkles make the starter pond feel alive.
+for(let i=0;i<9;i++){let x=w*(.27+((i*.13+clock*.006)% .57)),y=h*(.61+(i%4)*.075);ctx.strokeStyle=night?'rgba(169,235,176,.22)':'rgba(196,244,179,.3)';ctx.lineWidth=1.3;ctx.beginPath();ctx.ellipse(x,y,5+((clock+i)%9),1.8,0,0,Math.PI*2);ctx.stroke()}
+for(let i=0;i<8;i++){let x=w*(.22+((i*.091+clock*.004)% .6)),y=h*(.2+(i%4)*.07+Math.sin(clock+i)*.006);ctx.fillStyle=night?'rgba(199,255,157,.72)':'rgba(231,255,190,.72)';ctx.beginPath();ctx.arc(x,y,1.4+(i%2),0,Math.PI*2);ctx.fill()}
 }else if(scene.landmark==='sunken-ruins'){
 // Goopstone Arch: a half-buried ruin frames the left edge of the casting lane.
 polygon([[0,.56],[0,.43],[.08,.39],[.12,.45],[.17,.56]],night?'#263849':'#53675f');
