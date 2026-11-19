@@ -436,3 +436,82 @@ test('fight meters expose named progress values for assistive technology',()=>{
   for(const label of ['Fishing line tension','Goop energy','Goop approach progress','Goop spook level','Fish maneuver timing']) assert.ok(html.includes('aria-label="'+label+'"'));
   for(const id of ['tensionMeter','staminaMeter','patienceMeter','spookMeter','intentMeter']) assert.ok(main.includes("$('"+id+"').setAttribute('aria-valuenow'"));
 });
+
+
+function catchWithSpecimen(game,fish,overrides={}){
+  game.fish=fish;
+  game.fight={specimen:{...sampleCatchMetrics(fish,()=>0.5),...overrides},progress:1,moveHistory:[],movesRead:0,movesAttempted:0,style:'tension'};
+  game.finishCatch();
+}
+
+test('cast rejects an empty spawn pool without entering an encounter',()=>{
+  const game=new FishingGame({store:new SaveStore(memoryStore()),rng:()=>0.5});
+  const originalZone=game.zone;
+  game.zone=()=>({...originalZone.call(game),fish:[]});
+  assert.equal(game.cast(),false);
+  assert.equal(game.phase,PHASES.IDLE);
+  assert.equal(game.fish,null);
+  assert.equal(game.events.some(event=>event.type==='cast'),false);
+});
+
+test('new collection records clear the previous specimen badge',()=>{
+  const game=new FishingGame({store:new SaveStore(memoryStore())});
+  const fish=FISH.find(f=>f.id==='glacieroo');
+  catchWithSpecimen(game,fish,{weightLb:100,lengthIn:60});
+  const firstId=game.state.lastCatch.id;
+  assert.equal(game.state.lastCatch.collectionRecord,true);
+  catchWithSpecimen(game,fish,{weightLb:200,lengthIn:70});
+  assert.equal(game.state.specimens.find(s=>s.id===firstId).collectionRecord,false);
+  assert.equal(game.state.lastCatch.collectionRecord,true);
+});
+
+test('species record tie badges remain unique across save and reload',()=>{
+  const storage=memoryStore(),store=new SaveStore(storage),game=new FishingGame({store});
+  const fish=FISH.find(f=>f.id==='gloop');
+  const specimen=sampleCatchMetrics(fish,()=>0.5);
+  catchWithSpecimen(game,fish,specimen);
+  const winnerId=game.state.lastCatch.id;
+  catchWithSpecimen(game,fish,specimen);
+  let flagged=game.state.specimens.filter(s=>s.fishId==='gloop'&&s.speciesRecord);
+  assert.equal(flagged.length,1);
+  assert.equal(flagged[0].id,winnerId);
+  const reloaded=new FishingGame({store:new SaveStore(storage)});
+  flagged=reloaded.state.specimens.filter(s=>s.fishId==='gloop'&&s.speciesRecord);
+  assert.equal(flagged.length,1);
+  assert.equal(flagged[0].id,winnerId);
+});
+
+test('hydration discards a pending catch with a null specimen',()=>{
+  const base=new SaveStore(null).fresh();
+  base.pendingCatch={fishId:'gloop',reward:10,specimen:null};
+  const storage=memoryStore();
+  new SaveStore(storage).save(base);
+  const game=new FishingGame({store:new SaveStore(storage)});
+  assert.equal(game.state.pendingCatch,null);
+});
+
+test('rare achievement is derived from persistent dex data, not current fish',()=>{
+  const game=new FishingGame({store:new SaveStore(memoryStore())});
+  game.state.dex.starry={count:1,rarity:'Legendary',bestWeightLb:3,bestLengthIn:40};
+  game.fish=null;
+  game.checkAchievements();
+  assert.equal(game.state.achievements.rare,true);
+});
+
+test('shop purchases and unlocks roll back all state when save fails',()=>{
+  const makeFailingGame=()=>new FishingGame({store:{load:()=>({...new SaveStore(null).fresh(),essence:2000}),save:()=>false}});
+  for(const [method,id] of [['buyRod','bamboo'],['buyBait','glow'],['unlockZone','hollow']]){
+    const game=makeFailingGame(),before=JSON.parse(JSON.stringify(game.state));
+    assert.equal(game[method](id),false,method);
+    assert.deepEqual(game.state,before,method);
+  }
+});
+
+test('equipment and zone selection roll back when save fails',()=>{
+  const game=new FishingGame({store:{load:()=>({...new SaveStore(null).fresh(),ownedRods:['twig','bamboo'],ownedBaits:['plain','glow'],zoneUnlocked:{pond:true,hollow:true}}),save:()=>false}});
+  for(const [method,id] of [['equipRod','bamboo'],['equipBait','glow'],['selectZone','hollow']]){
+    const before=JSON.parse(JSON.stringify(game.state));
+    assert.equal(game[method](id),false,method);
+    assert.deepEqual(game.state,before,method);
+  }
+});
