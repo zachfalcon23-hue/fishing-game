@@ -1,1 +1,15 @@
-{"name":"goop-fishing","version":"0.4.0","private":true,"type":"module","scripts":{"check":"node --check src/game.js && node --check src/telemetry.js && node --check src/main.js","test":"node --test","start":"npx serve ."},"engines":{"node":">=20"}}
+{
+  "name": "goop-fishing",
+  "version": "0.4.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node --check src/game.js && node --check src/telemetry.js && node --check src/main.js",
+    "test": "node --test",
+    "test:browser": "node tests/browser-smoke.mjs",
+    "start": "npx serve ."
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
