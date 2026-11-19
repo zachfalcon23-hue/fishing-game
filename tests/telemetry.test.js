@@ -1,7 +1,6 @@
 import test from 'node:test';
-import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
-import { SessionTelemetry } from '../src/telemetry.js';
+import { SessionTelemetry, downloadJSONFile } from '../src/telemetry.js';
 
 function makeGame() {
   return { phase: 'idle', state: { zone: 'pond', timeOfDay: 'day', weather: 'clear', rod: 'twig', bait: 'plain' }, fish: null, fight: null, reward: 0, zone() { return { id: this.state.zone }; } };
@@ -96,8 +95,34 @@ test('kept specimens do not count their estimated sale value as earned Essence',
 });
 
 
-test('telemetry export keeps its object URL alive after the download click', () => {
-  const main = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
-  assert.match(main, /a\.hidden=true;document\.body\.append\(a\);try\{a\.click\(\)\}finally\{a\.remove\(\);window\.setTimeout\(\(\)=>URL\.revokeObjectURL\(url\),1000\)\}/);
-  assert.doesNotMatch(main, /a\.click\(\);URL\.revokeObjectURL\(url\)/);
+test('JSON download keeps its object URL alive until deferred cleanup', () => {
+  const events = [];
+  let cleanup = null;
+  const anchor = {
+    set href(value) { this._href = value; },
+    set download(value) { this._download = value; },
+    click() { events.push('click'); },
+    remove() { events.push('remove'); }
+  };
+  const documentRef = { createElement(tag) { assert.equal(tag, 'a'); return anchor; }, body: { append(node) { assert.equal(node, anchor); events.push('append'); } } };
+  const urlApi = { createObjectURL(blob) { assert.ok(blob instanceof Blob); events.push('create'); return 'blob:pond-session'; }, revokeObjectURL(url) { events.push('revoke:'+url); } };
+  downloadJSONFile('{"schemaVersion":1}', 'session.json', { documentRef, urlApi, schedule(callback, delay) { assert.equal(delay, 1000); cleanup = callback; events.push('schedule'); } });
+  assert.deepEqual(events, ['create', 'append', 'click', 'remove', 'schedule']);
+  assert.equal(anchor._href, 'blob:pond-session');
+  assert.equal(anchor._download, 'session.json');
+  assert.equal(typeof cleanup, 'function');
+  cleanup();
+  assert.equal(events.at(-1), 'revoke:blob:pond-session');
+});
+
+test('JSON download still schedules URL cleanup when the browser click throws', () => {
+  const events = [];
+  const anchor = { click() { events.push('click'); throw new Error('download blocked'); }, remove() { events.push('remove'); } };
+  let cleanup;
+  const documentRef = { createElement: () => anchor, body: { append() { events.push('append'); } } };
+  const urlApi = { createObjectURL: () => 'blob:failed-download', revokeObjectURL: url => events.push('revoke:'+url) };
+  assert.throws(() => downloadJSONFile('{}', 'session.json', { documentRef, urlApi, schedule(callback) { cleanup = callback; } }), /download blocked/);
+  assert.deepEqual(events, ['append', 'click', 'remove']);
+  cleanup();
+  assert.equal(events.at(-1), 'revoke:blob:failed-download');
 });
