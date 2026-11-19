@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
-import { FISH, ZONES, weightedPick, createFight, fightTick, FishingGame, SaveStore, PHASES, levelXP, BEHAVIOR_INFO, MOVE_INFO, availableMovesFor, personalityFor, CATCH_PROFILES, sampleCatchMetrics, spawnWeightFor, gearAdjustedSpawnWeight, RODS, BAITS, QUESTS, questProgress, visualFor, rarityRank, specimenRankLabel } from '../src/game.js';
+import { FISH, ZONES, ZONE_SCENE_PROFILES, weightedPick, createFight, fightTick, FishingGame, SaveStore, PHASES, levelXP, BEHAVIOR_INFO, MOVE_INFO, availableMovesFor, personalityFor, CATCH_PROFILES, sampleCatchMetrics, spawnWeightFor, gearAdjustedSpawnWeight, RODS, BAITS, QUESTS, questProgress, visualFor, rarityRank, specimenRankLabel } from '../src/game.js';
 
 function memoryStore(){return {v:null,getItem(){return this.v},setItem(k,v){this.v=v},removeItem(){this.v=null}}}
 
@@ -81,6 +81,17 @@ test('fish roster and locations are populated',()=>{
   assert.ok(FISH.every(f=>CATCH_PROFILES[f.id]));
   const ids=new Set(FISH.map(f=>f.id));
   assert.ok(ZONES.every(z=>z.fish.every(id=>ids.has(id))),'every zone fish must exist in the GoopDex roster');
+});
+
+test('all five fishing zones have distinct palettes and rendered environmental landmarks',()=>{
+  const main=readFileSync(new URL('../src/main.js',import.meta.url),'utf8');
+  assert.deepEqual(Object.keys(ZONE_SCENE_PROFILES).sort(),ZONES.map(zone=>zone.id).sort());
+  const profiles=ZONES.map(zone=>ZONE_SCENE_PROFILES[zone.id]);
+  assert.ok(profiles.every(profile=>profile.skyDay&&profile.skyNight&&profile.waterDay&&profile.waterNight&&profile.deepDay&&profile.deepNight&&profile.shore&&profile.accent));
+  assert.equal(new Set(profiles.map(profile=>[profile.skyDay,profile.waterDay,profile.deepDay,profile.shore,profile.accent].join('|'))).size,ZONES.length);
+  assert.equal(new Set(profiles.map(profile=>profile.landmark)).size,ZONES.length);
+  assert.ok(main.includes('drawZoneLandmarks(z,w,h,night,clock)'),'the active zone must be rendered into the fishing scene');
+  for(const profile of profiles)assert.ok(main.includes("scene.landmark==='"+profile.landmark+"'"),profile.landmark+' must have a dedicated renderer');
 });
 
 test('all 50 Goops have a deliberate species silhouette and marking profile',()=>{
