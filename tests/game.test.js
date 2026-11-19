@@ -33,7 +33,7 @@ test('a landed catch clearly reports save failure and can be committed by a late
   game.fish=FISH[0];
   game.fight={style:'tension',specimen:sampleCatchMetrics(FISH[0],()=>0),progress:1,movesRead:0,movesAttempted:0,moveHistory:[],caught:true};
   game.finishCatch();
-  const reward=game.reward;
+  const reward=game.reward,beforeSaleEssence=game.state.essence;
   assert.equal(game.phase,PHASES.CAUGHT);
   assert.ok(game.state.pendingCatch);
   assert.equal(store.lastSaveSucceeded,false);
@@ -44,7 +44,7 @@ test('a landed catch clearly reports save failure and can be committed by a late
   const restored=new FishingGame({rng:()=>0,store:new SaveStore(storage)});
   assert.equal(restored.phase,PHASES.IDLE);
   assert.equal(restored.state.pendingCatch,null);
-  assert.equal(restored.state.essence,reward);
+  assert.equal(restored.state.essence,beforeSaleEssence+reward);
 });
 
 test('Sell is idempotent and cannot credit the same catch twice',()=>{const game=new FishingGame({rng:()=>0,store:new SaveStore(memoryStore())});game.fish=FISH[0];game.fight={style:'tension',specimen:sampleCatchMetrics(FISH[0],()=>0),progress:1,movesRead:0,movesAttempted:0,moveHistory:[],caught:true};game.finishCatch();const reward=game.reward,beforeEssence=game.state.essence,beforeSales=game.state.sales,beforeDay=game.state.day;assert.equal(game.sell(),true);assert.equal(game.sell(),false);assert.equal(game.state.essence,beforeEssence+reward);assert.equal(game.state.sales,beforeSales+reward);assert.equal(game.state.day,beforeDay+1)});
