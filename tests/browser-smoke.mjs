@@ -48,10 +48,12 @@ try {
     assert.match(await page.title(), /Pondbound 0\.4/);
     assert.equal(await page.locator('#castBtn').isVisible(), true);
     assert.equal(await page.locator('#dexSearch').count(), 1);
+    assert.equal(await page.locator('#phaseTag').innerText(), 'READY', `${viewport.name}: fresh game must start ready for condition changes`);
+    assert.equal(await page.locator('[data-time="night"]').isEnabled(), true, `${viewport.name}: night control must be enabled before casting`);
     await page.locator('[data-time="night"]').click();
-    await page.waitForFunction(() => document.querySelector('#conditionsName')?.textContent === 'Night · Clear');
+    await page.waitForFunction(() => document.querySelector('#conditionsName')?.textContent === 'Night · Clear', undefined, { timeout: 5000 });
     await page.locator('[data-weather="rain"]').click();
-    await page.waitForFunction(() => document.querySelector('#conditionsName')?.textContent === 'Night · Rain');
+    await page.waitForFunction(() => document.querySelector('#conditionsName')?.textContent === 'Night · Rain', undefined, { timeout: 5000 });
     assert.equal(await page.getByRole('navigation', { name: 'Game sections' }).count(), 1);
     assert.equal(await page.getByRole('button', { name: 'CAST LINE' }).count(), 1);
     await page.locator('#castBtn').focus();
