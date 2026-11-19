@@ -58,7 +58,9 @@ try {
     await page.locator('.nav-btn[data-view="dex"]').click();
     await page.locator('#dexSearch').fill('Gloop');
     await page.locator('#dexGrid').waitFor();
-    assert.match(await page.locator('#dexGrid').innerText(), /Gloop/);
+    const filteredCards = page.locator('#dexGrid .fish-card');
+    assert.equal(await filteredCards.count(), 2, 'search should narrow the roster to the two Gloop name matches');
+    assert.match(await filteredCards.first().innerText(), /Undiscovered/);
     await page.locator('#dexSearch').fill('');
     await page.locator('.nav-btn[data-view="fish"]').click();
 
