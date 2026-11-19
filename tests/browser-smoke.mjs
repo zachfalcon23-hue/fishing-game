@@ -48,6 +48,11 @@ try {
     assert.match(await page.title(), /Pondbound 0\.4/);
     assert.equal(await page.locator('#castBtn').isVisible(), true);
     assert.equal(await page.locator('#dexSearch').count(), 1);
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), `${viewport.name}: page must not overflow horizontally`);
+    for (const selector of ['#castBtn', '#reelBtn', '#releaseBtn']) {
+      const height = await page.locator(selector).evaluate(element => element.getBoundingClientRect().height);
+      assert.ok(height >= 44, `${viewport.name}: ${selector} must retain a 44px minimum touch target`);
+    }
 
     for (const [view, heading] of [['dex', 'GoopDex'], ['shop', 'Gear & Waters'], ['quests', 'Quests'], ['stats', 'Achievements'], ['fish', 'North Pond']]) {
       await page.locator(`.nav-btn[data-view="${view}"]`).click();
@@ -91,6 +96,50 @@ try {
     console.log(`PASS ${viewport.name}: startup, navigation, GoopDex search, conditions, cast → bite → fight, save/reload`);
     await context.close();
   }
+
+  const specimen = { id: 'catch-1', fishId: 'gloop', name: 'Gloop', rarity: 'Common', weightLb: 0.83, lengthIn: 6.5, percentile: 50, sizeClass: 'Standard', day: 1 };
+  const recoveredSave = { version: 4, essence: 777, day: 1, total: 1, zone: 'pond', rod: 'twig', bait: 'plain', ownedRods: ['twig'], ownedBaits: ['plain'], zoneUnlocked: { pond: true }, timeOfDay: 'night', weather: 'rain', specimens: [specimen], lastCatch: specimen, pendingCatch: { fishId: 'gloop', reward: 5, specimen } };
+
+  const recoveryContext = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  await recoveryContext.addInitScript(save => {
+    localStorage.setItem('goop-fishing-save-v3', '{broken-primary');
+    localStorage.setItem('goop-fishing-save-v3-backup', JSON.stringify(save));
+  }, recoveredSave);
+  const recoveryPage = await recoveryContext.newPage();
+  const recoveryErrors = [];
+  recoveryPage.on('pageerror', error => recoveryErrors.push(error.message));
+  await recoveryPage.goto(origin, { waitUntil: 'networkidle' });
+  await recoveryPage.locator('#catchActions').waitFor({ state: 'visible' });
+  assert.equal(await recoveryPage.locator('#essence').innerText(), '777');
+  const repaired = await recoveryPage.evaluate(() => JSON.parse(localStorage.getItem('goop-fishing-save-v3')));
+  assert.equal(repaired.version, 4);
+  assert.equal(repaired.essence, 777);
+  assert.equal(repaired.pendingCatch.fishId, 'gloop');
+  await recoveryPage.locator('#sellBtn').click();
+  assert.equal(await recoveryPage.locator('#essence').innerText(), '782', 'selling a recovered catch must credit its reward exactly once');
+  const sold = await recoveryPage.evaluate(() => JSON.parse(localStorage.getItem('goop-fishing-save-v3')));
+  assert.equal(sold.pendingCatch, null);
+  assert.equal(sold.day, 2);
+  assert.deepEqual(recoveryErrors, [], 'backup recovery and selling must not throw browser exceptions');
+  console.log('PASS save recovery: corrupt primary restored from backup; pending catch sold exactly once');
+  await recoveryContext.close();
+
+  const keepContext = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  await keepContext.addInitScript(save => {
+    localStorage.setItem('goop-fishing-save-v3', JSON.stringify(save));
+    localStorage.setItem('goop-fishing-save-v3-backup', JSON.stringify(save));
+  }, recoveredSave);
+  const keepPage = await keepContext.newPage();
+  await keepPage.goto(origin, { waitUntil: 'networkidle' });
+  await keepPage.locator('#catchActions').waitFor({ state: 'visible' });
+  await keepPage.locator('#keepBtn').click();
+  assert.equal(await keepPage.locator('#essence').innerText(), '777', 'keeping a catch must not credit its estimated sale value');
+  const kept = await keepPage.evaluate(() => JSON.parse(localStorage.getItem('goop-fishing-save-v3')));
+  assert.equal(kept.pendingCatch, null);
+  assert.equal(kept.day, 2);
+  assert.equal(kept.specimens.length, 1);
+  console.log('PASS catch resolution: Keep preserves specimen without awarding sale Essence');
+  await keepContext.close();
 } finally {
   if (browser) await browser.close();
   await new Promise(resolveClose => server.close(resolveClose));
