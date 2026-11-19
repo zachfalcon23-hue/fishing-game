@@ -1,5 +1,5 @@
 export const ZONES=[
-{id:'pond',name:'North Pond',desc:'A calm starter pond.',cost:0,icon:'🌿',fish:['gloop','murkling','flicker','puddlit','drowsy','voidling','sprout','bubblegum','tadgoop','mudball','oldboot','reedlet','pebblit','splashkin','willowisp']},
+{id:'pond',name:'North Pond',desc:'A bubbling Goopwater sanctuary beneath Grandmother Goopwillow.',cost:0,icon:'🌿',fish:['gloop','murkling','flicker','puddlit','drowsy','voidling','sprout','bubblegum','tadgoop','mudball','oldboot','reedlet','pebblit','splashkin','willowisp']},
 {id:'hollow',name:'Sunken Hollow',desc:'Goopstone ruins and glowing marsh pools.',cost:160,icon:'🌙',fish:['murkling','puddlit','voidling','briney','glimmer','mossback','ripple','nightcap','kelpkin','inkblot','lanternfin','siltwhisker','mireling']},
 {id:'creek',name:'Ember Creek',desc:'Molten Goop seams and bubbling creek vents.',cost:420,icon:'🔥',fish:['flicker','drowsy','flarefin','cinder','sizzle','sunspot','sprout','glimmer','sunbud','emberoot','coppersnap','steamfin','charflare']},
 {id:'bay',name:'Moonlit Bay',desc:'Silver tides and rare encounters.',cost:900,icon:'🌌',fish:['voidling','nightcap','lunar','ghostfin','starry','briney','ripple','stormblob','moonmote','tidetwirl','abyssaloo','cometide']},
@@ -7,7 +7,7 @@ export const ZONES=[
 ];
 
 export const ZONE_SCENE_PROFILES={
-  pond:{skyDay:'#79c4dc',skyNight:'#09152e',waterDay:'#24556a',waterNight:'#193a55',deepDay:'#092e47',deepNight:'#071c31',shore:'#3b735d',accent:'#a9d78a',landmark:'reeds-and-willows',description:'Quiet reed beds, willow banks, and shallow green water.'},
+  pond:{skyDay:'#79c4dc',skyNight:'#09152e',waterDay:'#24556a',waterNight:'#193a55',deepDay:'#092e47',deepNight:'#071c31',shore:'#3b735d',accent:'#a9d78a',landmark:'reeds-and-willows',description:'Grandmother Goopwillow, Gloopvine curtains, Goopbulb lanterns, and glowing lily pads.'},
   hollow:{skyDay:'#8b9a9d',skyNight:'#101626',waterDay:'#354c59',waterNight:'#17283d',deepDay:'#101f2b',deepNight:'#080f20',shore:'#59645a',accent:'#8e9d83',landmark:'sunken-ruins',description:'Goopstone arches, Glooproot trees, glowing Goo Lanterns, and drifting Murk Pools.'},
   creek:{skyDay:'#e7a06d',skyNight:'#291b2a',waterDay:'#754b43',waterNight:'#3d2939',deepDay:'#2d2732',deepNight:'#171522',shore:'#754a38',accent:'#ff9a55',landmark:'ember-rocks',description:'Cinderstone shelves, molten Goop seams, bubbling vents, and Emberroot banks.'},
   bay:{skyDay:'#9bbbd1',skyNight:'#101b3b',waterDay:'#426b82',waterNight:'#203b62',deepDay:'#102d49',deepNight:'#09182f',shore:'#42566e',accent:'#c5d5ff',landmark:'moonlit-lighthouse',description:'Layered headlands, a working lighthouse, a weathered pier, and silver-lit tidal water.'},
