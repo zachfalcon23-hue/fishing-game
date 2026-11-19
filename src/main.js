@@ -34,10 +34,20 @@ for(let i=0;i<3;i++){let x=w*(.13+i*.035),y=h*(.39+(i%2)*.025);ctx.strokeStyle=n
 for(let i=0;i<6;i++){let x=w*(.035+i*.045),y=h*(.61+(i%3)*.025);ctx.fillStyle=night?'rgba(105,151,132,.22)':'rgba(139,169,137,.3)';ctx.beginPath();ctx.ellipse(x,y,13,4,0,0,Math.PI*2);ctx.fill();ctx.strokeStyle=night?'rgba(181,220,177,.38)':'rgba(205,229,183,.55)';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(x+Math.sin(clock+i)*3,y-7-(i%2)*4,2+(i%2),0,Math.PI*2);ctx.stroke()}
 ctx.strokeStyle=night?'rgba(173,205,171,.24)':'rgba(200,224,184,.38)';ctx.lineWidth=2;for(let i=0;i<8;i++){let x=w*(.35+((i*.113+clock*.009)% .45)),y=h*(.66+(i%4)*.045);ctx.beginPath();ctx.arc(x,y,2+(i%2),0,Math.PI*1.5);ctx.stroke()}
 }else if(scene.landmark==='ember-rocks'){
+// Cinderstone shelves frame the creek while leaving the central casting lane open.
 polygon([[0,.56],[0,.48],[.06,.42],[.12,.47],[.19,.4],[.25,.56]],night?'#392b35':'#744d43');
 polygon([[.77,.56],[.82,.45],[.88,.48],[.93,.39],[1,.46],[1,.56]],night?'#392b35':'#744d43');
-ctx.strokeStyle=glow;ctx.lineWidth=3;for(let i=0;i<4;i++){let x=w*(.035+i*.052);ctx.beginPath();ctx.moveTo(x,h*.49);ctx.lineTo(x+w*.025,h*.53);ctx.lineTo(x+w*.04,h*.51);ctx.stroke()}
-ctx.strokeStyle=night?'rgba(255,170,115,.38)':'rgba(255,221,160,.58)';ctx.lineWidth=2;for(let i=0;i<3;i++){let x=w*(.83+i*.045);ctx.beginPath();ctx.moveTo(x,h*.43);ctx.bezierCurveTo(x-16,h*.36-clock%2*3,x+18,h*.34,x+2,h*.28);ctx.stroke()}
+// Molten Goop seams branch through the dark rock in warm, irregular ribbons.
+ctx.strokeStyle=night?'rgba(255,151,94,.72)':'rgba(255,207,125,.9)';ctx.lineWidth=3;
+for(let i=0;i<5;i++){let x=w*(.025+i*.045),y=h*(.465+(i%2)*.025);ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+w*.018,y+h*.018);ctx.lineTo(x+w*.032,y+h*.006);ctx.lineTo(x+w*.048,y+h*.035);ctx.stroke()}
+ctx.strokeStyle=night?'rgba(255,170,115,.38)':'rgba(255,221,160,.58)';ctx.lineWidth=2;
+for(let i=0;i<3;i++){let x=w*(.83+i*.045);ctx.beginPath();ctx.moveTo(x,h*.43);ctx.bezierCurveTo(x-16,h*.36-clock%2*3,x+18,h*.34,x+2,h*.28);ctx.stroke()}
+// Three Bubbling Goop Vents puff steam above the heated creek banks.
+for(let i=0;i<3;i++){let x=w*(.075+i*.075),y=h*(.445+(i%2)*.025);ctx.fillStyle=night?'#332b36':'#80584a';ctx.beginPath();ctx.ellipse(x,y,13,6,0,0,Math.PI*2);ctx.fill();ctx.strokeStyle=glow;ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y-3,5,Math.PI,Math.PI*2);ctx.stroke();for(let j=0;j<3;j++){let drift=Math.sin(clock*.8+i+j)*4;ctx.fillStyle=night?'rgba(225,206,194,.3)':'rgba(255,237,207,.42)';ctx.beginPath();ctx.arc(x+drift+(j-1)*5,y-15-j*9,2+j*.7,0,Math.PI*2);ctx.fill()}}
+ // Emberroot clumps add a distinctive Goop-grown silhouette to the right bank.
+for(let i=0;i<5;i++){let x=w*(.79+i*.035),y=h*(.48+(i%2)*.025);ctx.strokeStyle=night?'#6c493e':'#9a6248';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(x,y);ctx.quadraticCurveTo(x-7,y-13,x+2,y-24-(i%3)*3);ctx.stroke();ctx.fillStyle=night?'#b96d4c':'#e29a61';ctx.beginPath();ctx.ellipse(x+2,y-23-(i%3)*3,5,3,-.5,0,Math.PI*2);ctx.fill()}
+// Heated riffles catch the light; slow ripples keep the creek visibly moving.
+for(let i=0;i<10;i++){let x=w*(.29+((i*.137+clock*.01)% .56)),y=h*(.63+(i%4)*.055);ctx.strokeStyle=night?'rgba(255,176,132,.22)':'rgba(255,222,173,.34)';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(x,y);ctx.quadraticCurveTo(x+8,y-2-Math.sin(clock+i)*1.5,x+17,y);ctx.stroke()}
 }else if(scene.landmark==='moonlit-lighthouse'){
 // Soft coastal cloud bands and distant seabirds give the open bay a readable horizon.
 ctx.strokeStyle=night?'rgba(171,196,225,.16)':'rgba(245,249,244,.34)';ctx.lineWidth=5;
