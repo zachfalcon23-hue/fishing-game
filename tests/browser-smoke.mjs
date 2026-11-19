@@ -55,10 +55,12 @@ try {
       else await page.locator(`#view-${view} .section-head h2`).getByText(heading).waitFor();
     }
 
+    await page.locator('.nav-btn[data-view="dex"]').click();
     await page.locator('#dexSearch').fill('Gloop');
     await page.locator('#dexGrid').waitFor();
     assert.match(await page.locator('#dexGrid').innerText(), /Gloop/);
     await page.locator('#dexSearch').fill('');
+    await page.locator('.nav-btn[data-view="fish"]').click();
 
     await page.locator('[data-time="night"]').click();
     await page.locator('[data-weather="rain"]').click();
