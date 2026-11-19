@@ -96,6 +96,25 @@ test('zone ecology events only trigger under their authored conditions and use b
   assert.equal(rollZoneEvent('unknown',{timeOfDay:'night',weather:'clear'},()=>0),null);
   assert.deepEqual(Object.keys(ZONE_EVENTS).sort(),ZONES.map(zone=>zone.id).sort());
 });
+test('environmental event discoveries persist, reward once, and reject unknown save entries',()=>{
+  const storage={data:{},getItem(k){return this.data[k]??null},setItem(k,v){this.data[k]=v},removeItem(k){delete this.data[k]}};
+  const game=new FishingGame({rng:()=>0,store:new SaveStore(storage)});
+  game.state.timeOfDay='night';
+  assert.equal(game.cast(),true);
+  assert.equal(game.state.discoveries['gloopglow-bloom'],true);
+  assert.equal(game.state.essence,12);
+  assert.equal(game.state.xp,8);
+  const reloaded=new FishingGame({rng:()=>0,store:new SaveStore(storage)});
+  assert.equal(reloaded.state.discoveries['gloopglow-bloom'],true);
+  assert.equal(reloaded.state.essence,12);
+  assert.equal(reloaded.state.xp,8);
+  reloaded.phase=PHASES.ESCAPED;
+  assert.equal(reloaded.cast(),true);
+  assert.equal(reloaded.state.essence,12);
+  storage.data['goop-fishing-save-v3']=JSON.stringify({...reloaded.state,discoveries:{'gloopglow-bloom':true,'fake-event':true}});
+  const sanitized=new SaveStore(storage).load();
+  assert.deepEqual(sanitized.discoveries,{'gloopglow-bloom':true});
+});
 test('North Pond environmental events alter spawn odds and improve catch rewards and XP',()=>{
   const game=new FishingGame({rng:()=>0,store:new SaveStore(memoryStore())});
   game.state.timeOfDay='night';
