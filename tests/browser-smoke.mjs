@@ -121,7 +121,7 @@ try {
     try {
       await page.waitForFunction(() => document.querySelector('#phaseTag')?.textContent === 'BITE!', undefined, { timeout: 5000 });
     } catch (error) {
-      const diagnostic = await page.evaluate(() => ({ phase: document.querySelector('#phaseTag')?.textContent, focused: document.hasFocus(), hidden: document.hidden, visibility: document.visibilityState, raf: window.__pondSmoke?.raf, recentFocus: window.__pondSmoke?.focus, recentPhases: window.__pondSmoke?.phases }));
+      const diagnostic = await page.evaluate(() => ({ phase: document.querySelector('#phaseTag')?.textContent, focused: document.hasFocus(), hidden: document.hidden, visibility: document.visibilityState, activeViews: [...document.querySelectorAll('.view.active')].map(element => element.id), activeNavigation: document.querySelector('.nav-btn.active')?.dataset.view, raf: window.__pondSmoke?.raf, recentFocus: window.__pondSmoke?.focus, recentPhases: window.__pondSmoke?.phases }));
       throw new Error(`${viewport.name}/${engineName}: fishing loop did not reach BITE: ${JSON.stringify(diagnostic)}; ${error.message}`);
     }
     await page.locator('#reelBtn').focus();
