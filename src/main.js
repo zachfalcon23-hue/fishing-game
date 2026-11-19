@@ -18,10 +18,21 @@ ctx.lineWidth=5;for(let i=0;i<5;i++){let x=w*(.13+i*.018);ctx.beginPath();ctx.mo
 ctx.fillStyle=night?'#263f43':'#4d8064';for(let i=0;i<7;i++){let x=w*(.035+i*.014),y=h*(.39+(i%3)*.025);ctx.beginPath();ctx.ellipse(x,y,18,10,-.4,0,Math.PI*2);ctx.fill()}
 ctx.strokeStyle=glow;ctx.lineWidth=3;for(let i=0;i<9;i++){let x=w*(.77+i*.024);ctx.beginPath();ctx.moveTo(x,ground);ctx.quadraticCurveTo(x-8,h*.46,x+4,h*(.39+(i%3)*.025));ctx.stroke()}
 }else if(scene.landmark==='sunken-ruins'){
-polygon([[0,.56],[0,.43],[.08,.39],[.12,.45],[.17,.56]],stone);
-ctx.strokeStyle=night?'#46556a':'#6c7770';ctx.lineWidth=13;ctx.beginPath();ctx.moveTo(w*.08,h*.55);ctx.lineTo(w*.08,h*.43);ctx.quadraticCurveTo(w*.16,h*.29,w*.24,h*.43);ctx.lineTo(w*.24,h*.55);ctx.stroke();
-ctx.strokeStyle=stone;ctx.lineWidth=9;ctx.beginPath();ctx.moveTo(w*.78,h*.55);ctx.lineTo(w*.78,h*.4);ctx.lineTo(w*.84,h*.37);ctx.lineTo(w*.9,h*.43);ctx.lineTo(w*.9,h*.55);ctx.stroke();
-for(let i=0;i<5;i++){let x=w*(.3+i*.075);polygon([[x/w,.53],[x/w,.45-(i%2)*.035],[x/w+.035,.43-(i%2)*.035],[x/w+.07,.53]],night?'#29394b':'#68766f')}
+// Goopstone Arch: a half-buried ruin frames the left edge of the casting lane.
+polygon([[0,.56],[0,.43],[.08,.39],[.12,.45],[.17,.56]],night?'#263849':'#53675f');
+ctx.strokeStyle=night?'#46556a':'#6c7770';ctx.lineWidth=15;ctx.beginPath();ctx.moveTo(w*.08,h*.55);ctx.lineTo(w*.08,h*.43);ctx.quadraticCurveTo(w*.16,h*.29,w*.24,h*.43);ctx.lineTo(w*.24,h*.55);ctx.stroke();
+ctx.strokeStyle=night?'#82968e':'#9ba58c';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(w*.08,h*.43);ctx.quadraticCurveTo(w*.16,h*.29,w*.24,h*.43);ctx.stroke();
+// The Glooproot Grove gives the far bank a recognisable, twisted silhouette.
+ctx.strokeStyle=night?'#263d3c':'#4d6253';ctx.lineWidth=10;ctx.beginPath();ctx.moveTo(w*.91,h*.55);ctx.quadraticCurveTo(w*.88,h*.39,w*.94,h*.31);ctx.quadraticCurveTo(w*.98,h*.27,w*.96,h*.21);ctx.stroke();
+ctx.lineWidth=5;for(let i=0;i<4;i++){let x=w*(.86+i*.035);ctx.beginPath();ctx.moveTo(w*.93,h*.38);ctx.quadraticCurveTo(x,h*.28,x+w*.012,h*(.22+(i%2)*.035));ctx.stroke()}
+ctx.fillStyle=night?'#263f3a':'#526d58';for(let i=0;i<8;i++){let x=w*(.84+(i%4)*.035),y=h*(.25+Math.floor(i/4)*.035);ctx.beginPath();ctx.ellipse(x,y,13,7,-.35,0,Math.PI*2);ctx.fill()}
+// Five Goopstone monoliths rise from the submerged causeway in the distance.
+for(let i=0;i<5;i++){let x=w*(.3+i*.075),top=h*(.45-(i%2)*.035);polygon([[x/w,.53],[x/w,top/h],[x/w+.035,top/h-.02],[x/w+.07,.53]],night?'#29394b':'#68766f',night?'#60766f':'#89968a');ctx.fillStyle=night?'rgba(142,157,131,.35)':'rgba(185,207,164,.45)';ctx.fillRect(x+w*.025,top+8,3,18)}
+// Goo Lanterns hang from the old stonework and glow more strongly after dusk.
+for(let i=0;i<3;i++){let x=w*(.13+i*.035),y=h*(.39+(i%2)*.025);ctx.strokeStyle=night?'#718b80':'#6c7770';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x,y-13);ctx.lineTo(x,y-4);ctx.stroke();ctx.fillStyle=night?'#c8f0a1':'#a9d78a';ctx.shadowBlur=night?15:5;ctx.shadowColor=glow;ctx.beginPath();ctx.arc(x,y,5,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0}
+// Murk pools, drifting bubbles and marsh lights animate the shoreline without blocking casts.
+for(let i=0;i<6;i++){let x=w*(.035+i*.045),y=h*(.61+(i%3)*.025);ctx.fillStyle=night?'rgba(105,151,132,.22)':'rgba(139,169,137,.3)';ctx.beginPath();ctx.ellipse(x,y,13,4,0,0,Math.PI*2);ctx.fill();ctx.strokeStyle=night?'rgba(181,220,177,.38)':'rgba(205,229,183,.55)';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(x+Math.sin(clock+i)*3,y-7-(i%2)*4,2+(i%2),0,Math.PI*2);ctx.stroke()}
+ctx.strokeStyle=night?'rgba(173,205,171,.24)':'rgba(200,224,184,.38)';ctx.lineWidth=2;for(let i=0;i<8;i++){let x=w*(.35+((i*.113+clock*.009)% .45)),y=h*(.66+(i%4)*.045);ctx.beginPath();ctx.arc(x,y,2+(i%2),0,Math.PI*1.5);ctx.stroke()}
 }else if(scene.landmark==='ember-rocks'){
 polygon([[0,.56],[0,.48],[.06,.42],[.12,.47],[.19,.4],[.25,.56]],night?'#392b35':'#744d43');
 polygon([[.77,.56],[.82,.45],[.88,.48],[.93,.39],[1,.46],[1,.56]],night?'#392b35':'#744d43');
