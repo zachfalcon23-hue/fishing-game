@@ -196,6 +196,7 @@ try {
     const serialized = JSON.stringify(save);
     localStorage.setItem('goop-fishing-save-v3', serialized);
     localStorage.setItem('goop-fishing-save-v3-backup', serialized);
+    window.__nativeStorageSetItem = Storage.prototype.setItem;
     Storage.prototype.setItem = function () { throw new DOMException('storage quota exceeded', 'QuotaExceededError'); };
   }, recoveredSave);
   const decisionFailurePage = await decisionFailureContext.newPage();
@@ -209,7 +210,15 @@ try {
   assert.equal(await decisionFailurePage.locator('#catchActions').isVisible(), true, 'failed persistence must leave Sell/Keep available for retry');
   assert.ok(JSON.parse(await decisionFailurePage.evaluate(() => localStorage.getItem('goop-fishing-save-v3'))).pendingCatch, 'the persisted pending catch must remain available');
   assert.deepEqual(decisionFailureErrors, [], 'failed catch decisions must not throw browser exceptions');
-  console.log(`PASS ${engineName}: failed Sell write rolls back and preserves pending catch for retry`);
+  await decisionFailurePage.evaluate(() => { Storage.prototype.setItem = window.__nativeStorageSetItem; });
+  await decisionFailurePage.locator('#sellBtn').click();
+  assert.equal(await decisionFailurePage.locator('#essence').innerText(), '782', 'a recovered storage write must award the sale exactly once');
+  const retriedSale = await decisionFailurePage.evaluate(() => JSON.parse(localStorage.getItem('goop-fishing-save-v3')));
+  assert.equal(retriedSale.pendingCatch, null, 'successful retry must clear the pending catch');
+  assert.equal(retriedSale.day, 2, 'successful retry must advance the day exactly once');
+  assert.equal(retriedSale.sales, 5, 'successful retry must record realized sales exactly once');
+  assert.deepEqual(decisionFailureErrors, [], 'retrying a catch decision must not throw browser exceptions');
+  console.log(`PASS ${engineName}: failed Sell rolls back; restored storage retries and commits exactly once`);
   await decisionFailureContext.close();
 
   const quotaContext = await browser.newContext({ viewport: { width: 1280, height: 900 } });
