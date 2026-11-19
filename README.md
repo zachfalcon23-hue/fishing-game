@@ -4,7 +4,7 @@ A browser-based fishing and Goop-collection game prototype built around distinct
 
 ## Play and test
 
-Open `index.html` in a modern browser or serve the repository with a static server. Run `npm run check` to syntax-check the browser and game modules, and `npm test` with Node 20+ for the regression suite. See [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) for the remaining hands-on QA.
+Open `index.html` in a modern browser or serve the repository with a static server. Run `npm run check` and `npm test` with Node 20+ for syntax and regression checks. For real-browser smoke coverage, install the pinned browser runner with `npm install --no-save --no-package-lock playwright@1.56.1` and `npx playwright install chromium`, then run `npm run test:browser`. GitHub Actions runs the syntax checks, Node regression suite, and Chromium smoke suite automatically on pushes to the feature branch and pull requests. The browser suite covers desktop/mobile viewports, navigation, GoopDex search, conditions, cast/bite/fight, save hydration, responsive overflow/touch targets, corrupted-primary backup recovery, and Sell/Keep catch resolution. See [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) for remaining hands-on QA.
 
 ## The fishing loop
 
@@ -97,7 +97,7 @@ The frontend uses pointer-based hold/release controls for tension fights and a d
 
 ## Validation status
 
-The project has automated regression coverage for content, visual profiles, DOM references, specimen metrics, conditions, saves, both fight styles, and progression. CI runs the syntax check before `npm test` on the feature branch and pull requests. Browser/device playtesting is assumed successful by the project owner for this development gate; this session did not independently perform a browser/device test. Economy telemetry, accessibility review, audio, and final art pipeline still require validation before a commercial release.
+The project has automated regression coverage for content, visual profiles, DOM references, specimen metrics, conditions, saves, both fight styles, and progression. CI runs syntax checks, the Node regression suite, and a Playwright Chromium smoke suite on the feature branch and pull requests. The browser suite exercises Chromium at desktop and mobile viewport sizes; it does not replace hands-on Chrome/Firefox/Safari, Android/iOS, keyboard-only, screen-reader, audio, or full progression playtesting. Economy telemetry, accessibility review, audio, and final art pipeline still require validation before a commercial release.
 
 ### Economy/progression audit — gear luck correction
 
