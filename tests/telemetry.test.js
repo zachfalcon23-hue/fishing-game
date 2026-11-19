@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { SessionTelemetry } from '../src/telemetry.js';
 
@@ -92,4 +93,11 @@ test('kept specimens do not count their estimated sale value as earned Essence',
   assert.equal(summary.essenceEarned, 0);
   assert.equal(summary.events.kept, 1);
   assert.equal(summary.essencePerHour, 0);
+});
+
+
+test('telemetry export keeps its object URL alive after the download click', () => {
+  const main = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
+  assert.match(main, /a\.hidden=true;document\.body\.append\(a\);try\{a\.click\(\)\}finally\{a\.remove\(\);window\.setTimeout\(\(\)=>URL\.revokeObjectURL\(url\),1000\)\}/);
+  assert.doesNotMatch(main, /a\.click\(\);URL\.revokeObjectURL\(url\)/);
 });
