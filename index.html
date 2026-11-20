@@ -1,8 +1,74 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#081b24"><title>Goop Fishing — First Cast</title><link rel="stylesheet" href="src/style.css"></head>
-<body><main class="shell"><header class="topbar"><div class="brand"><span class="logo">G</span><div><h1>GOOP FISHING</h1><p>THE FIRST CAST</p></div></div><div class="wallet"><span>ESSENCE</span><strong id="essence">0</strong></div></header>
-<section class="game-panel"><div class="scene" id="scene"><canvas id="gameCanvas" width="960" height="540" aria-label="Fishing game scene"></canvas><div class="scene-label"><span id="phaseTag">READY</span><span id="weatherTag">CLEAR · DAY</span></div><div class="message" id="message">Cast your line to begin.</div></div>
-<div class="controls"><button id="castBtn" class="primary">CAST LINE</button><button id="reelBtn" class="reel" aria-pressed="false">REEL / HOOK</button><button id="resetBtn" class="ghost">RESET SAVE</button></div>
-<div class="fight-ui" id="fightUi" hidden><div class="bar-label"><span>LINE TENSION</span><span id="tensionText">50%</span></div><div class="meter"><div id="tensionBar" class="tension-fill"></div><div class="safe-zone"></div></div><div class="bar-label"><span>GOOP STAMINA</span><span id="staminaText">100%</span></div><div class="meter stamina"><div id="staminaBar" class="stamina-fill"></div></div><p>Reel to make progress. Release to let tension settle. Stay in the green.</p></div></section>
-<section class="lower-grid"><article class="card"><div class="card-head"><h2>GOOPDEX</h2><span id="dexCount">0 / 6</span></div><div id="dexList" class="dex-list"></div></article><article class="card"><div class="card-head"><h2>FIELD NOTES</h2><span>LAKE 01</span></div><p class="notes">Every Goop has a distinct pull pattern. Watch the tension meter, choose your moments, and bring your catch home.</p><div class="stats"><div><span>DAY</span><strong id="day">1</strong></div><div><span>CAUGHT TODAY</span><strong id="today">0</strong></div><div><span>SPOT</span><strong>North Pond</strong></div></div></article></section><footer>GOOPAMON FISHING PROTOTYPE · BUILD 0.1</footer></main><script type="module" src="src/main.js"></script></body></html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#081b24">
+  <title>Goop Fishing</title>
+  <link rel="stylesheet" href="src/style.css">
+</head>
+<body>
+<main class="shell">
+  <header class="topbar">
+    <div class="brand"><span class="logo">G</span><div><h1>GOOP FISHING</h1><p>THE FIRST CAST</p></div></div>
+    <div class="wallet"><span>ESSENCE</span><strong id="essence">0</strong></div>
+  </header>
+
+  <section class="game-panel">
+    <div class="scene" id="scene">
+      <canvas id="gameCanvas" width="960" height="540" aria-label="Fishing game scene"></canvas>
+      <div class="scene-label"><span id="phaseTag">READY</span><span id="weatherTag">CLEAR · DAY</span></div>
+      <div class="message" id="message" role="status" aria-live="polite">Cast your line to begin.</div>
+    </div>
+
+    <div class="controls">
+      <button id="castBtn" class="primary">CAST LINE <kbd>C</kbd></button>
+      <button id="reelBtn" class="reel" aria-pressed="false">REEL / HOOK <kbd>SPACE</kbd></button>
+      <button id="resetBtn" class="ghost">RESET SAVE</button>
+    </div>
+
+    <div class="fight-ui dim" id="fightUi">
+      <div class="bar-label"><span>CATCH PROGRESS</span><span id="progressText">0%</span></div>
+      <div class="meter progress"><div id="progressBar" class="progress-fill"></div></div>
+      <div class="bar-label"><span>LINE TENSION</span><span id="tensionText">50%</span></div>
+      <div class="meter tension"><div id="tensionBar" class="tension-fill"></div><div id="safeZone" class="safe-zone"></div><div id="needle" class="needle"></div></div>
+      <div class="bar-label"><span>GOOP STAMINA</span><span id="staminaText">100%</span></div>
+      <div class="meter stamina"><div id="staminaBar" class="stamina-fill"></div></div>
+      <p id="tip">Cast, wait for the bite, then tap REEL to hook. While fighting: hold to reel, release to let tension settle, and keep the needle in the green.</p>
+    </div>
+  </section>
+
+  <section class="lower-grid">
+    <article class="card">
+      <div class="card-head"><h2>GOOPDEX</h2><span id="dexCount">0 / 0</span></div>
+      <div id="dexList" class="dex-list"></div>
+    </article>
+
+    <div class="stack">
+      <article class="card">
+        <div class="card-head"><h2>FIELD NOTES</h2><span id="spotLabel">NORTH POND</span></div>
+        <div class="stats">
+          <div><span>DAY</span><strong id="day">1</strong></div>
+          <div><span>CAUGHT TODAY</span><strong id="today">0</strong></div>
+          <div><span>TOTAL CAUGHT</span><strong id="total">0</strong></div>
+        </div>
+        <p class="notes" id="notes"></p>
+      </article>
+
+      <article class="card">
+        <div class="card-head"><h2>FISHING SPOTS</h2><span>TRAVEL</span></div>
+        <div id="spotList" class="option-list"></div>
+      </article>
+
+      <article class="card">
+        <div class="card-head"><h2>TACKLE SHOP</h2><span>UPGRADES</span></div>
+        <div id="shopList" class="option-list"></div>
+      </article>
+    </div>
+  </section>
+
+  <footer>GOOPAMON FISHING PROTOTYPE · BUILD 0.2</footer>
+</main>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
