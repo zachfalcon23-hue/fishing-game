@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
-import { FISH, ZONES, ZONE_SCENE_PROFILES, ZONE_EVENTS, ZONE_HABITATS, HIDDEN_GOOPS, rollZoneEvent, weightedPick, createFight, fightTick, FishingGame, SaveStore, PHASES, levelXP, BEHAVIOR_INFO, MOVE_INFO, availableMovesFor, personalityFor, CATCH_PROFILES, sampleCatchMetrics, spawnWeightFor, gearAdjustedSpawnWeight, RODS, BAITS, QUESTS, questProgress, visualFor, rarityRank, specimenRankLabel } from '../src/game.js';
+import { FISH, ZONES, ZONE_SCENE_PROFILES, ZONE_EVENTS, ZONE_HABITATS, HIDDEN_GOOPS, rollZoneEvent, weightedPick, createFight, fightTick, FishingGame, SaveStore, PHASES, levelXP, BEHAVIOR_INFO, MOVE_INFO, availableMovesFor, personalityFor, CATCH_PROFILES, sampleCatchMetrics, spawnWeightFor, gearAdjustedSpawnWeight, RODS, BAITS, QUESTS, EXPEDITIONS, questProgress, visualFor, rarityRank, specimenRankLabel } from '../src/game.js';
 
 function memoryStore(){return {v:null,getItem(){return this.v},setItem(k,v){this.v=v},removeItem(){this.v=null}}}
 function validSave(overrides={}){return {version:4,essence:0,dex:{},ownedRods:['twig'],zoneUnlocked:{pond:true},...overrides}}
@@ -831,3 +831,10 @@ test('unlocking locations advances and awards the Five Waters research quest',()
   assert.equal(game.state.quests['five-waters'],true);
   assert.ok(game.state.essence>=10000-160-420-900-1800+350);
 });
+
+
+test('regional expeditions advance through exact habitat, conditions, event, and target catch',()=>{const storage=memoryStore(),game=new FishingGame({rng:()=>0,store:new SaveStore(storage)});game.state.zoneUnlocked.hollow=true;assert.equal(game.startExpedition('willow-watch'),true);assert.equal(game.state.expeditions.step,0);game.selectHabitat('goopwillow-roots');game.setConditions('night','clear');game.encounterEvent=null;game.cast();assert.equal(game.state.expeditions.step,1);game.encounterEvent={id:'gloopglow-bloom'};assert.equal(game.recordExpeditionSignal('event'),true);assert.equal(game.state.expeditions.step,2);game.fish=FISH.find(f=>f.id==='willowisp');assert.equal(game.recordExpeditionSignal('catch'),true);assert.equal(game.state.expeditions.active,null);assert.deepEqual(game.state.expeditions.completed,['willow-watch']);assert.ok(game.state.essence>=180);assert.ok(game.state.xp>=90);const restored=new FishingGame({store:new SaveStore(storage)});assert.deepEqual(restored.state.expeditions.completed,['willow-watch'])});
+
+test('expeditions reject wrong region, habitat, conditions, locked regions, and concurrent assignments',()=>{const game=new FishingGame({store:new SaveStore(memoryStore())});assert.equal(game.startExpedition('lantern-ledger'),false);assert.equal(game.startExpedition('willow-watch'),true);assert.equal(game.startExpedition('willow-watch'),false);game.setConditions('day','rain');game.habitatId='mudball-shelf';assert.equal(game.recordExpeditionSignal('visit'),false);assert.equal(game.state.expeditions.step,0)});
+
+test('expedition save hydration sanitizes unknown and completed active identifiers',()=>{const storage=memoryStore();const store=new SaveStore(storage);const base=store.fresh();storage.v=JSON.stringify({...base,version:4,expeditions:{active:'unknown',step:99,completed:['unknown','willow-watch','willow-watch']}});const loaded=store.load();assert.deepEqual(loaded.expeditions,{active:null,step:0,completed:['willow-watch']})});
