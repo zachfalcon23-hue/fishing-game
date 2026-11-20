@@ -715,3 +715,16 @@ test('fishing view includes an accessible quick-start guide for both fight style
   assert.ok(css.includes('.quick-start-grid{display:grid'));
   assert.ok(css.includes('@media(max-width:420px)'));
 });
+
+test('hidden Goop visual signs are limited to their exact uncollected habitat and conditions',()=>{
+  const main=readFileSync(new URL('../src/main.js',import.meta.url),'utf8');
+  const gate=main.slice(main.indexOf('function activeHiddenGoop()'),main.indexOf('function drawHiddenGoopSigns'));
+  for(const condition of ['secret.zone===game.state.zone','secret.habitat===game.habitatId','secret.when.timeOfDay===game.state.timeOfDay','secret.when.weather===game.state.weather','!(game.state.dex[secret.id]?.count>0)']) assert.ok(gate.includes(condition),condition);
+  const signs=main.slice(main.indexOf('function drawHiddenGoopSigns'),main.indexOf('function drawZoneLandmarks'));
+  for(const species of ['rootwhisper','lanternlurker','cindercoil','moonveil','prismwisp']) assert.ok(signs.includes("secret.id==='"+species+"'"),species+' needs a distinct environmental sign');
+  for(const cue of ['Goopwillow roots','Goo Lanterns','Steamvent Run','Moonwake Channel','Luminous Prism Pool']) assert.ok(signs.includes(cue),cue+' visual clue must be habitat-specific');
+  assert.ok(main.includes('drawZoneLandmarks(z,w,h,night,clock);drawHiddenGoopSigns(w,h,clock);'));
+  assert.ok(main.includes("hiddenSign?' Habitat clue: '+hiddenSign.clues[0]:''"),'canvas accessibility text must describe the hidden habitat sign without exposing the species name');
+  const scene=main.slice(main.indexOf('function draw(){'),main.indexOf('function conditionsUI'));
+  assert.ok(scene.indexOf('drawHiddenGoopSigns(w,h,clock)')<scene.indexOf("ctx.strokeStyle='#c6a47b'"),'tracking signs must render before the fishing line and bobber');
+});
