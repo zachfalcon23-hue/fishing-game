@@ -728,3 +728,19 @@ test('hidden Goop visual signs are limited to their exact uncollected habitat an
   const scene=main.slice(main.indexOf('function draw(){'),main.indexOf('function conditionsUI'));
   assert.ok(scene.indexOf('drawHiddenGoopSigns(w,h,clock)')<scene.indexOf("ctx.strokeStyle='#c6a47b'"),'tracking signs must render before the fishing line and bobber');
 });
+
+test('hidden Goop discovery reveal is triggered only when the third clue is saved',()=>{
+  const main=readFileSync(new URL('../src/main.js',import.meta.url),'utf8');
+  const handler=main.slice(main.indexOf("$('castBtn').onclick"),main.indexOf("$('sellBtn').onclick"));
+  assert.ok(handler.includes('tracksBefore={...game.state.hiddenTracks}'));
+  assert.ok(handler.includes("(tracksBefore[secret.id]||0)<3"));
+  assert.ok(handler.includes("(game.state.hiddenTracks[secret.id]||0)===3"));
+  assert.ok(handler.includes("!game.state.dex[secret.id]?.count"));
+  assert.ok(handler.includes("hiddenReveal={id:unlocked.id,startedAt:performance.now()}"));
+  assert.ok(handler.includes("playSound('secret')"));
+  const reveal=main.slice(main.indexOf('function drawHiddenGoopReveal()'),main.indexOf('function draw(){'));
+  for(const cue of ['duration=2.8','drawCreature(x,y-4,fish,.76','A HIDDEN GOOP HAS AWAKENED','THREE SIGNS • ONE RARE ENCOUNTER','Math.pow(1-t,3)'])assert.ok(reveal.includes(cue),cue);
+  assert.ok(main.includes('drawHiddenGoopSigns(w,h,clock);drawHiddenGoopReveal();'));
+  assert.ok(main.includes("else if(kind==='secret'){note(392"));
+  assert.ok(main.includes("else if(kind==='caught')playSound('caught')")||main.includes("playSound('caught')"));
+});
