@@ -65,7 +65,7 @@ Conditions are stored with the player's save and are shown visually in the Fishi
 
 ## Five distinct fishing environments
 
-Each location now has its own scene palette, shoreline landmarks, and environmental description: reed beds and willows at North Pond, sunken stone ruins in Sunken Hollow, ember-lit rock shelves at Ember Creek, a moonlit lighthouse at Moonlit Bay, and crystal spires at Crystal Reach. Day/night lighting and rain remain layered over each location's identity. The zone-profile regression test verifies complete coverage, unique palettes, and a dedicated renderer for every landmark.
+Each location now has its own scene palette, shoreline landmarks, and environmental description. Each of the five locations also has three selectable fishing habitats with distinct spawn-weight biases, and the selected hotspot is saved independently per location so travel and reload preserve the player's chosen water. Environmental events add condition-specific spawn boosts and reward/XP modifiers; hidden Goops require their exact habitat and day/weather clues. Day/night lighting and rain remain layered over each location's identity. The zone-profile regression test verifies complete coverage, unique palettes, and a dedicated renderer for every landmark.
 
 ## Collection and progression
 
