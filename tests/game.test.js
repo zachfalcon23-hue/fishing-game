@@ -183,6 +183,37 @@ test('habitat selection is locked during encounters and changes the cast habitat
   game.reset();
   assert.equal(game.habitatId,ZONE_HABITATS.pond[0].id);
 });
+test('selected fishing habitats persist independently per zone and invalid saved hotspots normalize safely',()=>{
+  const storage=memoryStore(),game=new FishingGame({store:new SaveStore(storage)});
+  const pondHotspot=ZONE_HABITATS.pond[1].id,hollowHotspot=ZONE_HABITATS.hollow[1].id;
+  assert.equal(game.selectHabitat(pondHotspot),true);
+  game.state.zoneUnlocked.hollow=true;
+  assert.equal(game.selectZone('hollow'),true);
+  assert.equal(game.selectHabitat(hollowHotspot),true);
+  assert.equal(game.selectZone('pond'),true);
+  assert.equal(game.habitatId,pondHotspot);
+  assert.equal(game.selectZone('hollow'),true);
+  assert.equal(game.habitatId,hollowHotspot);
+  const reloaded=new FishingGame({store:new SaveStore(storage)});
+  assert.equal(reloaded.habitatId,hollowHotspot);
+  assert.equal(reloaded.state.habitats.pond,pondHotspot);
+  assert.equal(reloaded.state.habitats.hollow,hollowHotspot);
+  const parsed=JSON.parse(storage.v);
+  parsed.habitats.pond='not-a-real-hotspot';
+  parsed.habitats.hollow=ZONE_HABITATS.pond[0].id;
+  storage.v=JSON.stringify(parsed);
+  const normalized=new SaveStore(storage).load();
+  assert.equal(normalized.habitats.pond,ZONE_HABITATS.pond[0].id);
+  assert.equal(normalized.habitats.hollow,ZONE_HABITATS.hollow[0].id);
+});
+test('habitat selection rolls back when its save fails',()=>{
+  const store={load:()=>new SaveStore(null).fresh(),save:()=>false};
+  const game=new FishingGame({store}),original=game.habitatId;
+  assert.equal(game.selectHabitat(ZONE_HABITATS.pond[1].id),false);
+  assert.equal(game.habitatId,original);
+  assert.equal(game.state.habitats.pond,original);
+});
+
 test('environmental event discoveries persist, reward once, and reject unknown save entries',()=>{
   const storage={data:{},getItem(k){return this.data[k]??null},setItem(k,v){this.data[k]=v},removeItem(k){delete this.data[k]}};
   const game=new FishingGame({rng:()=>0,store:new SaveStore(storage)});
