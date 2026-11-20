@@ -737,10 +737,44 @@ test('hidden Goop discovery reveal is triggered only when the third clue is save
   assert.ok(handler.includes("(game.state.hiddenTracks[secret.id]||0)===3"));
   assert.ok(handler.includes("!game.state.dex[secret.id]?.count"));
   assert.ok(handler.includes("hiddenReveal={id:unlocked.id,startedAt:performance.now()}"));
-  assert.ok(handler.includes("playSound('secret')"));
+  assert.ok(handler.includes("playSound('secret:'+unlocked.id)"));
   const reveal=main.slice(main.indexOf('function drawHiddenGoopReveal()'),main.indexOf('function draw(){'));
   for(const cue of ['duration=2.8','drawCreature(x,y-4,fish,.76','A HIDDEN GOOP HAS AWAKENED','THREE SIGNS • ONE RARE ENCOUNTER','Math.pow(1-t,3)'])assert.ok(reveal.includes(cue),cue);
   assert.ok(main.includes('drawHiddenGoopSigns(w,h,clock);drawHiddenGoopReveal();'));
   assert.ok(main.includes("else if(kind==='secret'){note(392"));
   assert.ok(main.includes("else if(kind==='caught')playSound('caught')")||main.includes("playSound('caught')"));
+});
+
+
+test('each hidden Goop has its own reveal choreography and musical identity',()=>{
+  const main=readFileSync(new URL('../src/main.js',import.meta.url),'utf8');
+  const choreography=main.slice(main.indexOf('function drawHiddenGoopChoreography'),main.indexOf('function drawHiddenGoopReveal'));
+  const sounds=main.slice(main.indexOf('function playSound(kind)'),main.indexOf('function updateSoundFeedback'));
+  const signatures={
+    rootwhisper:['living roots unfurl','#a6f4a0','quadraticCurveTo'],
+    lanternlurker:['pool falls dark','#ffc56e','rgba(7,13,27,.66)'],
+    cindercoil:['molten spiral','#ffb36f','Math.PI*4.2'],
+    moonveil:['crescent current','#d6eaff','Math.PI*.92'],
+    prismwisp:['cut-glass facets','rgba(255,190,220,.72)','Math.PI*2/9']
+  };
+  for(const [id,cues] of Object.entries(signatures)){
+    assert.ok(choreography.includes("id==='"+id+"'"),id+' needs a separate choreography branch');
+    for(const cue of cues)assert.ok(choreography.includes(cue),id+' missing its visual signature: '+cue);
+    assert.ok(sounds.includes(id+':['),id+' needs its own discovery and catch motif');
+  }
+  assert.ok(choreography.includes('celebration=false'));
+  assert.ok(choreography.includes('ctx.restore()'));
+});
+
+test('a first hidden-specimen catch triggers one species-specific celebration, never on later catches',()=>{
+  const main=readFileSync(new URL('../src/main.js',import.meta.url),'utf8');
+  const feedback=main.slice(main.indexOf('function updateSoundFeedback()'),main.indexOf('function changeView'));
+  assert.ok(feedback.includes('game.phase===PHASES.CAUGHT'));
+  assert.ok(feedback.includes('game.fish?.hidden&&game.state.dex[game.fish.id]?.count===1'));
+  assert.ok(feedback.includes("hiddenCatchCelebration={id:game.fish.id,startedAt:performance.now()}"));
+  assert.ok(feedback.includes("playSound('secretCatch:'+game.fish.id)"));
+  assert.ok(feedback.includes("else playSound('caught')"));
+  const celebration=main.slice(main.indexOf('function drawHiddenCatchCelebration()'),main.indexOf('function draw(){'));
+  for(const cue of ['duration=3.6','drawHiddenGoopChoreography(fish.id,x,y,t,w,h,true)','FIRST SPECIMEN','SECRET GOOP SECURED  •  ADDED TO GOOPDEX'])assert.ok(celebration.includes(cue),cue);
+  assert.ok(main.includes('drawHiddenGoopSigns(w,h,clock);drawHiddenGoopReveal();drawHiddenCatchCelebration();'));
 });
