@@ -7,7 +7,7 @@ A small, dependency-free browser fishing game for Goopamon: cast, wait for a bit
 - `npm test` runs the Node test suite (Node 20+).
 
 ## Play online
-When merged to `main`, a GitHub Actions workflow runs the tests and publishes the game to GitHub Pages: https://zachfalcon23-hue.github.io/fishing-game/
+The game is published with GitHub Pages (Settings → Pages → Deploy from a branch → `main` / root): https://zachfalcon23-hue.github.io/fishing-game/
 
 ## How to play
 1. **Cast** (`C` / button). Wait for the bobber to dip and the `!` to appear.
