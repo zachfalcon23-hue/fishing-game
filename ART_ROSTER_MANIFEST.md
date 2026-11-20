@@ -63,3 +63,14 @@ The roster contains shared species across zones. Produce one canonical image per
 - [x] Integrate discovered-species GoopDex image rendering with safe fallback (Gloop wired; other species retain procedural art)
 - [x] Integrate Gloop into the fishing-scene renderer with procedural fallback for all other species
 - [ ] Validate all art paths and undiscovered-state privacy
+
+## Renderer implementation checkpoint
+
+The renderer now uses a species-ID registry in `src/main.js`:
+- `GOOP_ART_IDS` is the allowlist of committed art assets.
+- The loader resolves each ID to `/public/assets/goops/<id>.webp`.
+- Fishing-scene rendering uses the image when it is fully loaded and otherwise keeps the procedural renderer.
+- GoopDex only uses a registered image for a discovered species; undiscovered entries remain silhouettes.
+- To add a new species image: commit the transparent WebP at the canonical path, then add its exact `fish.id` to `GOOP_ART_IDS`.
+
+Current allowlist: `gloop`. Additional concept files currently exist in the local working assets folder but are not yet committed to this branch, so they are intentionally not registered. A regression test now checks the registry contract, fallback path, discovery gate, and presence of the Gloop asset.
