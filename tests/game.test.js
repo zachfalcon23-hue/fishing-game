@@ -846,3 +846,6 @@ test('expedition journal narration updates when a field objective is recorded',(
 
 
 test('every expedition capstone targets a Rare-or-better resident of its own region',()=>{for(const expedition of EXPEDITIONS){const step=expedition.steps.find(s=>s.type==='catch');assert.ok(step);assert.ok(step.fishIds.length>=2);for(const id of step.fishIds){const fish=FISH.find(f=>f.id===id);assert.ok(fish,expedition.id+' missing '+id);assert.ok(rarityRank(fish.rarity)>=2,expedition.id+' target '+id+' is not Rare+');assert.equal(fish.zone,expedition.zone)}}});
+
+
+test('every expedition step references real regional habitats and authored events',()=>{assert.equal(new Set(EXPEDITIONS.map(e=>e.id)).size,5);for(const expedition of EXPEDITIONS){const visit=expedition.steps.find(s=>s.type==='visit'),event=expedition.steps.find(s=>s.type==='event'),catchStep=expedition.steps.find(s=>s.type==='catch');assert.ok(ZONES.some(z=>z.id===expedition.zone));assert.ok(ZONE_HABITATS[expedition.zone].some(h=>h.id===visit.habitat));assert.ok(ZONE_EVENTS[expedition.zone].some(e=>e.id===event.eventId));assert.ok(catchStep.fishIds.length>0)}});
