@@ -811,3 +811,23 @@ test('a first hidden-specimen catch triggers one species-specific celebration, n
   for(const cue of ['duration=3.6','drawHiddenGoopChoreography(fish.id,x,y,t,w,h,true)','FIRST SPECIMEN','SECRET GOOP SECURED  •  ADDED TO GOOPDEX'])assert.ok(celebration.includes(cue),cue);
   assert.ok(main.includes('drawHiddenGoopSigns(w,h,clock);drawHiddenGoopReveal();drawHiddenCatchCelebration();'));
 });
+
+
+test('research quests track environmental discoveries and completed hidden-species clues',()=>{
+  const state={discoveries:{'gloopglow-bloom':true,'tadgoop-rush':true,'moonwake':true},hiddenTracks:{rootwhisper:3,lanternlurker:2,cindercoil:3}};
+  assert.equal(questProgress(QUESTS.find(q=>q.id==='event-atlas'),state),3);
+  assert.equal(questProgress(QUESTS.find(q=>q.id==='secret-signals'),state),2);
+  assert.equal(questProgress(QUESTS.find(q=>q.id==='secret-signals'),{hiddenTracks:{rootwhisper:1,moonveil:2}}),0);
+});
+
+test('unlocking locations advances and awards the Five Waters research quest',()=>{
+  const game=new FishingGame({rng:()=>.99,store:new SaveStore(memoryStore())});
+  game.state.essence=10000;
+  assert.equal(game.unlockZone('hollow'),true);
+  assert.equal(game.unlockZone('creek'),true);
+  assert.equal(game.unlockZone('bay'),true);
+  assert.equal(Boolean(game.state.quests['five-waters']),false);
+  assert.equal(game.unlockZone('reach'),true);
+  assert.equal(game.state.quests['five-waters'],true);
+  assert.ok(game.state.essence>=10000-160-420-900-1800+350);
+});
