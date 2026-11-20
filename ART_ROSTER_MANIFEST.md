@@ -58,7 +58,8 @@ The roster contains shared species across zones. Produce one canonical image per
 - [x] Create isolated art branch: `art/goop-fish-concepts-01`
 - [x] Record the authoritative roster and production contract
 - [ ] Generate canonical species-specific art for all 55 IDs
-- [ ] Commit transparent image assets
-- [ ] Integrate GoopDex image rendering with safe fallback
-- [ ] Integrate fishing-scene art where technically safe
+- [x] Commit first transparent image asset: `public/assets/goops/gloop.webp` (Gloop prototype)
+- [ ] Commit remaining concept assets and complete the canonical 55-species art set
+- [x] Integrate discovered-species GoopDex image rendering with safe fallback (Gloop wired; other species retain procedural art)
+- [x] Integrate Gloop into the fishing-scene renderer with procedural fallback for all other species
 - [ ] Validate all art paths and undiscovered-state privacy
