@@ -12,6 +12,8 @@ This checklist separates automated verification from hands-on release validation
 
 - [x] 50 registered Goops with unique IDs.
 - [x] All five fishing zones have distinct scene palettes, shoreline landmarks, and environmental descriptions; regression coverage verifies profile completeness and renderer coverage.
+- [x] Each location has three habitat hotspots with authored spawn biases; selected hotspots persist independently per zone and are validated during save hydration.
+- [x] Environmental event and hidden-Goop systems are integrated with habitat and condition-specific fishing pools; discovery and save-failure regression coverage exists.
 - [x] Every Goop has a weight and length profile.
 - [x] Every Goop has a visual silhouette/marking profile.
 - [x] Every zone spawn reference resolves to a registered Goop.
