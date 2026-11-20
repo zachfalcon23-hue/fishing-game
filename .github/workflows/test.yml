@@ -1,0 +1,58 @@
+name: Fishing Game CI
+on:
+  push:
+    branches:
+      - main
+      - test/browser-smoke-harness
+  pull_request:
+concurrency:
+  group: pondbound-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Prepare diagnostic logs
+        run: mkdir -p ci-logs
+      - name: Syntax checks
+        run: |
+          set -o pipefail
+          npm run check 2>&1 | tee ci-logs/check.log
+      - name: Node regression tests
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee ci-logs/node-tests.log
+      - name: Install pinned Playwright
+        run: npm install --no-save --no-package-lock playwright@1.56.1 2>&1 | tee ci-logs/playwright-install.log
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ matrix.browser }}-1.56.1
+      - name: Install ${{ matrix.browser }}
+        run: |
+          set -o pipefail
+          npx playwright install --with-deps ${{ matrix.browser }} 2>&1 | tee ci-logs/browser-install.log
+      - name: Run browser smoke tests
+        env:
+          PLAYWRIGHT_BROWSER: ${{ matrix.browser }}
+        run: |
+          set -o pipefail
+          npm run test:browser 2>&1 | tee ci-logs/browser-smoke.log
+      - name: Upload diagnostic logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pondbound-ci-logs-${{ matrix.browser }}
+          path: ci-logs/
+          if-no-files-found: warn
+          retention-days: 7

@@ -1,0 +1,241 @@
+import assert from 'node:assert/strict';
+import { createServer } from 'node:http';
+import { readFile } from 'node:fs/promises';
+import { extname, resolve, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { chromium, firefox, webkit } from 'playwright';
+
+const engines = { chromium, firefox, webkit };
+const engineName = process.env.PLAYWRIGHT_BROWSER || 'chromium';
+const browserEngine = engines[engineName];
+if (!browserEngine) throw new Error(`Unsupported PLAYWRIGHT_BROWSER: ${engineName}`);
+
+const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
+const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8' };
+const server = createServer(async (request, response) => {
+  try {
+    const pathname = decodeURIComponent(new URL(request.url, 'http://localhost').pathname);
+    const relative = pathname === '/' ? 'index.html' : pathname.slice(1);
+    const file = resolve(root, relative);
+    if (file !== root && !file.startsWith(root + sep)) throw new Error('Path outside app root');
+    const body = await readFile(file);
+    response.writeHead(200, { 'content-type': mime[extname(file)] || 'application/octet-stream', 'cache-control': 'no-store' });
+    response.end(body);
+  } catch {
+    response.writeHead(404);
+    response.end('Not found');
+  }
+});
+
+let browser;
+try {
+  await new Promise((resolveListen, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolveListen);
+  });
+  const address = server.address();
+  const origin = `http://127.0.0.1:${address.port}`;
+  browser = await browserEngine.launch({ headless: true });
+  for (const viewport of [{ name: 'desktop', width: 1440, height: 1000 }, { name: 'mobile', width: 390, height: 844 }]) {
+    const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height }, reducedMotion: 'reduce' });
+    await context.addInitScript(() => {
+      window.__pondSmoke = { raf: 0, focus: [], phases: [], lastTimestamp: null, rafDelta: null, game: null, cast: null, loopCalls: 0, lastLoop: null };
+      const nativeRaf = window.requestAnimationFrame.bind(window);
+      window.requestAnimationFrame = callback => nativeRaf(timestamp => {
+        window.__pondSmoke.raf++;
+        window.__pondSmoke.rafDelta = window.__pondSmoke.lastTimestamp === null ? null : timestamp - window.__pondSmoke.lastTimestamp;
+        window.__pondSmoke.lastTimestamp = timestamp;
+        callback(timestamp);
+        window.__pondSmoke.focus.push(document.hasFocus());
+        window.__pondSmoke.phases.push(document.querySelector('#phaseTag')?.textContent || '');
+        if (window.__pondSmoke.focus.length > 8) window.__pondSmoke.focus.shift();
+        if (window.__pondSmoke.phases.length > 8) window.__pondSmoke.phases.shift();
+      });
+    });
+    const page = await context.newPage();
+    const pageErrors = [];
+    const consoleErrors = [];
+    const failedLocalRequests = [];
+    page.on('pageerror', error => pageErrors.push(error.message));
+    page.on('console', message => { if (message.type() === 'error') consoleErrors.push(message.text()); });
+    page.on('response', response => { if (response.url().startsWith(origin) && !new URL(response.url()).pathname.endsWith('/favicon.ico') && response.status() >= 400) failedLocalRequests.push(`${response.status()} ${response.url()}`); });
+    page.on('requestfailed', request => {
+      if (request.url().startsWith(origin)) failedLocalRequests.push(request.url() + ' — ' + request.failure()?.errorText);
+    });
+
+    const response = await page.goto(origin, { waitUntil: 'networkidle' });
+    assert.equal(response.status(), 200, `${viewport.name}: app document should load`);
+    await page.bringToFront();
+    await page.waitForFunction(() => document.hasFocus(), undefined, { timeout: 5000 });
+    await page.locator('#phaseTag').waitFor({ state: 'visible' });
+    await page.locator('#gameCanvas').waitFor({ state: 'visible' });
+    assert.match(await page.title(), /Pondbound 0\.4/);
+    assert.equal(await page.locator('#castBtn').isVisible(), true);
+    assert.equal(await page.locator('#dexSearch').count(), 1);
+    assert.equal(await page.locator('#phaseTag').innerText(), 'READY', `${viewport.name}: fresh game must start ready for condition changes`);
+    assert.equal(await page.locator('[data-time="night"]').isEnabled(), true, `${viewport.name}: night control must be enabled before casting`);
+    await page.locator('[data-time="night"]').click();
+    const afterNight = await page.evaluate(() => ({ label: document.querySelector('#conditionsName')?.textContent, phase: document.querySelector('#phaseTag')?.textContent, disabled: document.querySelector('[data-time="night"]')?.disabled, saved: JSON.parse(localStorage.getItem('goop-fishing-save-v3') || 'null')?.timeOfDay }));
+    assert.deepEqual(afterNight, { label: 'Night · Clear', phase: 'READY', disabled: false, saved: 'night' }, `${viewport.name}: time control state after click`);
+    const rainControl = await page.locator('[data-weather="rain"]').evaluate(button => ({ disabled: button.disabled, selected: button.classList.contains('selected') }));
+    assert.deepEqual(rainControl, { disabled: false, selected: false }, `${viewport.name}: rain control must be active after changing time`);
+    await page.locator('[data-weather="rain"]').click();
+    await page.waitForFunction(() => JSON.parse(localStorage.getItem('goop-fishing-save-v3') || 'null')?.weather === 'rain', undefined, { timeout: 5000 });
+    await page.waitForFunction(() => document.querySelector('#conditionsName')?.textContent === 'Night · Rain', undefined, { timeout: 5000 });
+    assert.equal(await page.getByRole('navigation', { name: 'Game sections' }).count(), 1);
+    assert.equal(await page.getByRole('button', { name: 'CAST LINE' }).count(), 1);
+    await page.locator('#castBtn').focus();
+    await page.keyboard.press('Tab');
+    assert.equal(await page.evaluate(() => document.activeElement.id), 'reelBtn', `${viewport.name}: keyboard tab order reaches reel control`);
+    await page.keyboard.press('Shift+Tab');
+    assert.equal(await page.evaluate(() => document.activeElement.id), 'castBtn', `${viewport.name}: keyboard reverse tab order returns to cast control`);
+    for (const [id, label] of [['tensionMeter', 'Fishing line tension'], ['staminaMeter', 'Goop energy'], ['patienceMeter', 'Goop approach progress'], ['spookMeter', 'Goop spook level'], ['intentMeter', 'Fish maneuver timing']]) {
+      const meter = page.locator(`#${id}`);
+      assert.equal(await meter.getAttribute('role'), 'progressbar');
+      assert.equal(await meter.getAttribute('aria-label'), label);
+      assert.ok(Number.isFinite(Number(await meter.getAttribute('aria-valuenow'))));
+    }
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), `${viewport.name}: page must not overflow horizontally`);
+    for (const selector of ['#castBtn', '#reelBtn', '#releaseBtn']) {
+      const height = await page.locator(selector).evaluate(element => element.getBoundingClientRect().height);
+      assert.ok(height >= 44, `${viewport.name}: ${selector} must retain a 44px minimum touch target`);
+    }
+
+    for (const [view, heading] of [['dex', 'GoopDex'], ['shop', 'Gear & Waters'], ['quests', 'Quests'], ['stats', 'Achievements'], ['fish', 'North Pond']]) {
+      await page.locator(`.nav-btn[data-view="${view}"]`).click();
+      if (view === 'fish') await page.locator('#locationName').getByText(heading).waitFor();
+      else await page.locator(`#view-${view} .section-head h2`).getByText(heading).waitFor();
+    }
+
+    await page.locator('.nav-btn[data-view="dex"]').click();
+    await page.locator('#dexSearch').fill('Gloop');
+    await page.locator('#dexGrid').waitFor();
+    const filteredCards = page.locator('#dexGrid .fish-card');
+    assert.equal(await filteredCards.count(), 2, 'search should narrow the roster to the two Gloop name matches');
+    assert.match(await filteredCards.first().innerText(), /Undiscovered/);
+    await page.locator('#dexSearch').fill('');
+    await page.locator('.nav-btn[data-view="fish"]').click();
+
+    assert.equal(await page.locator('#conditionsName').innerText(), 'Night · Rain', 'condition selection must survive navigation');
+
+    await page.locator('#castBtn').click();
+    await page.waitForFunction(() => document.querySelector('#phaseTag')?.textContent === 'CASTING');
+    try {
+      await page.waitForFunction(() => document.querySelector('#phaseTag')?.textContent === 'BITE!', undefined, { timeout: 5000 });
+    } catch (error) {
+      const diagnostic = await page.evaluate(() => ({ phase: document.querySelector('#phaseTag')?.textContent, focused: document.hasFocus(), hidden: document.hidden, visibility: document.visibilityState, activeViews: [...document.querySelectorAll('.view.active')].map(element => element.id), activeNavigation: document.querySelector('.nav-btn.active')?.dataset.view, cast: window.__pondSmoke?.cast, loopCalls: window.__pondSmoke?.loopCalls, lastLoop: window.__pondSmoke?.lastLoop, game: window.__pondSmoke?.game, raf: window.__pondSmoke?.raf, recentFocus: window.__pondSmoke?.focus, recentPhases: window.__pondSmoke?.phases, rafDelta: window.__pondSmoke?.rafDelta, lastTimestamp: window.__pondSmoke?.lastTimestamp, pageErrors, consoleErrors, failedLocalRequests }));
+      throw new Error(`${viewport.name}/${engineName}: fishing loop did not reach BITE: ${JSON.stringify(diagnostic)}; ${error.message}`);
+    }
+    await page.locator('#reelBtn').focus();
+    await page.keyboard.down('Space');
+    await page.waitForFunction(() => document.querySelector('#phaseTag')?.textContent === 'FIGHT', undefined, { timeout: 3000 });
+    await page.keyboard.up('Space');
+    assert.equal(await page.locator('#fightUi').isVisible(), true);
+
+    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('goop-fishing-save-v3')));
+    assert.equal(saved.version, 4);
+    assert.equal(saved.timeOfDay, 'night');
+    assert.equal(saved.weather, 'rain');
+
+    await page.reload({ waitUntil: 'networkidle' });
+    assert.match(await page.locator('#conditionsName').innerText(), /Night · Rain/);
+    assert.equal(await page.locator('#castBtn').isEnabled(), true, 'an in-progress fight is intentionally reset to a fresh cast state on reload');
+    assert.deepEqual(pageErrors, [], `${viewport.name}: uncaught browser exceptions`);
+    assert.deepEqual(consoleErrors, [], `${viewport.name}: browser console errors`);
+    assert.deepEqual(failedLocalRequests, [], `${viewport.name}: local app requests must succeed`);
+    console.log(`PASS ${engineName}/${viewport.name}: startup, navigation, GoopDex search, conditions, cast → bite → fight, save/reload`);
+    await context.close();
+  }
+
+  const specimen = { id: 'catch-1', fishId: 'gloop', name: 'Gloop', rarity: 'Common', weightLb: 0.83, lengthIn: 6.5, percentile: 50, sizeClass: 'Standard', day: 1 };
+  const recoveredSave = { version: 4, essence: 777, day: 1, total: 1, zone: 'pond', rod: 'twig', bait: 'plain', ownedRods: ['twig'], ownedBaits: ['plain'], zoneUnlocked: { pond: true }, timeOfDay: 'night', weather: 'rain', specimens: [specimen], lastCatch: specimen, pendingCatch: { fishId: 'gloop', reward: 5, specimen } };
+
+  const recoveryContext = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  await recoveryContext.addInitScript(save => {
+    localStorage.setItem('goop-fishing-save-v3', '{broken-primary');
+    localStorage.setItem('goop-fishing-save-v3-backup', JSON.stringify(save));
+  }, recoveredSave);
+  const recoveryPage = await recoveryContext.newPage();
+  const recoveryErrors = [];
+  recoveryPage.on('pageerror', error => recoveryErrors.push(error.message));
+  await recoveryPage.goto(origin, { waitUntil: 'networkidle' });
+  await recoveryPage.locator('#catchActions').waitFor({ state: 'visible' });
+  assert.equal(await recoveryPage.locator('#essence').innerText(), '777');
+  const repaired = await recoveryPage.evaluate(() => JSON.parse(localStorage.getItem('goop-fishing-save-v3')));
+  assert.equal(repaired.version, 4);
+  assert.equal(repaired.essence, 777);
+  assert.equal(repaired.pendingCatch.fishId, 'gloop');
+  await recoveryPage.locator('#sellBtn').click();
+  assert.equal(await recoveryPage.locator('#essence').innerText(), '782', 'selling a recovered catch must credit its reward exactly once');
+  const sold = await recoveryPage.evaluate(() => JSON.parse(localStorage.getItem('goop-fishing-save-v3')));
+  assert.equal(sold.pendingCatch, null);
+  assert.equal(sold.day, 2);
+  assert.deepEqual(recoveryErrors, [], 'backup recovery and selling must not throw browser exceptions');
+  console.log(`PASS ${engineName}: corrupt primary restored from backup; pending catch sold exactly once`);
+  await recoveryContext.close();
+
+  const keepContext = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  await keepContext.addInitScript(save => {
+    localStorage.setItem('goop-fishing-save-v3', JSON.stringify(save));
+    localStorage.setItem('goop-fishing-save-v3-backup', JSON.stringify(save));
+  }, recoveredSave);
+  const keepPage = await keepContext.newPage();
+  await keepPage.goto(origin, { waitUntil: 'networkidle' });
+  await keepPage.locator('#catchActions').waitFor({ state: 'visible' });
+  await keepPage.locator('#keepBtn').click();
+  assert.equal(await keepPage.locator('#essence').innerText(), '777', 'keeping a catch must not credit its estimated sale value');
+  const kept = await keepPage.evaluate(() => JSON.parse(localStorage.getItem('goop-fishing-save-v3')));
+  assert.equal(kept.pendingCatch, null);
+  assert.equal(kept.day, 2);
+  assert.equal(kept.specimens.length, 1);
+  console.log(`PASS ${engineName}: Keep preserves specimen without awarding sale Essence`);
+  await keepContext.close();
+
+  const decisionFailureContext = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  await decisionFailureContext.addInitScript(save => {
+    const serialized = JSON.stringify(save);
+    localStorage.setItem('goop-fishing-save-v3', serialized);
+    localStorage.setItem('goop-fishing-save-v3-backup', serialized);
+    window.__nativeStorageSetItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = function () { throw new DOMException('storage quota exceeded', 'QuotaExceededError'); };
+  }, recoveredSave);
+  const decisionFailurePage = await decisionFailureContext.newPage();
+  const decisionFailureErrors = [];
+  decisionFailurePage.on('pageerror', error => decisionFailureErrors.push(error.message));
+  await decisionFailurePage.goto(origin, { waitUntil: 'networkidle' });
+  await decisionFailurePage.locator('#catchActions').waitFor({ state: 'visible' });
+  await decisionFailurePage.locator('#sellBtn').click();
+  await decisionFailurePage.waitForFunction(() => document.querySelector('#saveStatus')?.textContent === 'SAVE FAILED');
+  assert.equal(await decisionFailurePage.locator('#essence').innerText(), '777', 'failed persistence must not award the sale reward');
+  assert.equal(await decisionFailurePage.locator('#catchActions').isVisible(), true, 'failed persistence must leave Sell/Keep available for retry');
+  assert.ok(JSON.parse(await decisionFailurePage.evaluate(() => localStorage.getItem('goop-fishing-save-v3'))).pendingCatch, 'the persisted pending catch must remain available');
+  assert.deepEqual(decisionFailureErrors, [], 'failed catch decisions must not throw browser exceptions');
+  await decisionFailurePage.evaluate(() => { Storage.prototype.setItem = window.__nativeStorageSetItem; });
+  await decisionFailurePage.locator('#sellBtn').click();
+  assert.equal(await decisionFailurePage.locator('#essence').innerText(), '782', 'a recovered storage write must award the sale exactly once');
+  const retriedSale = await decisionFailurePage.evaluate(() => JSON.parse(localStorage.getItem('goop-fishing-save-v3')));
+  assert.equal(retriedSale.pendingCatch, null, 'successful retry must clear the pending catch');
+  assert.equal(retriedSale.day, 2, 'successful retry must advance the day exactly once');
+  assert.equal(retriedSale.sales, 5, 'successful retry must record realized sales exactly once');
+  assert.deepEqual(decisionFailureErrors, [], 'retrying a catch decision must not throw browser exceptions');
+  console.log(`PASS ${engineName}: failed Sell rolls back; restored storage retries and commits exactly once`);
+  await decisionFailureContext.close();
+
+  const quotaContext = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  await quotaContext.addInitScript(() => {
+    Storage.prototype.setItem = function () { throw new DOMException('storage quota exceeded', 'QuotaExceededError'); };
+  });
+  const quotaPage = await quotaContext.newPage();
+  const quotaErrors = [];
+  quotaPage.on('pageerror', error => quotaErrors.push(error.message));
+  await quotaPage.goto(origin, { waitUntil: 'networkidle' });
+  await quotaPage.locator('[data-time="night"]').evaluate(button => button.click());
+  await quotaPage.waitForFunction(() => document.querySelector('#saveStatus')?.textContent === 'SAVE FAILED');
+  assert.match(await quotaPage.locator('#conditionsName').innerText(), /Night/, 'game controls remain usable when persistence fails');
+  assert.deepEqual(quotaErrors, [], 'storage quota failures must not crash the browser app');
+  console.log(`PASS ${engineName}: storage quota failure reported without crashing gameplay`);
+  await quotaContext.close();
+} finally {
+  if (browser) await browser.close();
+  await new Promise(resolveClose => server.close(resolveClose));
+}
