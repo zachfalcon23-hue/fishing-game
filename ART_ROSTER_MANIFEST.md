@@ -59,9 +59,10 @@ The roster contains shared species across zones. Produce one canonical image per
 - [x] Record the authoritative roster and production contract
 - [ ] Generate canonical species-specific art for all 55 IDs
 - [x] Commit first transparent image asset: `public/assets/goops/gloop.webp` (Gloop prototype)
-- [ ] Commit remaining concept assets and complete the canonical 55-species art set
-- [x] Integrate discovered-species GoopDex image rendering with safe fallback (Gloop wired; other species retain procedural art)
-- [x] Integrate Gloop into the fishing-scene renderer with procedural fallback for all other species
+- [x] Commit first three additional concept assets: `bubblegum.webp`, `lanternfin.webp`, `siltwhisker.webp`
+- [ ] Complete the canonical 55-species art set
+- [x] Integrate discovered-species GoopDex image rendering with safe fallback (Gloop, Bubblegum, Lanternfin, and Siltwhisker wired; remaining species retain procedural art)
+- [x] Integrate Gloop, Bubblegum, Lanternfin, and Siltwhisker into the fishing-scene renderer with procedural fallback for all other species
 - [ ] Validate all art paths and undiscovered-state privacy
 
 ## Renderer implementation checkpoint
@@ -73,4 +74,4 @@ The renderer now uses a species-ID registry in `src/main.js`:
 - GoopDex only uses a registered image for a discovered species; undiscovered entries remain silhouettes.
 - To add a new species image: commit the transparent WebP at the canonical path, then add its exact `fish.id` to `GOOP_ART_IDS`.
 
-Current allowlist: `gloop`. Additional concept files currently exist in the local working assets folder but are not yet committed to this branch, so they are intentionally not registered. A regression test now checks the registry contract, fallback path, discovery gate, and presence of the Gloop asset.
+Current allowlist: `gloop`, `bubblegum`, `lanternfin`, and `siltwhisker`. All four transparent WebP assets are committed under `public/assets/goops/`. A regression test checks the registry contract, fallback path, discovery gate, and presence of every registered asset.
