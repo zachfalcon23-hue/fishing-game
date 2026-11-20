@@ -778,3 +778,5 @@ test('a first hidden-specimen catch triggers one species-specific celebration, n
   for(const cue of ['duration=3.6','drawHiddenGoopChoreography(fish.id,x,y,t,w,h,true)','FIRST SPECIMEN','SECRET GOOP SECURED  •  ADDED TO GOOPDEX'])assert.ok(celebration.includes(cue),cue);
   assert.ok(main.includes('drawHiddenGoopSigns(w,h,clock);drawHiddenGoopReveal();drawHiddenCatchCelebration();'));
 });
+
+test('Goop creature art is registered by canonical species ID and safely falls back for unshipped species',()=>{const main=readFileSync(new URL('../src/main.js',import.meta.url),'utf8');assert.ok(main.includes("const GOOP_ART_IDS=['gloop']"));assert.ok(main.includes("image.src='/public/assets/goops/'+id+'.webp'"));assert.ok(main.includes('hasGoopArt(fish.id)?GOOP_ART[fish.id]:null'));assert.ok(main.includes('if(art?.complete&&art.naturalWidth)'));assert.ok(main.includes('caught&&hasGoopArt(f.id)'));assert.ok(existsSync(new URL('../public/assets/goops/gloop.webp',import.meta.url)));});
