@@ -6,6 +6,9 @@ A small, dependency-free browser fishing game for Goopamon: cast, wait for a bit
 - Open `index.html` in a modern browser, or serve the folder (`npm start`). ES modules need `http://`, so a static server is the safest option.
 - `npm test` runs the Node test suite (Node 20+).
 
+## Play online
+When merged to `main`, a GitHub Actions workflow runs the tests and publishes the game to GitHub Pages: https://zachfalcon23-hue.github.io/fishing-game/
+
 ## How to play
 1. **Cast** (`C` / button). Wait for the bobber to dip and the `!` to appear.
 2. **Hook** with a fresh press of **Reel** (`Space` / hold the button). A button already held during the cast will not hook.
