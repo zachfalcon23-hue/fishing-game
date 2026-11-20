@@ -2,7 +2,7 @@ import{FISH,ZONES,ZONE_SCENE_PROFILES,ZONE_EVENTS,ZONE_HABITATS,HIDDEN_GOOPS,ROD
 import{SessionTelemetry,downloadJSONFile}from'./telemetry.js';
 const $=id=>document.getElementById(id),canvas=$('gameCanvas'),ctx=canvas.getContext('2d'),game=new FishingGame(),telemetry=new SessionTelemetry();let reel=false,tapQueued=0,clock=0,view='fish',modalOpen=false,lastStaticKey='',hiddenReveal=null,hiddenCatchCelebration=null;
 // Canonical species-ID registry. Add an ID here only after its transparent asset is committed.
-const GOOP_ART_IDS=['gloop'];
+const GOOP_ART_IDS=['gloop','bubblegum','lanternfin','siltwhisker'];
 const GOOP_ART=Object.fromEntries(GOOP_ART_IDS.map(id=>{const image=new Image();image.decoding='async';image.src='/public/assets/goops/'+id+'.webp';return[id,image]}));
 const hasGoopArt=id=>Object.prototype.hasOwnProperty.call(GOOP_ART,id);
 let audioContext=null,soundEnabled=true,lastSoundPhase=PHASES.IDLE,lastMoveCue='',lastSoundFight=null,lastPatienceProgress=0,lastSpook=0;
