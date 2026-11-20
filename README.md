@@ -141,3 +141,8 @@ The Stats view includes an in-memory session summary and an **Export session tel
 Telemetry is local to the current page session: it is not uploaded, does not include player identifiers, and is not written into the progression save. Up to 500 detailed rounds are retained in memory; aggregate event counters continue for the session. Export before closing or reloading the page if you want to keep a playtest sample.
 
 Use multiple sessions across zones and condition combinations before adjusting rarity, fight difficulty, or economy. Small samples should be treated as directional evidence, not definitive balance results.
+
+
+## Fishing expeditions
+
+The Regional Field Journal offers one active expedition at a time, with a three-stage assignment in each of the five waters. Each route asks the angler to visit a specific habitat under exact time and weather conditions, witness that region's environmental event, and land a named local species. Progress and completed expeditions persist in the local save. Completing a route grants region-scaled Essence and XP rewards; locked regions remain unavailable until unlocked through normal progression. Open the Expeditions section to accept an available assignment and track its field notes.
