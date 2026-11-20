@@ -36,3 +36,8 @@ button{min-height:44px}
 .quick-start-step p{margin:0;color:var(--muted);font-size:9px;line-height:1.5}
 .quick-start-step p strong{color:#d8e9df}
 @media(max-width:420px){.quick-start-grid{grid-template-columns:1fr}}
+
+/* Species artwork: image art is shown only after discovery; unknown Goops keep their silhouettes. */
+.fish-art-image{height:112px;display:grid;place-items:center;overflow:hidden;margin:0 8px 4px;border-radius:12px;background:radial-gradient(ellipse at 50% 55%,#21463d 0,#10272b 58%,transparent 78%)}
+.fish-art-image img{display:block;width:100%;height:100%;max-width:150px;object-fit:contain;filter:drop-shadow(0 8px 10px #0008)}
+.fish-card.unknown .fish-art-image{display:none}
