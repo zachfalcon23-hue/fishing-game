@@ -60,8 +60,9 @@ The roster contains shared species across zones. Produce one canonical image per
 - [ ] Generate canonical species-specific art for all 55 IDs
 - [x] Commit first transparent image asset: `public/assets/goops/gloop.webp` (Gloop prototype)
 - [x] Commit first three additional concept assets: `bubblegum.webp`, `lanternfin.webp`, `siltwhisker.webp`
+- [x] Commit Murkling transparent WebP at `public/assets/goops/murkling.webp`
 - [ ] Complete the canonical 55-species art set
-- [x] Integrate discovered-species GoopDex image rendering with safe fallback (Gloop, Bubblegum, Lanternfin, and Siltwhisker wired; remaining species retain procedural art)
+- [x] Integrate discovered-species GoopDex image rendering with safe fallback (Gloop, Bubblegum, Lanternfin, Siltwhisker, and Murkling wired; remaining species retain procedural art)
 - [x] Integrate Gloop, Bubblegum, Lanternfin, and Siltwhisker into the fishing-scene renderer with procedural fallback for all other species
 - [ ] Validate all art paths and undiscovered-state privacy
 
@@ -74,4 +75,4 @@ The renderer now uses a species-ID registry in `src/main.js`:
 - GoopDex only uses a registered image for a discovered species; undiscovered entries remain silhouettes.
 - To add a new species image: commit the transparent WebP at the canonical path, then add its exact `fish.id` to `GOOP_ART_IDS`.
 
-Current allowlist: `gloop`, `bubblegum`, `lanternfin`, and `siltwhisker`. All four transparent WebP assets are committed under `public/assets/goops/`. A regression test checks the registry contract, fallback path, discovery gate, and presence of every registered asset.
+Current allowlist: `gloop`, `bubblegum`, `lanternfin`, `siltwhisker`, and `murkling`. All four transparent WebP assets are committed under `public/assets/goops/`. A regression test checks the registry contract, fallback path, discovery gate, and presence of every registered asset.
