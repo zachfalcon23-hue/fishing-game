@@ -5,6 +5,13 @@ This checklist separates automated verification from hands-on release validation
 ## Automated checks
 ## Current CI verification status
 
+- [ ] Current PR head `088b078515ad8fa3247911861d3c0aec9c4158ca` has a successful Chromium, Firefox, and WebKit workflow run.
+- [x] Latest PR-head workflow run #601 (run ID `44665100025`) was inspected through GitHub's run and job APIs. All three matrix jobs were marked failed within 2–4 seconds, each reports an empty `steps` array, `runner_id: 0`, and an empty `runner_name`. No diagnostic artifacts were produced.
+- [x] Confirmed this is a runner-allocation/startup failure before workflow steps execute—not a browser assertion failure. The workflow's syntax, Node, Playwright installation, and browser smoke steps did not run in #601.
+- [ ] Restore GitHub Actions runner availability/credits or run the same checks on an available external/local runner. Do not waive this gate or treat the failed run as a pass.
+- [ ] Once a runner is available, rerun `npm run check`, `npm test`, and the Chromium/Firefox/WebKit smoke matrix on the final PR head; inspect uploaded per-engine logs.
+- [ ] Newer gameplay/save commits require fresh syntax, Node, and browser verification. Earlier green runs are historical and do not validate the current head.
+
 - [ ] Current PR head has a successful Chromium, Firefox, and WebKit workflow run.
 - [x] Last runner-backed baseline (`066dc2d`) passed `npm run check` and all 94 Node regression tests; its browser smoke test failed at the cast-to-bite transition in all three engines.
 - [ ] Newer gameplay/save commits require fresh syntax, Node, and browser verification. The latest PR-head run (`#541`, commit `f832776`) failed before runner setup: all three jobs had zero steps, no runner name, no logs, and no artifacts. This is an Actions execution blocker, not a passing result.
