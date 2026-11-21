@@ -216,13 +216,14 @@ function render(dt) {
   setText('today', game.state.caughtToday);
   setText('total', game.state.stats.caught);
   const near = nearestSpot();
-  setText('spotLabel', (game.here ? game.spot.name : `Walking to ${near.name}`).toUpperCase());
+  const dest = walker.target != null ? SPOTS.find((sp) => SPOT_X[sp.id] === walker.target) : null;
+  setText('spotLabel', (game.here ? game.spot.name : `${walker.v < 0 ? '◀ ' : ''}${(dest || near).name}${walker.v > 0 ? ' ▶' : ''}`).toUpperCase());
   const prog = game.spotProgress(game.here ? game.spot.id : near.id);
   setText('spotProg', `${prog.found}/${prog.total}`);
   $('castBtn').disabled = game.busy || !game.here || walking;
   const free = !game.busy;
   $('leftBtn').disabled = !free; $('rightBtn').disabled = !free;
-  $('walkHint').classList.toggle('show', free && game.here && game.state.stats.caught < 3 && !walking);
+  $('walkHint').classList.toggle('show', free && game.here && game.state.discovered.length < 3 && !walking);
   const reel = $('reelBtn');
   reel.classList.toggle('active', reelHeld);
   reel.classList.toggle('ready', p === PHASES.BITE && !reelHeld);
@@ -299,6 +300,14 @@ function gateX() {
 }
 
 let gateWarned = 0;
+function warnGate() {
+  if (performance.now() - gateWarned < 3000) return;
+  gateWarned = performance.now();
+  const next = SPOTS.find((s) => !game.spotUnlocked(s.id));
+  if (!next) return;
+  toast(`🔒 Path to ${next.name} is overgrown — catch ${next.unlockAt - game.dexCount} more new Goop${next.unlockAt - game.dexCount === 1 ? '' : 's'} to clear it.`);
+  sfx.bump();
+}
 function updateWalk(dt) {
   const gate = gateX();
   const maxX = gate != null ? gate - 300 : WORLD_MAX;
@@ -310,7 +319,19 @@ function updateWalk(dt) {
     walker.target = null;
     walker.v += (dir * WALK_SPEED - walker.v) * Math.min(1, dt * 6);
   } else {
-    if (walker.target == null && Math.abs(walker.v) < WALK_SPEED * 0.9) walker.target = SPOT_X[nearestSpot().id];
+    if (walker.target == null) {
+      // Let go while moving: carry on to the next spot in that direction (a tap is enough to travel).
+      const sign = Math.sign(walker.v);
+      if (Math.abs(walker.v) > 60) {
+        const ahead = SPOTS.find((sp) => sign > 0 ? SPOT_X[sp.id] > walker.x + 5 : false)
+          || [...SPOTS].reverse().find((sp) => sign < 0 && SPOT_X[sp.id] < walker.x - 5);
+        if (ahead && game.spotUnlocked(ahead.id)) walker.target = SPOT_X[ahead.id];
+        else {
+          walker.target = SPOT_X[nearestSpot().id];
+          if (ahead) warnGate();
+        }
+      } else walker.target = SPOT_X[nearestSpot().id];
+    }
     if (walker.target != null) {
       const want = Math.max(-WALK_SPEED, Math.min(WALK_SPEED, (walker.target - walker.x) * 3.2));
       walker.v += (want - walker.v) * Math.min(1, dt * 7);
@@ -319,12 +340,7 @@ function updateWalk(dt) {
   walker.x += walker.v * dt;
   if (walker.x > maxX) {
     walker.x = maxX; walker.v = 0; walker.target = SPOT_X[nearestSpot().id];
-    if (performance.now() - gateWarned > 4000) {
-      gateWarned = performance.now();
-      const next = SPOTS.find((s) => !game.spotUnlocked(s.id));
-      toast(`The path is overgrown. Fill your GoopDex to ${next.unlockAt} to reach ${next.name}.`);
-      sfx.bump();
-    }
+    warnGate();
   }
   if (walker.x < WORLD_MIN) { walker.x = WORLD_MIN; walker.v = Math.max(0, walker.v); }
   // arrive / leave
@@ -332,7 +348,9 @@ function updateWalk(dt) {
   const atSpot = Math.abs(walker.x - SPOT_X[near.id]) < 10 && Math.abs(walker.v) < 25;
   if (atSpot && !(game.here && game.state.spot === near.id) && !game.busy) {
     walker.x = SPOT_X[near.id]; walker.v = 0; walker.target = null;
+    const gateMsg = performance.now() - gateWarned < 2500 ? game.message : null;
     game.travel(near.id);
+    if (gateMsg && !game.events.some((e) => e.type === 'discover')) game.message = gateMsg;
   } else if (game.here && Math.abs(walker.x - SPOT_X[game.state.spot]) > 60) {
     game.leave();
     $('catchCard').hidden = true;
