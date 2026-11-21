@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#04121a">
-  <meta name="description" content="Goop Fishing — cast into a moonlit pond, hook glowing Goops and fill your GoopDex.">
+  <meta name="description" content="Goop Fishing — explore the shores of North Pond, hook glowing Goops and fill a GoopDex of 72 species.">
   <title>Goop Fishing · North Pond</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='34' r='26' fill='%2359e04a'/%3E%3Ccircle cx='24' cy='28' r='7' fill='%23fff'/%3E%3Ccircle cx='25' cy='29' r='3.5' fill='%23062a10'/%3E%3Cpath d='M14 46q4 12 6 0M38 50q3 10 5 0' fill='%2359e04a'/%3E%3C/svg%3E">
   <link rel="preload" as="font" type="font/woff2" href="assets/fonts/lilita-one.woff2" crossorigin>
@@ -16,7 +16,7 @@
   <div class="loader-art" aria-hidden="true"></div>
   <div class="loader-inner">
     <div class="slime-logo big" aria-label="Goop Fishing"><span class="word">GOOP</span><span class="word alt">FISHING</span><i class="drip d1"></i><i class="drip d2"></i><i class="drip d3"></i><i class="drip d4"></i></div>
-    <p class="loader-sub">NORTH POND · A POND BOUND ADVENTURE</p>
+    <p class="loader-sub">NORTH POND · 72 GOOPS TO FIND</p>
     <div class="load-bar" role="progressbar" aria-label="Loading" aria-valuemin="0" aria-valuemax="100"><div id="loadFill"></div></div>
     <button id="startBtn" class="slime-btn start" hidden>TAP TO FISH</button>
     <p class="loader-hint" id="loadHint">Loading the pond…</p>
@@ -27,6 +27,7 @@
   <header class="topbar">
     <div class="slime-logo" aria-label="Goop Fishing"><span class="word">GOOP</span><span class="word alt">FISHING</span><i class="drip d1"></i><i class="drip d2"></i><i class="drip d3"></i></div>
     <div class="top-right">
+      <div class="dexpill" title="GoopDex"><span>GOOPDEX</span><strong id="dexPill">0/72</strong></div>
       <div class="wallet" title="Essence"><span class="orb" aria-hidden="true"></span><div><span>ESSENCE</span><strong id="essence">0</strong></div></div>
       <button id="muteBtn" class="icon-btn" aria-label="Toggle sound" aria-pressed="false"></button>
     </div>
@@ -34,15 +35,17 @@
 
   <section class="stage">
     <div class="scene" id="scene">
-      <canvas id="gameCanvas" width="1280" height="720" aria-label="Fishing scene"></canvas>
+      <canvas id="gameCanvas" width="1280" height="720" aria-label="North Pond"></canvas>
       <div class="hud-top">
-        <div class="chip loc"><span class="pin" aria-hidden="true"></span><b id="spotLabel">NORTH POND</b></div>
+        <div class="chip loc"><span class="pin" aria-hidden="true"></span><b id="spotLabel">THE OLD DOCK</b><span class="loc-prog" id="spotProg">0/10</span></div>
         <div class="chips-right">
           <span class="chip" id="weatherTag">CLEAR · DAY</span>
           <span class="chip phase" id="phaseTag">READY</span>
         </div>
       </div>
+      <nav class="minimap" id="minimap" aria-label="Pond map"></nav>
       <div class="toast" id="message" role="status" aria-live="polite">Cast your line to begin.</div>
+      <div class="walk-hint" id="walkHint">◀ ▶ WALK THE SHORE</div>
 
       <div class="fight-hud dim" id="fightUi" aria-hidden="true">
         <div class="tension-row">
@@ -60,38 +63,41 @@
         <div class="cc-badge" id="ccNew">NEW!</div>
         <div class="cc-rarity" id="ccRarity">COMMON</div>
         <h3 id="ccName">Gloop</h3>
-        <div class="cc-stats"><span id="ccReward">+8 Essence</span><span id="ccTime">4.2s</span></div>
-        <p class="cc-hint">Cast again to keep fishing</p>
+        <div class="cc-stats"><span id="ccReward">+8 Essence</span><span id="ccSize">12 cm</span><span id="ccTime">4.2s</span></div>
+        <p class="cc-hint" id="ccHint">Cast again to keep fishing</p>
       </div>
     </div>
 
     <div class="controls">
+      <button id="leftBtn" class="slime-btn walk" aria-label="Walk left">◀</button>
       <button id="castBtn" class="slime-btn">CAST LINE <kbd>C</kbd></button>
       <button id="reelBtn" class="slime-btn reel" aria-pressed="false">REEL / HOOK <kbd>SPACE</kbd></button>
+      <button id="rightBtn" class="slime-btn walk" aria-label="Walk right">▶</button>
     </div>
-    <p id="tip" class="tip">Cast, wait for the <b>!</b>, then tap REEL to hook. While fighting: hold to reel, release to ease off — keep the needle in the green.</p>
+    <p id="tip" class="tip">Walk the shore with <b>◀ ▶</b> or <b>A / D</b>. At a spot: cast, wait for the <b>!</b>, tap REEL to hook, then feather the reel to keep the needle in the green. Look for glowing bottles on the shore.</p>
   </section>
 
   <section class="lower-grid">
     <article class="card dex-card">
       <div class="card-head"><h2>GOOPDEX</h2><span id="dexCount">0 / 0</span></div>
+      <div class="dex-tabs" id="dexTabs" role="tablist"></div>
       <div id="dexList" class="dex-list"></div>
     </article>
 
     <div class="stack">
       <article class="card">
-        <div class="card-head"><h2>FIELD NOTES</h2><span>DAY <b id="day">1</b></span></div>
-        <div class="stats">
-          <div><span>CAUGHT TODAY</span><strong id="today">0</strong></div>
-          <div><span>TOTAL CAUGHT</span><strong id="total">0</strong></div>
-          <div><span>DISCOVERED</span><strong id="found">0</strong></div>
-        </div>
-        <p class="notes" id="notes"></p>
+        <div class="card-head"><h2>POND MAP</h2><span>DAY <b id="day">1</b></span></div>
+        <div id="spotList" class="spot-list"></div>
       </article>
 
       <article class="card">
-        <div class="card-head"><h2>FISHING SPOTS</h2><span>TRAVEL</span></div>
-        <div id="spotList" class="spot-list"></div>
+        <div class="card-head"><h2>FIELD NOTES</h2><span id="notesCount">0 / 14</span></div>
+        <div class="stats">
+          <div><span>CAUGHT TODAY</span><strong id="today">0</strong></div>
+          <div><span>TOTAL CAUGHT</span><strong id="total">0</strong></div>
+          <div><span>SHINIES</span><strong id="shinies">0</strong></div>
+        </div>
+        <div id="noteList" class="note-list"></div>
       </article>
 
       <article class="card">
@@ -101,8 +107,20 @@
     </div>
   </section>
 
-  <footer><span>GOOP FISHING · BUILD 0.3 · NORTH POND VISUAL UPDATE</span><button id="resetBtn" class="ghost">RESET SAVE</button></footer>
+  <footer><span>GOOP FISHING · BUILD 0.4 · NORTH POND EXPEDITION</span><button id="resetBtn" class="ghost">RESET SAVE</button></footer>
 </main>
+
+<dialog id="dexDetail" class="dex-detail">
+  <button class="close" id="dexClose" aria-label="Close">✕</button>
+  <div class="dd-art"><img id="ddImg" alt=""></div>
+  <div class="dd-body">
+    <div class="dd-rarity" id="ddRarity"></div>
+    <h3 id="ddName"></h3>
+    <p class="dd-where" id="ddWhere"></p>
+    <div class="dd-stats" id="ddStats"></div>
+    <p class="dd-hint" id="ddHint"></p>
+  </div>
+</dialog>
 <script type="module" src="src/main.js"></script>
 </body>
 </html>
