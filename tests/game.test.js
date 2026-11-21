@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  GOOPS, SPOTS, UPGRADES, weightedPick, encounterPool, makeFight, tickFight, pullForce,
-  FishingGame, SaveStore, PHASES, CASTS_PER_TIME,
+  GOOPS, SPOTS, UPGRADES, NOTES, NOTE_REWARD, weightedPick, encounterPool, makeFight, tickFight, pullForce,
+  FishingGame, SaveStore, PHASES, CASTS_PER_TIME, conditionsMet, conditionText,
 } from '../src/game.js';
 
 function memStore(initial = null) {
@@ -159,47 +159,146 @@ test('upgrades cost Essence, cap at max level, and cannot be bought when broke',
   assert.equal(g.buyUpgrade('nonsense'), false);
 });
 
-test('traveling unlocks spots for Essence and is blocked mid-cast', () => {
+test('spots open as the GoopDex fills, and walking is blocked mid-cast', () => {
   const g = newGame();
-  assert.equal(g.travel('reeds'), false, 'too poor');
-  g.state.essence = 1000;
+  assert.ok(g.travel('lily'), 'second spot is open from the start');
+  assert.equal(g.state.spot, 'lily');
+  assert.equal(g.travel('reeds'), false, 'needs more GoopDex entries');
+  for (const goop of GOOPS.slice(0, 4)) g.state.dex[goop.id] = { count: 1, fastest: null, best: null, shiny: 0 };
+  const before = g.state.essence;
   assert.ok(g.travel('reeds'));
-  assert.equal(g.state.essence, 1000 - SPOTS[1].cost);
-  assert.equal(g.state.spot, 'reeds');
-  assert.ok(g.travel('pond'));
-  assert.equal(g.state.essence, 1000 - SPOTS[1].cost, 'revisiting is free');
+  assert.ok(g.state.essence > before, 'first visit pays a discovery reward');
+  assert.ok(g.state.discovered.includes('reeds'));
+  const again = g.state.essence;
+  assert.ok(g.travel('dock') && g.travel('reeds'));
+  assert.equal(g.state.essence, again, 'revisiting pays nothing');
   g.cast();
-  assert.equal(g.travel('reeds'), false, 'busy');
+  assert.equal(g.travel('dock'), false, 'busy');
   assert.equal(g.travel('nowhere'), false);
+});
+
+test('you can only cast while standing at a spot', () => {
+  const g = newGame();
+  assert.ok(g.leave());
+  assert.equal(g.cast(), false);
+  g.travel('dock');
+  assert.ok(g.cast());
+});
+
+test('every species has art-ready ids, a valid rarity and at least one habitat', () => {
+  const ids = new Set();
+  for (const goop of GOOPS) {
+    assert.ok(!ids.has(goop.id), `duplicate ${goop.id}`); ids.add(goop.id);
+    assert.ok(/^[a-z]+$/.test(goop.id));
+    assert.ok(['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'].includes(goop.rarity));
+    assert.ok(goop.size[0] < goop.size[1]);
+    assert.ok(conditionText(goop).length > 0);
+  }
+  assert.ok(GOOPS.length >= 70, `expected a big GoopDex, got ${GOOPS.length}`);
+  for (const s of SPOTS) assert.ok(s.goops.length >= 6, `${s.id} needs enough species`);
+});
+
+test('hard requirements keep a Goop out of the pool until conditions line up', () => {
+  const grotto = SPOTS.find((s) => s.id === 'grotto');
+  const has = (pool, id) => pool.some((x) => x.id === id);
+  assert.equal(has(encounterPool({ spot: grotto, weather: 'clear', time: 'Night' }), 'nightmire'), false);
+  assert.equal(has(encounterPool({ spot: grotto, weather: 'fog', time: 'Day' }), 'nightmire'), false);
+  assert.ok(has(encounterPool({ spot: grotto, weather: 'fog', time: 'Night' }), 'nightmire'));
+  assert.ok(conditionsMet(GOOPS[0], 'storm', 'Night'), 'Goops without needs always qualify');
+  // every spot always has something to catch
+  for (const s of SPOTS) for (const w of ['clear', 'rain', 'fog', 'storm']) for (const t of ['Dawn', 'Day', 'Dusk', 'Night']) {
+    assert.ok(encounterPool({ spot: s, weather: w, time: t }).length > 0, `${s.id} ${w} ${t}`);
+  }
+  // and every species can be caught under some combination
+  for (const goop of GOOPS) {
+    const ok = ['clear', 'rain', 'fog', 'storm'].some((w) => ['Dawn', 'Day', 'Dusk', 'Night'].some((t) => conditionsMet(goop, w, t)));
+    assert.ok(ok, `${goop.id} is uncatchable`);
+  }
+});
+
+test('catches roll a size, track records and shiny variants', () => {
+  const rolls = [0.99, 0.999]; // size near max, then shiny
+  const { store } = memStore();
+  const g = new FishingGame({ rng: () => (rolls.length ? rolls.shift() : 0), saveStore: store });
+  g.goop = GOOPS[0]; g.phase = PHASES.FIGHT; g.fight = makeFight(GOOPS[0]); g.fight.caught = true;
+  g.update(0);
+  const e = g.state.dex.gloop;
+  assert.ok(e.best > GOOPS[0].size[0]);
+  assert.equal(e.shiny, 1);
+  assert.equal(g.state.stats.shiny, 1);
+  assert.equal(g.lastCatch.reward, GOOPS[0].essence * 3, 'shinies pay triple');
+  // a smaller second catch does not beat the record
+  g.goop = GOOPS[0]; g.phase = PHASES.FIGHT; g.fight = makeFight(GOOPS[0]); g.fight.caught = true;
+  g.update(0);
+  assert.equal(g.state.dex.gloop.count, 2);
+  assert.equal(g.lastCatch.record, false);
+});
+
+test('completing a spot pays a one-time bonus and new spots announce themselves', () => {
+  const g = newGame();
+  const dock = SPOTS.find((s) => s.id === 'dock');
+  for (const id of dock.goops.slice(1)) g.state.dex[id] = { count: 1, fastest: null, best: null, shiny: 0 };
+  g.goop = GOOPS.find((x) => x.id === dock.goops[0]); g.phase = PHASES.FIGHT; g.fight = makeFight(g.goop); g.fight.caught = true;
+  g.update(0);
+  const types = g.events.map((e) => e.type);
+  assert.ok(types.includes('spotComplete'));
+  assert.ok(g.state.completed.includes('dock'));
+  assert.ok(types.includes('unlock'), 'the dock set is big enough to open the reeds');
+});
+
+test('field notes are picked up once, at their own spot, and teach the Goop', () => {
+  const g = newGame();
+  const note = NOTES.find((n) => n.spot === 'dock');
+  assert.equal(g.knows(note.reveals), false);
+  assert.equal(g.collectNote('n-lily-1'), false, 'wrong spot');
+  assert.ok(g.collectNote(note.id));
+  assert.equal(g.state.essence, NOTE_REWARD);
+  assert.ok(g.knows(note.reveals));
+  assert.equal(g.collectNote(note.id), false, 'only once');
+  for (const n of NOTES) assert.ok(GOOPS.some((x) => x.id === n.reveals) && SPOTS.some((s) => s.id === n.spot));
 });
 
 test('save storage recovers from malformed data and version mismatch', () => {
   const mem = { v: 'bad', getItem() { return this.v; }, setItem(k, v) { this.v = v; }, removeItem() { this.v = null; } };
   const store = new SaveStore(mem);
-  assert.equal(store.load().version, 1);
+  assert.equal(store.load().version, 2);
   mem.v = JSON.stringify({ version: 99, essence: 999 });
   assert.equal(store.load().essence, 0);
 });
 
 test('save sanitizing drops bad values and keeps good ones', () => {
   const { mem, store } = memStore(JSON.stringify({
-    version: 1, essence: 'lots', day: -5, spot: 'deep', unlocked: ['pond'], weather: 'meteors',
-    gear: { rod: 99, line: 'x' }, dex: [], timeIndex: 17,
+    version: 2, essence: 'lots', day: -5, spot: 'deep', discovered: ['dock', 'deep'], weather: 'meteors',
+    gear: { rod: 99, line: 'x' }, dex: { gloop: { count: 2 }, fakefish: { count: 9 } }, timeIndex: 17, notes: ['bogus'],
   }));
   const s = store.load();
   assert.equal(s.essence, 0);
   assert.equal(s.day, 1);
-  assert.equal(s.spot, 'pond', 'cannot start at a locked spot');
+  assert.equal(s.spot, 'dock', 'cannot stand at a locked spot');
+  assert.deepEqual(s.discovered, ['dock']);
   assert.equal(s.weather, 'clear');
   assert.equal(s.gear.rod, UPGRADES.rod.cost.length);
   assert.equal(s.gear.line, 0);
-  assert.deepEqual(s.dex, {});
+  assert.deepEqual(Object.keys(s.dex), ['gloop'], 'unknown species dropped');
+  assert.deepEqual(s.notes, []);
   assert.ok(s.timeIndex <= 3);
-  // an old version-1 save without the new fields still loads
-  mem.v = JSON.stringify({ version: 1, essence: 40, dex: { gloop: { count: 2 } }, day: 3, weather: 'clear', caughtToday: 1 });
-  const old = store.load();
-  assert.equal(old.essence, 40);
-  assert.deepEqual(old.unlocked, ['pond']);
+});
+
+test('version-1 saves migrate: GoopDex kept, old lake purchases refunded', () => {
+  const { mem, store } = memStore(JSON.stringify({
+    version: 1, essence: 40, dex: { gloop: { count: 2, fastest: 3.1 }, lumen: { count: 1 } }, day: 3, weather: 'clear',
+    caughtToday: 1, spot: 'reeds', unlocked: ['pond', 'reeds'], gear: { rod: 1 },
+  }));
+  const s = store.load();
+  assert.equal(s.version, 2);
+  assert.equal(s.essence, 240, 'the 200 paid for Reed Shallows comes back');
+  assert.equal(s.dex.gloop.count, 2);
+  assert.equal(s.dex.gloop.fastest, 3.1);
+  assert.ok(s.seen.includes('lumen'));
+  assert.equal(s.spot, 'dock', 'reeds needs a bigger GoopDex now');
+  assert.equal(s.gear.rod, 1);
+  mem.v = JSON.stringify({ version: 1, essence: 5 });
+  assert.equal(store.load().essence, 5, 'minimal old saves still load');
 });
 
 test('reset wipes progress and the event log stays bounded', () => {

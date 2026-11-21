@@ -61,10 +61,15 @@ export class Sfx {
   click(tension = 0.5) { this.tone({ f0: 1800 + tension * 900, f1: 1200, dur: 0.025, type: 'square', gain: 0.05 }); }
   strain() { this.tone({ f0: 220, f1: 200, dur: 0.12, type: 'sawtooth', gain: 0.04 }); }
   snap() { this.noiseBurst({ dur: 0.25, type: 'highpass', f0: 4000, f1: 1500, gain: 0.6, attack: 0.001 }); this.tone({ f0: 600, f1: 70, dur: 0.4, type: 'sawtooth', gain: 0.15 }); }
-  catch(rarity) {
-    const notes = { Common: [523, 659, 784], Uncommon: [523, 659, 784, 1047], Rare: [587, 740, 880, 1175], Epic: [523, 659, 784, 1047, 1319, 1568] }[rarity] || [523, 659, 784];
+  catch(rarity, shiny = false) {
+    const notes = { Common: [523, 659, 784], Uncommon: [523, 659, 784, 1047], Rare: [587, 740, 880, 1175], Epic: [523, 659, 784, 1047, 1319, 1568], Legendary: [392, 523, 659, 784, 1047, 1319, 1568, 2093] }[rarity] || [523, 659, 784];
     notes.forEach((f, i) => { this.tone({ f0: f, dur: 0.35, type: 'triangle', gain: 0.2, delay: i * 0.09 }); this.tone({ f0: f * 2, dur: 0.25, type: 'sine', gain: 0.06, delay: i * 0.09 }); });
+    if (shiny) [1568, 2093, 2637, 3136].forEach((f, i) => this.tone({ f0: f, dur: 0.3, type: 'sine', gain: 0.1, delay: 0.5 + i * 0.07 }));
   }
+  step() { this.noiseBurst({ dur: 0.09, type: 'lowpass', f0: 900 + Math.random() * 500, f1: 200, gain: 0.08, attack: 0.004 }); }
+  discover() { [659, 784, 988, 1319].forEach((f, i) => this.tone({ f0: f, dur: 0.4, type: 'triangle', gain: 0.16, delay: i * 0.12 })); }
+  note() { this.tone({ f0: 1047, f1: 1568, dur: 0.18, type: 'sine', gain: 0.18 }); this.tone({ f0: 1568, f1: 2093, dur: 0.25, type: 'sine', gain: 0.12, delay: 0.12 }); this.noiseBurst({ dur: 0.3, type: 'highpass', f0: 3000, f1: 6000, gain: 0.06 }); }
+  bump() { this.tone({ f0: 160, f1: 90, dur: 0.18, type: 'triangle', gain: 0.18 }); }
   coin() { this.tone({ f0: 988, dur: 0.08, type: 'square', gain: 0.08 }); this.tone({ f0: 1319, dur: 0.18, type: 'square', gain: 0.08, delay: 0.07 }); }
   thunder() { this.noiseBurst({ dur: 2.2, f0: 500, f1: 40, gain: 0.8, attack: 0.02 }); }
 
