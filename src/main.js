@@ -1,216 +1,71 @@
 import { GOOPS, SPOTS, UPGRADES, PHASES, FishingGame } from './game.js';
+import { Scene, loadAssets, GOOP_ART } from './scene.js';
+import { Sfx } from './audio.js';
 
-const canvas = document.querySelector('#gameCanvas');
-const ctx = canvas.getContext('2d');
 const $ = (id) => document.getElementById(id);
+const canvas = $('gameCanvas');
 const game = new FishingGame();
+const sfx = new Sfx();
+let scene = null;
 
 let reelHeld = false;   // pointer/keyboard currently holding reel
 let tapLatch = false;   // a press happened since the last frame (so very short taps still count)
-let time = 0;
-let splash = 0;         // seconds of catch/escape flash remaining
-let lightning = 0;
+const pointer = { px: 0, py: 0 };
 const newDex = new Set();
 
-// ---------- canvas scene ----------
+// ---------- icons ----------
 
-const SKY = {
-  Dawn: ['#3b3a63', '#e9906f', '#2a5f77'],
-  Day: ['#4a90b8', '#9fd6e6', '#23728f'],
-  Dusk: ['#2c2350', '#d9684b', '#1d4560'],
-  Night: ['#050b1c', '#12254a', '#0a2a40'],
+const ICON = {
+  Dawn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 18h16M7 14a5 5 0 0 1 10 0M12 4v3M5 8l2 2M19 8l-2 2"/></svg>',
+  Day: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M5 19l1.5-1.5M17.5 6.5 19 5"/></svg>',
+  Dusk: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 18h16M7 14a5 5 0 0 1 10 0M12 10V6M10 8l2 2 2-2"/></svg>',
+  Night: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>',
+  clear: '',
+  rain: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 15a4 4 0 0 1 .5-8 5 5 0 0 1 9.5 1.5A3.5 3.5 0 0 1 17 15H7zM8 18l-1 3M12 18l-1 3M16 18l-1 3"/></svg>',
+  fog: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 9h14M6 13h15M3 17h12"/></svg>',
+  storm: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 14a4 4 0 0 1 .5-8 5 5 0 0 1 9.5 1.5A3.5 3.5 0 0 1 17 14M13 12l-3 5h4l-3 5"/></svg>',
+  rod: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 21 19 4M19 4v9a3 3 0 0 1-3 3M6 15a2 2 0 1 0 3 3"/></svg>',
+  line: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="12" rx="8" ry="4"/><path d="M4 12v4c0 2.2 3.6 4 8 4s8-1.8 8-4v-4M12 8V3"/></svg>',
+  lure: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v4"/><ellipse cx="12" cy="11" rx="4" ry="5"/><path d="M12 16v2a3 3 0 1 1-3 3"/></svg>',
+  soundOn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4zM16 8.5a5 5 0 0 1 0 7M19 5.5a9 9 0 0 1 0 13"/></svg>',
+  soundOff: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4zM17 9l5 5M22 9l-5 5"/></svg>',
 };
-const SPOT_TINT = { pond: '#14516a', reeds: '#27644f', deep: '#0d2f5a' };
+const BAIT = { rain: 'RAIN', fog: 'FOG', storm: 'STORM', Night: 'NIGHT', Dawn: 'DAWN' };
 
-function drawSky(w, h) {
-  const [top, bottom, water] = SKY[game.timeOfDay] || SKY.Day;
-  const sky = ctx.createLinearGradient(0, 0, 0, h * 0.58);
-  sky.addColorStop(0, top);
-  sky.addColorStop(1, bottom);
-  ctx.fillStyle = sky;
-  ctx.fillRect(0, 0, w, h * 0.58);
+// ---------- DOM helpers ----------
 
-  if (game.timeOfDay === 'Night') {
-    ctx.fillStyle = '#ffffffcc';
-    for (let i = 0; i < 40; i++) ctx.fillRect((i * 97) % w, (i * 53) % (h * 0.4), 2, 2);
-    ctx.fillStyle = '#f4f0d4';
-    ctx.beginPath(); ctx.arc(w * 0.85, h * 0.14, 24, 0, Math.PI * 2); ctx.fill();
-  }
-
-  const lake = ctx.createLinearGradient(0, h * 0.58, 0, h);
-  lake.addColorStop(0, SPOT_TINT[game.spot.id] || water);
-  lake.addColorStop(1, '#06283a');
-  ctx.fillStyle = lake;
-  ctx.fillRect(0, h * 0.58, w, h * 0.42);
-}
-
-function drawShore(w, h) {
-  ctx.fillStyle = '#071b25';
-  ctx.beginPath();
-  ctx.moveTo(0, h * 0.57);
-  for (let x = 0; x <= w; x += 90) ctx.lineTo(x, h * 0.52 + Math.sin(x * 0.013) * 20);
-  ctx.lineTo(w, h * 0.63);
-  ctx.lineTo(0, h * 0.63);
-  ctx.fill();
-
-  const reedy = game.spot.id === 'reeds';
-  ctx.strokeStyle = reedy ? '#4f9a62' : '#376c59';
-  ctx.lineWidth = reedy ? 5 : 4;
-  const step = reedy ? 22 : 35;
-  for (let x = 15; x < w; x += step) {
-    ctx.beginPath();
-    ctx.moveTo(x, h * 0.63);
-    ctx.quadraticCurveTo(x - 8, h * 0.5, x + Math.sin(x) * 8 + Math.sin(time + x) * 3, h * (reedy ? 0.4 : 0.43));
-    ctx.stroke();
-  }
-}
-
-function drawWater(w, h) {
-  ctx.lineWidth = 2;
-  for (let i = 0; i < 34; i++) {
-    const x = (i * 71 + time * 35) % w;
-    const y = h * 0.65 + ((i * 23) % (h * 0.27));
-    ctx.strokeStyle = 'rgba(118,224,219,.12)';
-    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 20 + Math.sin(time + i) * 9, y); ctx.stroke();
-  }
-}
-
-function drawWeather(w, h) {
-  const weather = game.state.weather;
-  if (weather === 'rain' || weather === 'storm') {
-    ctx.strokeStyle = 'rgba(190,220,240,.45)';
-    ctx.lineWidth = 1.5;
-    const count = weather === 'storm' ? 120 : 70;
-    for (let i = 0; i < count; i++) {
-      const x = (i * 83 + time * 420) % w;
-      const y = (i * 47 + time * 700) % h;
-      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 5, y + 14); ctx.stroke();
-    }
-  }
-  if (weather === 'fog') {
-    const fog = ctx.createLinearGradient(0, h * 0.35, 0, h * 0.75);
-    fog.addColorStop(0, 'rgba(210,225,230,0)');
-    fog.addColorStop(0.5, 'rgba(210,225,230,.38)');
-    fog.addColorStop(1, 'rgba(210,225,230,0)');
-    ctx.fillStyle = fog;
-    ctx.fillRect(0, h * 0.35, w, h * 0.4);
-  }
-  if (weather === 'storm') {
-    if (lightning <= 0 && Math.random() < 0.004) lightning = 0.18;
-    if (lightning > 0) {
-      ctx.fillStyle = `rgba(255,255,255,${Math.min(0.5, lightning * 3)})`;
-      ctx.fillRect(0, 0, w, h);
-    }
-    ctx.fillStyle = 'rgba(10,15,30,.25)';
-    ctx.fillRect(0, 0, w, h);
-  }
-}
-
-function drawGoop(g, x, y, scale, alpha) {
-  ctx.save();
-  ctx.globalAlpha = alpha;
-  ctx.translate(x, y);
-  ctx.scale(scale, scale);
-  ctx.fillStyle = g.color;
-  ctx.shadowColor = g.color;
-  ctx.shadowBlur = 16;
-  ctx.beginPath(); ctx.ellipse(0, 0, 26, 19, Math.sin(time) * 0.3, 0, Math.PI * 2); ctx.fill();
-  ctx.shadowBlur = 0;
-  ctx.fillStyle = '#10202a';
-  ctx.beginPath(); ctx.arc(-7, -5, 3, 0, Math.PI * 2); ctx.arc(7, -5, 3, 0, Math.PI * 2); ctx.fill();
-  ctx.restore();
-}
-
-function draw() {
-  const w = canvas.width, h = canvas.height;
-  const phase = game.phase;
-  drawSky(w, h);
-  drawShore(w, h);
-  drawWater(w, h);
-
-  // Bobber / hook position: it moves toward the Goop during a fight.
-  const fight = game.fight;
-  const pull = phase === PHASES.FIGHT && fight ? Math.sin(time * 14) * 3 * fight.tension : 0;
-  const reeled = phase === PHASES.FIGHT && fight ? fight.progress : 0;
-  const bobX = w * (0.7 - 0.22 * reeled) + pull;
-  const dip = phase === PHASES.BITE ? Math.abs(Math.sin(time * 18)) * 12 : phase === PHASES.FIGHT ? 6 : 0;
-  const bobY = h * 0.68 + Math.sin(time * 2.6) * 4 + dip;
-  const tipX = w * 0.58, tipY = h * 0.4;
-
-  // Rod (flexes with tension) and line.
-  const flex = phase === PHASES.FIGHT && fight ? fight.tension * 40 : 0;
-  ctx.lineCap = 'round';
-  ctx.strokeStyle = '#c6a77b';
-  ctx.lineWidth = 8;
-  ctx.beginPath();
-  ctx.moveTo(w * 0.13, h * 0.8);
-  ctx.quadraticCurveTo(w * 0.2, h * 0.25 + flex, tipX, tipY + flex * 0.5);
-  ctx.stroke();
-
-  const taut = phase === PHASES.FIGHT && fight ? fight.tension : 0.2;
-  ctx.strokeStyle = taut > 0.85 ? '#ff8a7a' : '#d9c9a0';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(tipX, tipY + flex * 0.5);
-  ctx.quadraticCurveTo((tipX + bobX) / 2, (tipY + bobY) / 2 + (1 - taut) * 40, bobX, bobY);
-  ctx.stroke();
-
-  ctx.fillStyle = '#ffbc65';
-  ctx.beginPath(); ctx.arc(bobX, bobY, 10, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#f6f6f3';
-  ctx.beginPath(); ctx.arc(bobX, bobY - 4, 6, 0, Math.PI * 2); ctx.fill();
-
-  if (phase === PHASES.BITE) {
-    ctx.strokeStyle = '#fff5b2';
-    ctx.lineWidth = 4;
-    ctx.beginPath(); ctx.arc(bobX, bobY, 24 + Math.sin(time * 10) * 5, 0, Math.PI * 2); ctx.stroke();
-    ctx.fillStyle = '#fff5b2';
-    ctx.font = 'bold 28px system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('!', bobX, bobY - 38);
-  }
-
-  if (game.goop) {
-    if (phase === PHASES.CAST || phase === PHASES.BITE) {
-      // a faint silhouette circling below the bobber
-      drawGoop({ ...game.goop, color: '#05141c' }, bobX + Math.sin(time * 1.3) * 30, h * 0.82, 0.8, phase === PHASES.BITE ? 0.5 : 0.18);
-    } else if (phase === PHASES.FIGHT) {
-      drawGoop(game.goop, bobX + 6 + Math.sin(time * 9) * 3 * fight.tension, h * 0.79 + Math.sin(time * 4) * 8, 1, 1);
-    } else if (phase === PHASES.CAUGHT) {
-      drawGoop(game.goop, w * 0.5, h * 0.72 - Math.max(0, splash) * 60, 1.5 + Math.max(0, splash), 1);
-    }
-  }
-
-  drawWeather(w, h);
-
-  if (phase === PHASES.ESCAPED && splash > 0) {
-    ctx.fillStyle = `rgba(255,90,90,${splash * 0.25})`;
-    ctx.fillRect(0, 0, w, h);
-  }
-}
-
-// ---------- DOM ----------
-
-const PHASE_TAG = { idle: 'READY', cast: 'CASTING', bite: 'BITE!', fight: 'FIGHT', caught: 'CAUGHT', escaped: 'ESCAPED' };
+const PHASE_TAG = { idle: 'READY', cast: 'LINE OUT', bite: 'BITE!', fight: 'FIGHT!', caught: 'CAUGHT!', escaped: 'ESCAPED' };
+const PHASE_CLASS = { bite: 'hot', fight: 'hot', caught: 'win', escaped: 'lose' };
 const cache = {};
-/** Write to the DOM only when the value actually changed. */
 function setText(id, value) {
   value = String(value);
   if (cache[id] === value) return;
   cache[id] = value;
   $(id).textContent = value;
 }
+function setHTML(id, value) {
+  if (cache[`h:${id}`] === value) return;
+  cache[`h:${id}`] = value;
+  $(id).innerHTML = value;
+}
 
+// ---------- panels ----------
+
+const thumbs = {};
 function renderDex() {
   const d = game.state.dex;
-  setText('dexCount', `${Object.keys(d).length} / ${GOOPS.length}`);
+  const found = Object.keys(d).length;
+  setText('dexCount', `${found} / ${GOOPS.length}`);
+  setText('found', `${found}/${GOOPS.length}`);
   $('dexList').innerHTML = GOOPS.map((g) => {
     const e = d[g.id];
-    const fastest = e?.fastest != null ? ` · best ${e.fastest.toFixed(1)}s` : '';
-    return `<div class="dex-entry ${e ? '' : 'locked'} ${newDex.has(g.id) ? 'new' : ''}">`
-      + `<span class="dex-dot" style="background:${g.color};color:${g.color}"></span>`
-      + `<div><b>${e ? g.name : '???'}</b>`
-      + `<small class="rarity-${g.rarity}">${e ? `Caught ×${e.count}${fastest}` : g.rarity}</small></div></div>`;
+    const likes = [...(g.likes?.weather || []), ...(g.likes?.time || [])].map((k) => BAIT[k]).filter(Boolean);
+    const fastest = e?.fastest != null ? ` · ${e.fastest.toFixed(1)}s` : '';
+    return `<div class="dex-entry r-${g.rarity} ${e ? '' : 'locked'} ${newDex.has(g.id) ? 'new' : ''}">`
+      + (likes.length ? `<span class="bait">${likes.join(' · ')}</span>` : '')
+      + `<img src="${GOOP_ART(g.id)}" alt="${e ? g.name : 'Undiscovered Goop'}" loading="lazy" draggable="false">`
+      + `<b>${e ? g.name : '???'}</b><small>${g.rarity.toUpperCase()}</small>`
+      + `<span class="count">${e ? `Caught ×${e.count}${fastest}` : 'Not yet caught'}</span></div>`;
   }).join('');
 }
 
@@ -220,11 +75,12 @@ function renderSpots() {
     const unlocked = s.unlocked.includes(sp.id);
     const current = s.spot === sp.id;
     const affordable = s.essence >= sp.cost;
-    const label = current ? 'HERE' : unlocked ? 'GO' : `BUY ${sp.cost}`;
+    const label = current ? 'HERE' : unlocked ? 'GO' : `${sp.cost}`;
     const disabled = current || game.busy || (!unlocked && !affordable);
-    return `<div class="option ${current ? 'current' : ''}"><div><b>${sp.name}</b>`
-      + `<small>${sp.goops.length} Goops · Essence ×${sp.essenceMul}${sp.rareMul > 1 ? ` · rarer odds ×${sp.rareMul}` : ''}</small></div>`
-      + `<button data-spot="${sp.id}" class="${unlocked ? '' : 'buy'}" ${disabled ? 'disabled' : ''}>${label}</button></div>`;
+    const bg = thumbs[sp.id] ? `style="background-image:url(${thumbs[sp.id]})"` : '';
+    return `<div class="spot ${current ? 'current' : ''} ${unlocked ? '' : 'locked'}" ${bg}><div><b>${sp.name}</b>`
+      + `<small>${sp.goops.length} Goops · Essence ×${sp.essenceMul}${sp.rareMul > 1 ? ` · rare ×${sp.rareMul}` : ''}</small></div>`
+      + `<button data-spot="${sp.id}" class="${current ? 'here' : unlocked ? 'go' : ''}" ${disabled ? 'disabled' : ''}>${unlocked ? label : `🔒 ${label}`}</button></div>`;
   }).join('');
 }
 
@@ -233,10 +89,11 @@ function renderShop() {
   $('shopList').innerHTML = Object.entries(UPGRADES).map(([kind, u]) => {
     const cost = game.upgradeCost(kind);
     const level = s.gear[kind];
+    const pips = u.cost.map((_, i) => `<i class="${i < level ? 'on' : ''}"></i>`).join('');
     const btn = cost == null
       ? '<button disabled>MAX</button>'
-      : `<button data-buy="${kind}" class="buy" ${s.essence < cost ? 'disabled' : ''}>${cost}</button>`;
-    return `<div class="option"><div><b>${u.name} · Lv ${level}/${u.cost.length}</b><small>${u.desc}</small></div>${btn}</div>`;
+      : `<button data-buy="${kind}" ${s.essence < cost ? 'disabled' : ''}>${cost}</button>`;
+    return `<div class="option"><span class="ico">${ICON[kind]}</span><div class="txt"><b>${u.name} · Lv ${level}/${u.cost.length}</b><small>${u.desc}</small><div class="pips">${pips}</div></div>${btn}</div>`;
   }).join('');
 }
 
@@ -244,13 +101,13 @@ function renderNotes() {
   const pool = game.spot.goops.map((id) => GOOPS.find((g) => g.id === id));
   const seen = pool.filter((g) => game.state.dex[g.id]).length;
   setText('notes', `${game.spot.name}: ${seen} of ${pool.length} local Goops discovered. `
-    + `Weather and time of day change who bites — rain, fog, storms and nights each draw out special Goops.`);
+    + 'Weather and time of day change who bites — rain, fog, storms and nights each draw out special Goops.');
 }
 
 let lastLists = '';
 function renderLists(force) {
   const s = game.state;
-  const sig = JSON.stringify([s.essence, s.spot, s.unlocked, s.gear, Object.keys(s.dex).length, s.stats.caught, game.busy]);
+  const sig = JSON.stringify([s.essence, s.spot, s.unlocked, s.gear, Object.keys(s.dex).length, s.stats.caught, game.busy, Object.keys(thumbs).length]);
   if (!force && sig === lastLists) return;
   lastLists = sig;
   renderDex(); renderSpots(); renderShop(); renderNotes();
@@ -259,9 +116,13 @@ function renderLists(force) {
 function renderFight() {
   const fight = game.fight;
   const active = game.phase === PHASES.FIGHT && fight;
-  $('fightUi').classList.toggle('dim', !active);
+  const hud = $('fightUi');
+  hud.classList.toggle('dim', !active);
   if (!active) return;
   const pct = (v) => Math.round(Math.max(0, Math.min(1, v)) * 100);
+  const inZone = fight.tension >= fight.safeLo && fight.tension <= fight.safeHi;
+  hud.classList.toggle('in-zone', inZone);
+  hud.classList.toggle('danger', fight.tension > 0.88 || fight.tension < 0.15);
   $('tensionBar').style.width = `${fight.tension * 100}%`;
   $('needle').style.left = `${fight.tension * 100}%`;
   $('safeZone').style.left = `${fight.safeLo * 100}%`;
@@ -273,56 +134,116 @@ function renderFight() {
   setText('staminaText', `${pct(fight.stamina / game.goop.stamina)}%`);
 }
 
-function render() {
+let shownEssence = null;
+function renderEssence(dt) {
+  const target = game.state.essence;
+  if (shownEssence == null) shownEssence = target;
+  if (shownEssence !== target) {
+    const step = Math.max(1, Math.ceil(Math.abs(target - shownEssence) * dt * 6));
+    shownEssence += Math.sign(target - shownEssence) * Math.min(step, Math.abs(target - shownEssence));
+  }
+  setText('essence', shownEssence);
+}
+
+let lastMessage = '';
+function render(dt) {
   const p = game.phase;
   setText('phaseTag', PHASE_TAG[p]);
-  setText('weatherTag', `${game.weather.label} · ${game.timeOfDay}`.toUpperCase());
-  setText('message', game.message);
-  setText('essence', game.state.essence);
+  const tag = $('phaseTag');
+  tag.className = `chip phase ${PHASE_CLASS[p] || ''}`;
+  const w = game.state.weather;
+  setHTML('weatherTag', `${ICON[game.timeOfDay]}${ICON[w] || ''}<span>${game.weather.label} · ${game.timeOfDay}</span>`);
+  if (game.message !== lastMessage) {
+    lastMessage = game.message;
+    setText('message', game.message);
+    const m = $('message'); m.classList.remove('pop'); void m.offsetWidth; m.classList.add('pop');
+  }
+  renderEssence(dt);
   setText('day', game.state.day);
   setText('today', game.state.caughtToday);
   setText('total', game.state.stats.caught);
   setText('spotLabel', game.spot.name.toUpperCase());
   $('castBtn').disabled = game.busy;
-  $('reelBtn').classList.toggle('active', reelHeld);
-  $('reelBtn').setAttribute('aria-pressed', String(reelHeld));
-  if (p !== PHASES.FIGHT && game.fight == null) {
-    setText('progressText', '0%');
-  }
+  const reel = $('reelBtn');
+  reel.classList.toggle('active', reelHeld);
+  reel.classList.toggle('ready', p === PHASES.BITE && !reelHeld);
+  reel.setAttribute('aria-pressed', String(reelHeld));
+  if (p !== PHASES.CAUGHT) $('catchCard').hidden = true;
+  sceneEl.classList.toggle('caught', p === PHASES.CAUGHT);
   renderFight();
   renderLists(false);
-  draw();
 }
 
+function showCatchCard(detail) {
+  const g = GOOPS.find((x) => x.id === detail.goop);
+  if (!g) return;
+  const card = $('catchCard');
+  const rc = { Common: 'var(--r-common)', Uncommon: 'var(--r-uncommon)', Rare: 'var(--r-rare)', Epic: 'var(--r-epic)' }[g.rarity];
+  card.style.setProperty('--rc', rc);
+  $('ccName').textContent = g.name;
+  $('ccRarity').textContent = g.rarity.toUpperCase();
+  $('ccReward').textContent = `+${detail.reward} Essence`;
+  $('ccTime').textContent = `${(game.fight?.elapsed ?? 0).toFixed(1)}s fight`;
+  $('ccNew').hidden = !detail.firstTime;
+  card.hidden = false;
+  card.style.animation = 'none'; void card.offsetWidth; card.style.animation = '';
+}
+
+// ---------- events ----------
+
+let pendingCatch = null;
 function handleEvents() {
   for (const e of game.events.splice(0)) {
-    if (e.type === 'catch') { splash = 1; if (e.detail.firstTime) newDex.add(e.detail.goop); lastLists = ''; }
-    if (e.type === 'escaped' || e.type === 'missedBite') splash = 0.8;
-    if (e.type === 'reset') { newDex.clear(); lastLists = ''; }
+    scene?.onEvent(e, game);
+    switch (e.type) {
+      case 'cast': sfx.cast(); break;
+      case 'bite': sfx.bite(); navigator.vibrate?.(60); break;
+      case 'hooked': sfx.hook(); navigator.vibrate?.(30); break;
+      case 'catch':
+        if (e.detail.firstTime) newDex.add(e.detail.goop);
+        lastLists = '';
+        pendingCatch = e.detail;
+        sfx.splash(true);
+        break;
+      case 'escaped': sfx.snap(); navigator.vibrate?.([40, 40, 80]); break;
+      case 'missedBite': sfx.splash(); break;
+      case 'upgrade': case 'unlock': sfx.coin(); lastLists = ''; break;
+      case 'travel': lastLists = ''; break;
+      case 'reset': newDex.clear(); lastLists = ''; shownEssence = null; break;
+      default: break;
+    }
   }
 }
 
 // ---------- loop ----------
 
 let last = null;
+let clickTimer = 0;
 function loop(ts) {
   const dt = last == null ? 0 : Math.min(0.08, (ts - last) / 1000);
   last = ts;
-  time = ts / 1000;
   game.update(dt, { reel: reelHeld || tapLatch });
   tapLatch = false;
-  splash = Math.max(0, splash - dt);
-  lightning = Math.max(0, lightning - dt);
   handleEvents();
-  render();
+  if (scene) {
+    scene.reeling = reelHeld && game.phase === PHASES.FIGHT;
+    scene.render(game, dt, pointer);
+    scene.trackPerf(dt);
+  }
+  if (game.phase === PHASES.FIGHT && reelHeld) {
+    clickTimer -= dt;
+    if (clickTimer <= 0) { sfx.click(game.fight?.tension ?? 0.5); clickTimer = 0.07; if ((game.fight?.tension ?? 0) > 0.9) sfx.strain(); }
+  }
+  sfx.setAmbience({ night: game.timeOfDay === 'Night' || game.timeOfDay === 'Dusk', rain: ['rain', 'storm'].includes(game.state.weather) ? game.state.weather : null });
+  render(dt);
   requestAnimationFrame(loop);
 }
 
 // ---------- input ----------
 
-function press() { reelHeld = true; tapLatch = true; }
+function press() { sfx.unlock(); reelHeld = true; tapLatch = true; }
 function release() { reelHeld = false; }
-function cast() { if (game.cast()) { reelHeld = false; lastLists = ''; } }
+function cast() { sfx.unlock(); if (game.cast()) { reelHeld = false; lastLists = ''; $('catchCard').hidden = true; } }
 
 const reelBtn = $('reelBtn');
 reelBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); press(); });
@@ -331,31 +252,76 @@ window.addEventListener('pointercancel', release);
 window.addEventListener('blur', release);
 reelBtn.addEventListener('contextmenu', (e) => e.preventDefault());
 reelBtn.addEventListener('click', (e) => e.preventDefault());
-
 $('castBtn').addEventListener('click', () => { cast(); $('castBtn').blur(); });
+
+// Tapping the scene itself: cast when idle, otherwise act as the reel button.
+const sceneEl = $('scene');
+sceneEl.addEventListener('pointerdown', (e) => {
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  if (game.busy) { e.preventDefault(); press(); } else cast();
+});
+sceneEl.addEventListener('pointermove', (e) => {
+  const r = sceneEl.getBoundingClientRect();
+  if (e.pointerType !== 'mouse') return;
+  pointer.px = ((e.clientX - r.left) / r.width - 0.5) * 2;
+  pointer.py = ((e.clientY - r.top) / r.height - 0.5) * 2;
+});
+sceneEl.addEventListener('pointerleave', () => { pointer.px = 0; pointer.py = 0; });
+sceneEl.addEventListener('contextmenu', (e) => e.preventDefault());
 
 window.addEventListener('keydown', (e) => {
   if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.code === 'Space') { e.preventDefault(); press(); }
   else if (e.code === 'KeyC' || e.code === 'Enter') { if (document.activeElement?.tagName !== 'BUTTON' || e.code === 'KeyC') { e.preventDefault(); cast(); } }
+  else if (e.code === 'KeyM') toggleMute();
 });
-window.addEventListener('keyup', (e) => {
-  if (e.code === 'Space') { e.preventDefault(); release(); }
-});
-
+window.addEventListener('keyup', (e) => { if (e.code === 'Space') { e.preventDefault(); release(); } });
 document.addEventListener('visibilitychange', () => { if (document.hidden) release(); last = null; });
 
 $('spotList').addEventListener('click', (e) => {
   const id = e.target.closest('[data-spot]')?.dataset.spot;
-  if (id && game.travel(id)) lastLists = '';
+  if (id && game.travel(id)) { lastLists = ''; sceneEl.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
 });
 $('shopList').addEventListener('click', (e) => {
   const kind = e.target.closest('[data-buy]')?.dataset.buy;
-  if (kind && game.buyUpgrade(kind)) lastLists = '';
+  if (kind && game.buyUpgrade(kind)) { lastLists = ''; const w = document.querySelector('.wallet'); w.classList.remove('bump'); void w.offsetWidth; w.classList.add('bump'); }
 });
 $('resetBtn').addEventListener('click', () => {
   if (confirm('Reset your GoopDex, Essence and upgrades?')) { game.reset(); lastLists = ''; }
 });
 
-renderLists(true);
-requestAnimationFrame(loop);
+function toggleMute() { sfx.unlock(); sfx.setMuted(!sfx.muted); paintMute(); }
+function paintMute() { const b = $('muteBtn'); b.innerHTML = sfx.muted ? ICON.soundOff : ICON.soundOn; b.setAttribute('aria-pressed', String(sfx.muted)); }
+$('muteBtn').addEventListener('click', toggleMute);
+paintMute();
+
+let resizeRaf = 0;
+window.addEventListener('resize', () => { cancelAnimationFrame(resizeRaf); resizeRaf = requestAnimationFrame(() => scene?.resize()); });
+
+// ---------- boot ----------
+
+async function boot() {
+  renderLists(true);
+  const assets = await loadAssets(GOOPS.map((g) => g.id), (p) => {
+    $('loadFill').style.width = `${Math.round(p * 100)}%`;
+    $('loadFill').parentElement.setAttribute('aria-valuenow', String(Math.round(p * 100)));
+  });
+  scene = new Scene(canvas, assets, GOOPS);
+  scene.onSplash = () => sfx.splash();
+  scene.onReveal = () => { if (pendingCatch) { showCatchCard(pendingCatch); sfx.catch(GOOPS.find((g) => g.id === pendingCatch.goop)?.rarity); pendingCatch = null; } };
+  scene.onThunder = () => sfx.thunder();
+  window.__goop = { game, scene };
+  // Travel-card thumbnails rendered from the live layers (deferred so the first frame is not delayed).
+  setTimeout(() => {
+    for (const sp of SPOTS) { try { thumbs[sp.id] = scene.thumbnail(sp.id, 'Night', 360).toDataURL('image/webp', 0.8); } catch { /* ignore */ } }
+    lastLists = '';
+  }, 300);
+  $('loadHint').textContent = 'The Goops are biting.';
+  const start = $('startBtn');
+  start.hidden = false;
+  const go = () => { sfx.unlock(); $('loader').classList.add('gone'); };
+  start.addEventListener('click', go, { once: true });
+  if (new URLSearchParams(location.search).has('skipintro')) go();
+  requestAnimationFrame(loop);
+}
+boot();

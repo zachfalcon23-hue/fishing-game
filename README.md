@@ -23,9 +23,27 @@ The game is published with GitHub Pages (Settings → Pages → Deploy from a br
 - GoopDex with catch counts and fastest catch times; progress saves automatically to `localStorage` (old saves migrate).
 
 ## Architecture
-- `src/game.js` — all rules and state (no DOM): data tables, encounter pool, fight simulation, `SaveStore`, `FishingGame`.
-- `src/main.js` — canvas scene, DOM updates, input handling (pointer, touch, keyboard).
-- `src/style.css`, `index.html` — layout and styling.
+- `src/game.js` — all rules and state (no DOM): data tables, encounter pool, fight simulation, `SaveStore`, `FishingGame`. The visual update did not change this file.
+- `src/scene.js` — layered canvas renderer (presentation only; it reads game state and never changes it):
+  - Each spot is built from separate painted layers (sky → mountains → two forest rows → waterfall cliff → water → lily pads → dock → foreground), with pointer parallax by depth.
+  - The sky is drawn in code for each time of day (stars and moon, sun, drifting clouds). The painted layers are colour-graded to match the sky, and the scene cross-fades when the spot, time or weather changes.
+  - Animated water: wobbling strips, a mirrored reflection of the far shore, a moon/sun glitter path and caustics.
+  - Weather: rain with splash rings, fog banks, storms with lightning bolts and flashes. Also fireflies, lantern and mushroom glows, and an animated waterfall.
+  - Gameplay visuals: rod that bends with tension, cast arc, bobber, the Goop's shadow underwater, Goops leaping mid-fight, a catch reveal with god-rays, and a line-snap recoil.
+  - Render resolution drops on its own when frames run slow.
+- `src/audio.js` — procedural Web Audio sound effects and ambience (crickets, rain). There are no audio files. `M` toggles mute.
+- `src/main.js` — game loop, DOM/HUD updates, input (pointer, touch, keyboard; tapping the scene casts or reels).
+- `src/style.css`, `index.html` — layout and styling. The fonts (Lilita One, Nunito, OFL) are stored in `assets/fonts`, so the game needs no external requests.
+
+## Art assets (`assets/`)
+All art is optimised WebP, about 2.4 MB in total, taken from the North Pond art kits:
+- `env/` — mountains (separated from the sky reference plate), distant forest strip, waterfall cliff, water surface plate, dock and shoreline, two foreground frames, lily pad clusters (with backgrounds removed where needed).
+- `fx/` — 8-frame sprite sheets from the Animation Starter Kit (ripples, caustics, fog, fireflies, rain, bubbles) and the lantern glow.
+- `goops/` — one portrait per Goop, cut from the roster sheets and standalone renders.
+- `ui/title.webp` — title-screen backdrop (the approved cinematic North Pond composite).
+
+## Embedding in a website
+Everything uses relative paths and runs in a single page, so you can copy the folder into a site and either link to it or embed it in an `<iframe>` (16:9 on desktop; the scene switches to a 4:3 crop on phones). Saves use the `goop-fishing-save` key in `localStorage` on whatever origin hosts the game.
 - `tests/game.test.js` — engine tests, including fight-balance checks (holding reel or never reeling must fail; feathering must succeed).
 
 ## Tuning notes

@@ -2,62 +2,96 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#081b24">
-  <title>Goop Fishing</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#04121a">
+  <meta name="description" content="Goop Fishing — cast into a moonlit pond, hook glowing Goops and fill your GoopDex.">
+  <title>Goop Fishing · North Pond</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='34' r='26' fill='%2359e04a'/%3E%3Ccircle cx='24' cy='28' r='7' fill='%23fff'/%3E%3Ccircle cx='25' cy='29' r='3.5' fill='%23062a10'/%3E%3Cpath d='M14 46q4 12 6 0M38 50q3 10 5 0' fill='%2359e04a'/%3E%3C/svg%3E">
+  <link rel="preload" as="font" type="font/woff2" href="assets/fonts/lilita-one.woff2" crossorigin>
+  <link rel="preload" as="image" href="assets/ui/title.webp">
   <link rel="stylesheet" href="src/style.css">
 </head>
 <body>
+<div class="loader" id="loader">
+  <div class="loader-art" aria-hidden="true"></div>
+  <div class="loader-inner">
+    <div class="slime-logo big" aria-label="Goop Fishing"><span class="word">GOOP</span><span class="word alt">FISHING</span><i class="drip d1"></i><i class="drip d2"></i><i class="drip d3"></i><i class="drip d4"></i></div>
+    <p class="loader-sub">NORTH POND · A POND BOUND ADVENTURE</p>
+    <div class="load-bar" role="progressbar" aria-label="Loading" aria-valuemin="0" aria-valuemax="100"><div id="loadFill"></div></div>
+    <button id="startBtn" class="slime-btn start" hidden>TAP TO FISH</button>
+    <p class="loader-hint" id="loadHint">Loading the pond…</p>
+  </div>
+</div>
+
 <main class="shell">
   <header class="topbar">
-    <div class="brand"><span class="logo">G</span><div><h1>GOOP FISHING</h1><p>THE FIRST CAST</p></div></div>
-    <div class="wallet"><span>ESSENCE</span><strong id="essence">0</strong></div>
+    <div class="slime-logo" aria-label="Goop Fishing"><span class="word">GOOP</span><span class="word alt">FISHING</span><i class="drip d1"></i><i class="drip d2"></i><i class="drip d3"></i></div>
+    <div class="top-right">
+      <div class="wallet" title="Essence"><span class="orb" aria-hidden="true"></span><div><span>ESSENCE</span><strong id="essence">0</strong></div></div>
+      <button id="muteBtn" class="icon-btn" aria-label="Toggle sound" aria-pressed="false"></button>
+    </div>
   </header>
 
-  <section class="game-panel">
+  <section class="stage">
     <div class="scene" id="scene">
-      <canvas id="gameCanvas" width="960" height="540" aria-label="Fishing game scene"></canvas>
-      <div class="scene-label"><span id="phaseTag">READY</span><span id="weatherTag">CLEAR · DAY</span></div>
-      <div class="message" id="message" role="status" aria-live="polite">Cast your line to begin.</div>
+      <canvas id="gameCanvas" width="1280" height="720" aria-label="Fishing scene"></canvas>
+      <div class="hud-top">
+        <div class="chip loc"><span class="pin" aria-hidden="true"></span><b id="spotLabel">NORTH POND</b></div>
+        <div class="chips-right">
+          <span class="chip" id="weatherTag">CLEAR · DAY</span>
+          <span class="chip phase" id="phaseTag">READY</span>
+        </div>
+      </div>
+      <div class="toast" id="message" role="status" aria-live="polite">Cast your line to begin.</div>
+
+      <div class="fight-hud dim" id="fightUi" aria-hidden="true">
+        <div class="tension-row">
+          <span class="lbl">TENSION</span>
+          <div class="meter tension"><div id="tensionBar" class="tension-fill"></div><div id="safeZone" class="safe-zone"></div><div id="needle" class="needle"></div></div>
+          <span class="val" id="tensionText">50%</span>
+        </div>
+        <div class="mini-row">
+          <div><div class="bar-label"><span>CATCH</span><span id="progressText">0%</span></div><div class="meter progress"><div id="progressBar" class="progress-fill"></div></div></div>
+          <div><div class="bar-label"><span>GOOP STAMINA</span><span id="staminaText">100%</span></div><div class="meter stamina"><div id="staminaBar" class="stamina-fill"></div></div></div>
+        </div>
+      </div>
+
+      <div class="catch-card" id="catchCard" aria-live="polite" hidden>
+        <div class="cc-badge" id="ccNew">NEW!</div>
+        <div class="cc-rarity" id="ccRarity">COMMON</div>
+        <h3 id="ccName">Gloop</h3>
+        <div class="cc-stats"><span id="ccReward">+8 Essence</span><span id="ccTime">4.2s</span></div>
+        <p class="cc-hint">Cast again to keep fishing</p>
+      </div>
     </div>
 
     <div class="controls">
-      <button id="castBtn" class="primary">CAST LINE <kbd>C</kbd></button>
-      <button id="reelBtn" class="reel" aria-pressed="false">REEL / HOOK <kbd>SPACE</kbd></button>
-      <button id="resetBtn" class="ghost">RESET SAVE</button>
+      <button id="castBtn" class="slime-btn">CAST LINE <kbd>C</kbd></button>
+      <button id="reelBtn" class="slime-btn reel" aria-pressed="false">REEL / HOOK <kbd>SPACE</kbd></button>
     </div>
-
-    <div class="fight-ui dim" id="fightUi">
-      <div class="bar-label"><span>CATCH PROGRESS</span><span id="progressText">0%</span></div>
-      <div class="meter progress"><div id="progressBar" class="progress-fill"></div></div>
-      <div class="bar-label"><span>LINE TENSION</span><span id="tensionText">50%</span></div>
-      <div class="meter tension"><div id="tensionBar" class="tension-fill"></div><div id="safeZone" class="safe-zone"></div><div id="needle" class="needle"></div></div>
-      <div class="bar-label"><span>GOOP STAMINA</span><span id="staminaText">100%</span></div>
-      <div class="meter stamina"><div id="staminaBar" class="stamina-fill"></div></div>
-      <p id="tip">Cast, wait for the bite, then tap REEL to hook. While fighting: hold to reel, release to let tension settle, and keep the needle in the green.</p>
-    </div>
+    <p id="tip" class="tip">Cast, wait for the <b>!</b>, then tap REEL to hook. While fighting: hold to reel, release to ease off — keep the needle in the green.</p>
   </section>
 
   <section class="lower-grid">
-    <article class="card">
+    <article class="card dex-card">
       <div class="card-head"><h2>GOOPDEX</h2><span id="dexCount">0 / 0</span></div>
       <div id="dexList" class="dex-list"></div>
     </article>
 
     <div class="stack">
       <article class="card">
-        <div class="card-head"><h2>FIELD NOTES</h2><span id="spotLabel">NORTH POND</span></div>
+        <div class="card-head"><h2>FIELD NOTES</h2><span>DAY <b id="day">1</b></span></div>
         <div class="stats">
-          <div><span>DAY</span><strong id="day">1</strong></div>
           <div><span>CAUGHT TODAY</span><strong id="today">0</strong></div>
           <div><span>TOTAL CAUGHT</span><strong id="total">0</strong></div>
+          <div><span>DISCOVERED</span><strong id="found">0</strong></div>
         </div>
         <p class="notes" id="notes"></p>
       </article>
 
       <article class="card">
         <div class="card-head"><h2>FISHING SPOTS</h2><span>TRAVEL</span></div>
-        <div id="spotList" class="option-list"></div>
+        <div id="spotList" class="spot-list"></div>
       </article>
 
       <article class="card">
@@ -67,7 +101,7 @@
     </div>
   </section>
 
-  <footer>GOOPAMON FISHING PROTOTYPE · BUILD 0.2</footer>
+  <footer><span>GOOP FISHING · BUILD 0.3 · NORTH POND VISUAL UPDATE</span><button id="resetBtn" class="ghost">RESET SAVE</button></footer>
 </main>
 <script type="module" src="src/main.js"></script>
 </body>
