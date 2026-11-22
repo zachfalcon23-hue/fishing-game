@@ -1,7 +1,7 @@
 // Goop Fishing — North Pond renderer (presentation only; reads game state, never changes it).
 // The pond is one continuous shoreline. The camera walks along it; every layer scrolls at its
 // own depth so near things slide past faster than far ones.
-import { PHASES, SPOTS, NOTES, SPOT_BY, GOOPS } from './game.js';
+import { PHASES, SPOTS, NOTES, SPOT_BY, GOOPS, RODS, SKINS, LINES } from './game.js';
 
 export const W = 1920;
 export const H = 1080;
@@ -224,6 +224,19 @@ const FG_LIGHTS = {
   frameR: [{ fx: 0.8, fy: 0.78, r: 160, color: '#5ff2ff' }, { fx: 0.45, fy: 0.62, r: 80, color: '#b4ff7a' }],
 };
 const FALLS = { fx0: 0.565, fx1: 0.745, fy0: 0.36, fy1: 0.88 };
+/** Each rod's own look. Skins replace the colours; the details (joints, weave, glow…) stay. */
+const ROD_STYLE = {
+  wood: { shaft: ['#1e120a', '#5a3420', '#a8693a', '#f6c995'], grip: '#c99c62', reel: ['#e9fff0', '#5ad88a', '#14502e'], tip: '#8df28a' },
+  bamboo: { shaft: ['#3a2a0a', '#8a6a2a', '#d8b860', '#fff0b0'], grip: '#6a4a20', reel: ['#fff6d0', '#d8a83a', '#5a3a0a'], tip: '#ffe08a', nodes: true, width: 0.95 },
+  glass: { shaft: ['#0a3040', '#3aa8c8', '#a6f6ff', '#ffffff'], grip: '#1a3a4a', reel: ['#ffffff', '#7ad8ff', '#0c4a66'], tip: '#a6f6ff', glass: true, width: 0.9 },
+  carbon: { shaft: ['#050505', '#1a1a1a', '#3a3a3a', '#9a9a9a'], grip: '#2a0a0a', reel: ['#ffffff', '#ff4a4a', '#3a0505'], tip: '#ff5a4a', weave: true, width: 0.82 },
+  oak: { shaft: ['#1a0c04', '#4a2a12', '#7a4a22', '#c08a50'], grip: '#3a2010', reel: ['#e0e0e0', '#8a8a8a', '#2a2a2a'], tip: '#ffd27a', grain: true, width: 1.3 },
+  coral: { shaft: ['#5a1a2a', '#e0507a', '#ff9ab0', '#fff0f4'], grip: '#6a2a3a', reel: ['#ffffff', '#ff9ab0', '#7a1a3a'], tip: '#ffd0e0', nubs: true },
+  ember: { shaft: ['#1a0400', '#4a1206', '#9a2a0a', '#ffb070'], grip: '#2a0a04', reel: ['#fff0c0', '#ff6a1a', '#4a0a00'], tip: '#ff9a3a', cracks: true, width: 1.05 },
+  storm: { shaft: ['#0a1020', '#2a3a5a', '#6a8ab8', '#e0f0ff'], grip: '#141a2a', reel: ['#ffffff', '#6a9aff', '#0a1a3a'], tip: '#cfe8ff', sparks: true },
+  crystal: { shaft: ['#1a1040', '#7a6aff', '#c8b8ff', '#ffffff'], grip: '#2a1a5a', reel: ['#ffffff', '#c8b8ff', '#3a2a7a'], tip: '#ffffff', facets: true, glass: true },
+  abyss: { shaft: ['#050010', '#1a0a3a', '#4a1a8a', '#c89aff'], grip: '#0a0418', reel: ['#e8d0ff', '#8a4aff', '#12042a'], tip: '#c89aff', runes: true, width: 1.05 },
+};
 const RARITY_COLOR = { Common: '#c9e6e2', Uncommon: '#8df28a', Rare: '#6fc4ff', Epic: '#c990ff', Legendary: '#ffd23a' };
 
 /** World x of something authored at screen x `sx`, seen from spot `spotId`, at depth `d`. */
@@ -503,6 +516,9 @@ export class Scene {
     const disc = game.state.discovered;
     if (disc.length !== this.discLen) { this.discLen = disc.length; this.revealed = new Set(disc.filter((id) => SPOT_BY[id]?.secret)); }
     this.moonPhase = game.moon ?? 3;
+    const eq = game.state.equip || {};
+    this.look = { style: RODS[eq.rod]?.style || 'wood', skin: eq.skin, bobber: eq.bobber, line: eq.line, lure: eq.lure };
+    this.weatherNow = game.state.weather;
     this.clues = ['sandbar', 'cave', 'wreck'].filter((id) => game.secretVisible?.(id));
     const focusX = fighting ? this.bobber.x + spotOff * 0.62 : W / 2, focusY = fighting ? this.bobber.y : H / 2;
     this.ox = W / 2 - (focusX - W / 2) * (this.cam.zoom - 1) * 0.6;
@@ -1372,7 +1388,7 @@ export class Scene {
     const hopH = Math.abs(Math.sin(b.hop)) * (8 + Math.abs(v) * 30);
     const jumpH = b.jump > 0 ? Math.sin((1 - b.jump / 0.8) * Math.PI) * 120 : 0;
     const y = 1000 - hopH - jumpH;
-    const h = 118, w = art.width / art.height * h;
+    const h = 118 * (1 + 0.08 * (game.state.buddyLv || 0)), w = art.width / art.height * h;
     g.fillStyle = 'rgba(0,20,30,.35)';
     g.beginPath(); g.ellipse(x, 1012, w * 0.38 * (1 - (hopH + jumpH) / 300), 10, 0, 0, 6.29); g.fill();
     g.globalCompositeOperation = 'lighter'; g.globalAlpha = 0.25;
@@ -1590,10 +1606,13 @@ export class Scene {
       else { ex = rod.tipX + Math.sin(t * 1.2) * 6 + Math.sin(this.walkPhase) * 10 * this.walk; ey = rod.tipY + 150 - this.walk * 40; sag = 4; }
       const mx = (rod.tipX + ex) / 2, my = (rod.tipY + ey) / 2 + sag;
       const hot = fight && fight.tension > 0.85;
-      g.strokeStyle = hot ? 'rgba(255,120,110,.35)' : 'rgba(220,255,240,.18)';
+      const lc = this.lineColor(), lglow = (LINES[this.look?.line] || {}).glow;
+      g.strokeStyle = hot ? 'rgba(255,120,110,.35)' : lglow ? lc : 'rgba(220,255,240,.18)';
+      if (lglow && !hot) g.globalAlpha = 0.3;
       g.lineWidth = hot ? 7 : 5;
       g.beginPath(); g.moveTo(rod.tipX, rod.tipY); g.quadraticCurveTo(mx, my, ex, ey); g.stroke();
-      g.strokeStyle = hot ? '#ff8f80' : '#eafff4';
+      g.globalAlpha = 1;
+      g.strokeStyle = hot ? '#ff8f80' : lc;
       g.lineWidth = hot ? 2 : 1.6;
       g.beginPath(); g.moveTo(rod.tipX, rod.tipY); g.quadraticCurveTo(mx + (hot ? Math.sin(t * 60) * 3 : 0), my, ex, ey); g.stroke();
       if (!this.showBobber && !this.hookedUp) this.drawLure(g, ex, ey, t);
@@ -1631,64 +1650,289 @@ export class Scene {
     }
   }
 
-  drawLure(g, x, y, t) {
-    g.save(); g.translate(x, y); g.rotate(Math.sin(t * 1.4) * 0.15);
-    g.fillStyle = '#8df28a'; g.beginPath(); g.ellipse(0, 10, 7, 14, 0, 0, 6.29); g.fill();
-    g.fillStyle = '#e9fff0'; g.beginPath(); g.arc(-2, 5, 2.5, 0, 6.29); g.fill();
-    g.strokeStyle = '#c9d6d2'; g.lineWidth = 2; g.beginPath(); g.arc(4, 28, 6, Math.PI, Math.PI * 2.6); g.stroke();
-    g.restore();
-  }
+  // ----- tackle looks (rod styles, skins, bobbers, lines, lures) -----
 
-  drawBobber(g, x, y, s, phase, t) {
-    const r = 19 * s;
-    g.globalAlpha = 0.35; g.fillStyle = '#ff5a5a'; g.beginPath(); g.ellipse(x, y + r * 1.6, r * 0.9, r * 0.5, 0, 0, 6.29); g.fill(); g.globalAlpha = 1;
-    g.fillStyle = 'rgba(0,20,30,.35)'; g.beginPath(); g.ellipse(x, y + r * 0.7, r * 1.6, r * 0.45, 0, 0, 6.29); g.fill();
-    const body = g.createRadialGradient(x - r * 0.4, y - r * 0.5, r * 0.1, x, y, r * 1.2);
-    body.addColorStop(0, '#ffffff'); body.addColorStop(1, '#c9d4d6');
-    g.fillStyle = body; g.beginPath(); g.arc(x, y, r, 0, Math.PI); g.fill();
-    const red = g.createRadialGradient(x - r * 0.4, y - r * 0.6, r * 0.1, x, y, r * 1.2);
-    red.addColorStop(0, '#ff9a8a'); red.addColorStop(0.5, '#ff3b3b'); red.addColorStop(1, '#a3121e');
-    g.fillStyle = red; g.beginPath(); g.arc(x, y, r, Math.PI, 0); g.fill();
-    g.fillStyle = '#222'; g.fillRect(x - r, y - r * 0.08, r * 2, r * 0.16);
-    g.strokeStyle = '#f2f2f2'; g.lineWidth = 2.4 * s; g.beginPath(); g.moveTo(x, y - r); g.lineTo(x, y - r * 2.3); g.stroke();
-    g.globalCompositeOperation = 'lighter';
-    g.globalAlpha = phase === PHASES.BITE ? 1 : 0.6 + Math.sin(t * 3) * 0.2;
-    g.drawImage(this.tintGlow('#8df28a'), x - r * 1.6, y - r * 3.9, r * 3.2, r * 3.2);
-    g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
-    g.fillStyle = '#c9ff7a'; g.beginPath(); g.arc(x, y - r * 2.35, 3.2 * s, 0, 6.29); g.fill();
-    g.fillStyle = 'rgba(255,255,255,.75)'; g.beginPath(); g.ellipse(x - r * 0.38, y - r * 0.52, r * 0.28, r * 0.16, -0.6, 0, 6.29); g.fill();
+  /** Current colours for the rod: the style's own, a skin's, or an animated skin. */
+  rodPalette() {
+    const look = this.look || {};
+    const st = ROD_STYLE[look.style] || ROD_STYLE.wood;
+    const skin = SKINS[look.skin];
+    const pal = skin?.pal ? { ...st, ...skin.pal } : st;
+    if (skin?.anim === 'rainbow') {
+      const h = (this.t * 70) % 360;
+      return { ...pal, shaft: [`hsl(${h},60%,14%)`, `hsl(${h},85%,42%)`, `hsl(${(h + 50) % 360},95%,66%)`, '#ffffff'], tip: `hsl(${(h + 120) % 360},100%,70%)`, reel: ['#ffffff', `hsl(${(h + 180) % 360},90%,60%)`, `hsl(${h},60%,20%)`] };
+    }
+    return pal;
   }
 
   drawRod(g, rod) {
     const { bx, by, tipX, tipY, cx, cy } = rod;
-    const passes = [[26, '#1e120a'], [19, '#5a3420'], [13, '#a8693a'], [5, '#f6c995']];
+    const look = this.look || {};
+    const st = ROD_STYLE[look.style] || ROD_STYLE.wood;
+    const pal = this.rodPalette();
+    const skin = SKINS[look.skin] || {};
+    const k = st.width || 1;
+    const t = this.t;
     g.lineCap = 'round';
     const steps = 22;
     const pt = (u) => { const a = (1 - u) * (1 - u), b2 = 2 * (1 - u) * u, c = u * u; return [a * bx + b2 * cx + c * tipX, a * by + b2 * cy + c * tipY]; };
-    for (const [w, col] of passes) {
+    const nrm = (u) => { const [x0, y0] = pt(Math.max(0, u - 0.01)), [x1, y1] = pt(Math.min(1, u + 0.01)); const l = Math.hypot(x1 - x0, y1 - y0) || 1; return [-(y1 - y0) / l, (x1 - x0) / l]; };
+    const widthAt = (u, w) => Math.max(1.2, w * (1 - u * 0.82));
+    if (st.glass) g.globalAlpha = 0.78;
+    for (const [w, col] of [[26 * k, pal.shaft[0]], [19 * k, pal.shaft[1]], [13 * k, pal.shaft[2]], [5 * k, pal.shaft[3]]]) {
       g.strokeStyle = col;
       for (let i = 0; i < steps; i++) {
         const u0 = i / steps, u1 = (i + 1) / steps;
         const [x0, y0] = pt(u0), [x1, y1] = pt(u1);
-        g.lineWidth = Math.max(1.2, w * (1 - u0 * 0.82));
+        g.lineWidth = widthAt(u0, w);
         g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
       }
     }
+    g.globalAlpha = 1;
+    // style details along the shaft
+    const along = (from, to, n, fn) => { for (let i = 0; i < n; i++) { const u = from + (to - from) * (i / Math.max(1, n - 1)); fn(u, ...pt(u), ...nrm(u)); } };
+    if (st.nodes) { // bamboo joints
+      g.strokeStyle = pal.shaft[0]; g.lineCap = 'butt';
+      along(0.26, 0.9, 7, (u, x, y, nx, ny) => { const w = widthAt(u, 15 * k); g.lineWidth = 3; g.beginPath(); g.moveTo(x - nx * w, y - ny * w); g.lineTo(x + nx * w, y + ny * w); g.stroke(); });
+      g.lineCap = 'round';
+    }
+    if (st.weave) { // carbon weave + red trim
+      g.strokeStyle = 'rgba(255,255,255,.22)'; g.lineWidth = 1.2;
+      along(0.24, 0.92, 26, (u, x, y, nx, ny) => { const w = widthAt(u, 8 * k); g.beginPath(); g.moveTo(x - nx * w - ny * 3, y - ny * w + nx * 3); g.lineTo(x + nx * w + ny * 3, y + ny * w - nx * 3); g.stroke(); });
+      for (const u of [0.24, 0.5]) { const [x, y] = pt(u), [nx, ny] = nrm(u); const w = widthAt(u, 14 * k); g.strokeStyle = '#ff3a3a'; g.lineWidth = 4; g.beginPath(); g.moveTo(x - nx * w, y - ny * w); g.lineTo(x + nx * w, y + ny * w); g.stroke(); }
+    }
+    if (st.grain) { // ironwood grain
+      g.strokeStyle = 'rgba(0,0,0,.3)'; g.lineWidth = 1.5;
+      for (const off of [-0.4, 0.3]) { g.beginPath(); for (let i = 0; i <= 20; i++) { const u = 0.22 + i * 0.033; const [x, y] = pt(u), [nx, ny] = nrm(u); const w = widthAt(u, 18 * k) * off; i ? g.lineTo(x + nx * w, y + ny * w) : g.moveTo(x + nx * w, y + ny * w); } g.stroke(); }
+      for (const u of [0.3, 0.55, 0.78]) { const [x, y] = pt(u), [nx, ny] = nrm(u); const w = widthAt(u, 16 * k); g.strokeStyle = '#8a8a8a'; g.lineWidth = 4; g.beginPath(); g.moveTo(x - nx * w, y - ny * w); g.lineTo(x + nx * w, y + ny * w); g.stroke(); }
+    }
+    if (st.nubs) { // coral branches
+      g.fillStyle = pal.shaft[2];
+      along(0.3, 0.85, 6, (u, x, y, nx, ny) => { const side = Math.round(u * 20) % 2 ? 1 : -1, w = widthAt(u, 12 * k); g.beginPath(); g.arc(x + nx * w * side * 1.1, y + ny * w * side * 1.1, 4.5 * (1.1 - u), 0, 6.29); g.fill(); });
+    }
+    g.globalCompositeOperation = 'lighter';
+    if (st.cracks) { // magma glowing seams
+      along(0.24, 0.9, 12, (u, x, y) => { const f = 0.55 + Math.sin(t * 5 + u * 30) * 0.35; g.globalAlpha = f * 0.8; g.drawImage(this.tintGlow('#ff7a1a'), x - 14, y - 14, 28, 28); });
+    }
+    if (st.sparks && (Math.sin(t * 2.3) > 0.55 || (this.weatherNow === 'storm'))) { // storm crackle
+      g.strokeStyle = '#cfe8ff'; g.lineWidth = 2; g.globalAlpha = 0.9;
+      g.beginPath();
+      for (let i = 0; i <= 10; i++) { const u = 0.3 + i * 0.06; const [x, y] = pt(u), [nx, ny] = nrm(u); const j = (Math.random() - 0.5) * 18; i ? g.lineTo(x + nx * j, y + ny * j) : g.moveTo(x + nx * j, y + ny * j); }
+      g.stroke();
+      g.globalAlpha = 0.5; const [sx2, sy2] = pt(0.3 + Math.random() * 0.6); g.drawImage(this.tintGlow('#9ad0ff'), sx2 - 30, sy2 - 30, 60, 60);
+    }
+    if (st.facets) { // crystal glints
+      along(0.3, 0.95, 6, (u, x, y) => { const tw = Math.max(0, Math.sin(t * 3 + u * 17)); if (tw < 0.2) return; g.globalAlpha = tw; g.fillStyle = '#ffffff'; g.save(); g.translate(x, y); g.rotate(t); const s2 = 9 * tw; g.fillRect(-s2, -1, s2 * 2, 2); g.fillRect(-1, -s2, 2, s2 * 2); g.restore(); });
+    }
+    if (st.runes) { // abyssal runes
+      along(0.28, 0.88, 7, (u, x, y) => { g.globalAlpha = 0.45 + Math.sin(t * 2 + u * 12) * 0.35; g.drawImage(this.tintGlow('#a86aff'), x - 16, y - 16, 32, 32); g.fillStyle = '#e8d0ff'; g.fillRect(x - 2, y - 2, 4, 4); });
+    }
+    if (skin.anim === 'galaxy') { // drifting stars
+      along(0.22, 0.97, 14, (u, x, y, nx, ny) => { const ph = (u * 9 + t * 0.6) % 1; g.globalAlpha = Math.sin(ph * Math.PI); g.fillStyle = '#ffffff'; const w = widthAt(u, 8) * Math.sin(u * 40 + t); g.fillRect(x + nx * w - 1, y + ny * w - 1, 2.5, 2.5); });
+    }
+    if (st.glass) { g.globalAlpha = 0.35; g.strokeStyle = pal.tip; g.lineWidth = 3; g.beginPath(); for (let i = 0; i <= steps; i++) { const [x, y] = pt(0.2 + i / steps * 0.8); i ? g.lineTo(x, y) : g.moveTo(x, y); } g.stroke(); }
+    g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+    if (skin.drips) { // goop drips hanging off the rod
+      g.fillStyle = '#7fe24f';
+      along(0.3, 0.8, 4, (u, x, y) => { const len = 10 + ((t * 0.7 + u * 3) % 1) * 18; g.beginPath(); g.moveTo(x - 4, y); g.quadraticCurveTo(x - 4, y + len, x, y + len + 4); g.quadraticCurveTo(x + 4, y + len, x + 4, y); g.fill(); });
+    }
+    // grip, reel and guides
     const [gx, gy] = pt(0.1), [rx, ry] = pt(0.2);
-    g.strokeStyle = '#c99c62'; g.lineWidth = 26;
+    g.strokeStyle = pal.grip; g.lineWidth = 26 * Math.max(1, k * 0.95);
     g.beginPath(); g.moveTo(bx, by); g.lineTo(gx, gy); g.stroke();
-    g.strokeStyle = 'rgba(80,50,20,.35)'; g.lineWidth = 2;
+    g.strokeStyle = 'rgba(0,0,0,.28)'; g.lineWidth = 2;
     for (let i = 1; i < 6; i++) { const [px, py] = pt(i * 0.018); g.beginPath(); g.moveTo(px - 12, py + 4); g.lineTo(px + 12, py - 4); g.stroke(); }
     const reel = g.createRadialGradient(rx - 6, ry - 8, 2, rx, ry, 30);
-    reel.addColorStop(0, '#e9fff0'); reel.addColorStop(0.4, '#5ad88a'); reel.addColorStop(1, '#14502e');
+    reel.addColorStop(0, pal.reel[0]); reel.addColorStop(0.4, pal.reel[1]); reel.addColorStop(1, pal.reel[2]);
     g.fillStyle = reel; g.beginPath(); g.arc(rx + 22, ry + 6, 28, 0, 6.29); g.fill();
-    g.fillStyle = '#0f2f1d'; g.beginPath(); g.arc(rx + 22, ry + 6, 9, 0, 6.29); g.fill();
-    const spin = this.t * (this.reeling ? 14 : 0);
-    g.strokeStyle = '#e9fff0'; g.lineWidth = 3;
+    g.fillStyle = 'rgba(0,0,0,.55)'; g.beginPath(); g.arc(rx + 22, ry + 6, 9, 0, 6.29); g.fill();
+    const spin = t * (this.reeling ? 14 : 0);
+    g.strokeStyle = pal.reel[0]; g.lineWidth = 3;
     g.beginPath(); g.moveTo(rx + 22, ry + 6); g.lineTo(rx + 22 + Math.cos(spin) * 24, ry + 6 + Math.sin(spin) * 24); g.stroke();
     g.strokeStyle = '#d8e6e2'; g.lineWidth = 2;
     for (const u of [0.42, 0.6, 0.75, 0.88]) { const [px, py] = pt(u); g.beginPath(); g.arc(px + 4, py + 4, 5 * (1.2 - u), 0, 6.29); g.stroke(); }
-    g.fillStyle = '#8df28a'; g.beginPath(); g.arc(tipX, tipY, 3.5, 0, 6.29); g.fill();
+    g.globalCompositeOperation = 'lighter'; g.globalAlpha = 0.7;
+    g.drawImage(this.tintGlow(pal.tip.startsWith('hsl') ? '#ffffff' : pal.tip), tipX - 12, tipY - 12, 24, 24);
+    g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+    g.fillStyle = pal.tip; g.beginPath(); g.arc(tipX, tipY, 3.5, 0, 6.29); g.fill();
+  }
+
+  /** Colour of the fishing line (rainbow cycles). */
+  lineColor() {
+    const l = LINES[this.look?.line] || LINES.classic;
+    return l.color === 'rainbow' ? `hsl(${(this.t * 90) % 360},95%,65%)` : l.color;
+  }
+
+  drawLure(g, x, y, t) {
+    const id = this.look?.lure || 'none';
+    g.save(); g.translate(x, y); g.rotate(Math.sin(t * 1.4) * 0.15);
+    const hook = (hx, hy, r = 6) => { g.strokeStyle = '#c9d6d2'; g.lineWidth = 2; g.beginPath(); g.arc(hx, hy, r, Math.PI, Math.PI * 2.6); g.stroke(); };
+    const glow = (col, r, a = 0.6) => { g.globalCompositeOperation = 'lighter'; g.globalAlpha = a; g.drawImage(this.tintGlow(col), -r, 10 - r, r * 2, r * 2); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; };
+    if (id === 'none') { g.strokeStyle = '#c9d6d2'; g.lineWidth = 2; g.beginPath(); g.moveTo(0, 0); g.lineTo(0, 14); g.stroke(); hook(4, 16); }
+    else if (id === 'spinner') {
+      const sx = Math.cos(t * 9);
+      g.fillStyle = '#e8eef0'; g.beginPath(); g.ellipse(6 * sx, 8, 7 * Math.abs(sx) + 1, 11, 0, 0, 6.29); g.fill();
+      g.fillStyle = '#ff5a5a'; g.fillRect(-2, 4, 4, 16); hook(3, 26);
+      if (sx > 0.8) glow('#ffffff', 22, 0.5);
+    } else if (id === 'jig') {
+      g.fillStyle = '#ff6ac8'; g.beginPath(); g.arc(0, 6, 7, 0, 6.29); g.fill();
+      g.fillStyle = '#fff'; g.beginPath(); g.arc(2, 4, 2.2, 0, 6.29); g.fill();
+      g.strokeStyle = '#ffd23a'; g.lineWidth = 1.6;
+      for (let i = -3; i <= 3; i++) { g.beginPath(); g.moveTo(i * 1.5, 11); g.quadraticCurveTo(i * 3 + Math.sin(t * 6 + i) * 2, 20, i * 4, 28); g.stroke(); }
+      hook(4, 26);
+    } else if (id === 'crank') {
+      g.fillStyle = '#5ad88a'; g.beginPath(); g.ellipse(0, 12, 7, 14, 0, 0, 6.29); g.fill();
+      g.fillStyle = '#e9fff0'; g.beginPath(); g.ellipse(-2, 14, 3.5, 9, 0, 0, 6.29); g.fill();
+      g.fillStyle = 'rgba(220,240,255,.7)'; g.beginPath(); g.moveTo(-6, 0); g.lineTo(6, 0); g.lineTo(0, -6); g.closePath(); g.fill();
+      g.fillStyle = '#111'; g.beginPath(); g.arc(-2, 5, 1.8, 0, 6.29); g.fill(); hook(4, 30);
+    } else if (id === 'spoon') {
+      const gr = g.createLinearGradient(-8, 0, 8, 0); gr.addColorStop(0, '#9aa8b0'); gr.addColorStop(0.5, '#ffffff'); gr.addColorStop(1, '#8a98a0');
+      g.fillStyle = gr; g.beginPath(); g.ellipse(0, 12, 8, 15, 0.1 * Math.sin(t * 3), 0, 6.29); g.fill();
+      g.fillStyle = '#ff3a3a'; g.fillRect(-1.5, 22, 3, 6); hook(3, 30);
+      if (Math.sin(t * 3) > 0.7) glow('#fff6c0', 26, 0.6);
+    } else if (id === 'glowjig') {
+      glow('#5ff2ff', 26, 0.55 + Math.sin(t * 4) * 0.2);
+      g.fillStyle = '#9ff8ff'; g.beginPath(); g.arc(0, 7, 7, 0, 6.29); g.fill();
+      g.strokeStyle = '#5ff2ff'; g.lineWidth = 1.6;
+      for (let i = -2; i <= 2; i++) { g.beginPath(); g.moveTo(i * 2, 12); g.lineTo(i * 4, 26); g.stroke(); }
+      hook(4, 26);
+    } else if (id === 'trophy') {
+      g.fillStyle = '#ffffff'; g.beginPath(); g.ellipse(0, 14, 9, 17, 0, 0, 6.29); g.fill();
+      g.fillStyle = '#e02a2a'; g.beginPath(); g.ellipse(0, 4, 9, 8, 0, Math.PI, 0); g.fill(); g.fillRect(-9, 3, 18, 3);
+      g.fillStyle = '#ffd23a'; g.beginPath(); g.arc(-3, 7, 2.6, 0, 6.29); g.fill();
+      hook(-6, 22, 5); hook(6, 32, 5);
+    } else if (id === 'clover') {
+      g.fillStyle = '#3fd45a';
+      for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + t * 0.6; g.beginPath(); g.arc(Math.cos(a) * 6, 10 + Math.sin(a) * 6, 6, 0, 6.29); g.fill(); }
+      g.fillStyle = '#c6ff5a'; g.beginPath(); g.arc(0, 10, 3, 0, 6.29); g.fill();
+      g.strokeStyle = '#2a8a3a'; g.lineWidth = 2; g.beginPath(); g.moveTo(0, 16); g.lineTo(2, 26); g.stroke();
+      if (Math.sin(t * 2) > 0.8) glow('#c6ff5a', 22, 0.5);
+      hook(5, 28);
+    } else if (id === 'feather') {
+      for (const [col, a] of [['#ff7a3a', -0.5], ['#ffd23a', 0], ['#6fc4ff', 0.5]]) {
+        g.save(); g.rotate(a + Math.sin(t * 5 + a) * 0.08); g.fillStyle = col; g.beginPath(); g.ellipse(0, 14, 4, 13, 0, 0, 6.29); g.fill(); g.restore();
+      }
+      g.fillStyle = '#3a2010'; g.fillRect(-3, 0, 6, 6); hook(4, 26);
+    } else if (id === 'diver') {
+      g.fillStyle = '#1a3aa8'; g.beginPath(); g.ellipse(0, 14, 6, 17, 0, 0, 6.29); g.fill();
+      g.fillStyle = '#6fc4ff'; g.beginPath(); g.ellipse(-1.5, 15, 2.5, 12, 0, 0, 6.29); g.fill();
+      g.fillStyle = 'rgba(220,240,255,.75)'; g.beginPath(); g.moveTo(-8, -2); g.lineTo(8, -2); g.lineTo(0, -12); g.closePath(); g.fill();
+      hook(4, 34);
+    }
+    g.restore();
+  }
+
+  drawBobber(g, x, y, s, phase, t) {
+    const style = this.look?.bobber || 'classic';
+    const r = 19 * s;
+    const bite = phase === PHASES.BITE;
+    // shadow on the water
+    g.fillStyle = 'rgba(0,20,30,.35)'; g.beginPath(); g.ellipse(x, y + r * 0.7, r * 1.6, r * 0.45, 0, 0, 6.29); g.fill();
+    const shine = () => { g.fillStyle = 'rgba(255,255,255,.75)'; g.beginPath(); g.ellipse(x - r * 0.38, y - r * 0.52, r * 0.28, r * 0.16, -0.6, 0, 6.29); g.fill(); };
+    const glow = (col, k = 1) => { g.globalCompositeOperation = 'lighter'; g.globalAlpha = (bite ? 1 : 0.6 + Math.sin(t * 3) * 0.2) * k; g.drawImage(this.tintGlow(col), x - r * 2, y - r * 2.6, r * 4, r * 4); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; };
+    const eye = (ex, ey, er, look = 0) => { g.fillStyle = '#fff'; g.beginPath(); g.arc(ex, ey, er, 0, 6.29); g.fill(); g.fillStyle = '#111'; g.beginPath(); g.arc(ex + Math.sin(t * 2 + look) * er * 0.35, ey + er * 0.2, er * 0.5, 0, 6.29); g.fill(); };
+    if (style === 'classic') {
+      g.globalAlpha = 0.35; g.fillStyle = '#ff5a5a'; g.beginPath(); g.ellipse(x, y + r * 1.6, r * 0.9, r * 0.5, 0, 0, 6.29); g.fill(); g.globalAlpha = 1;
+      const body = g.createRadialGradient(x - r * 0.4, y - r * 0.5, r * 0.1, x, y, r * 1.2);
+      body.addColorStop(0, '#ffffff'); body.addColorStop(1, '#c9d4d6');
+      g.fillStyle = body; g.beginPath(); g.arc(x, y, r, 0, Math.PI); g.fill();
+      const red = g.createRadialGradient(x - r * 0.4, y - r * 0.6, r * 0.1, x, y, r * 1.2);
+      red.addColorStop(0, '#ff9a8a'); red.addColorStop(0.5, '#ff3b3b'); red.addColorStop(1, '#a3121e');
+      g.fillStyle = red; g.beginPath(); g.arc(x, y, r, Math.PI, 0); g.fill();
+      g.fillStyle = '#222'; g.fillRect(x - r, y - r * 0.08, r * 2, r * 0.16);
+      g.strokeStyle = '#f2f2f2'; g.lineWidth = 2.4 * s; g.beginPath(); g.moveTo(x, y - r); g.lineTo(x, y - r * 2.3); g.stroke();
+      g.globalCompositeOperation = 'lighter'; g.globalAlpha = bite ? 1 : 0.6 + Math.sin(t * 3) * 0.2;
+      g.drawImage(this.tintGlow('#8df28a'), x - r * 1.6, y - r * 3.9, r * 3.2, r * 3.2);
+      g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+      g.fillStyle = '#c9ff7a'; g.beginPath(); g.arc(x, y - r * 2.35, 3.2 * s, 0, 6.29); g.fill();
+      shine();
+    } else if (style === 'slime') {
+      glow('#8df28a', 0.6);
+      const wob = Math.sin(t * 5) * 0.08;
+      const gr = g.createRadialGradient(x - r * 0.4, y - r * 0.6, r * 0.1, x, y, r * 1.3);
+      gr.addColorStop(0, '#e9ff9a'); gr.addColorStop(0.5, '#59e04a'); gr.addColorStop(1, '#1f8d2c');
+      g.fillStyle = gr; g.beginPath(); g.ellipse(x, y - r * 0.2, r * (1.15 + wob), r * (1 - wob), 0, 0, 6.29); g.fill();
+      g.beginPath(); g.ellipse(x - r * 0.7, y + r * 0.5, r * 0.25, r * 0.4, 0, 0, 6.29); g.ellipse(x + r * 0.6, y + r * 0.55, r * 0.22, r * 0.35, 0, 0, 6.29); g.fill();
+      eye(x - r * 0.38, y - r * 0.45, r * 0.32, 0); eye(x + r * 0.38, y - r * 0.5, r * 0.28, 1.5); shine();
+    } else if (style === 'star') {
+      glow('#fff27a', 0.8);
+      g.save(); g.translate(x, y - r * 0.2); g.rotate(Math.sin(t * 1.5) * 0.2);
+      g.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.55 : r * 1.25; g.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); } g.closePath();
+      const gr = g.createRadialGradient(-r * 0.3, -r * 0.4, 1, 0, 0, r * 1.3); gr.addColorStop(0, '#fffbe0'); gr.addColorStop(0.5, '#ffd23a'); gr.addColorStop(1, '#e08a12');
+      g.fillStyle = gr; g.fill(); g.strokeStyle = '#a85a00'; g.lineWidth = 2 * s; g.stroke();
+      g.fillStyle = '#5a2a00'; g.beginPath(); g.arc(-r * 0.22, -r * 0.1, r * 0.1, 0, 6.29); g.arc(r * 0.22, -r * 0.1, r * 0.1, 0, 6.29); g.fill();
+      g.restore();
+    } else if (style === 'duck') {
+      g.fillStyle = '#ffd23a'; g.beginPath(); g.ellipse(x, y, r * 1.25, r * 0.75, 0, 0, 6.29); g.fill();
+      g.beginPath(); g.arc(x + r * 0.55, y - r * 0.75, r * 0.6, 0, 6.29); g.fill();
+      g.fillStyle = '#ffb02a'; g.beginPath(); g.ellipse(x - r * 0.3, y - r * 0.1, r * 0.55, r * 0.3, -0.3, 0, 6.29); g.fill();
+      g.fillStyle = '#ff7a1a'; g.beginPath(); g.ellipse(x + r * 1.15, y - r * 0.62, r * 0.38, r * 0.16, 0.1, 0, 6.29); g.fill();
+      g.fillStyle = '#111'; g.beginPath(); g.arc(x + r * 0.72, y - r * 0.92, r * 0.11, 0, 6.29); g.fill();
+      g.fillStyle = 'rgba(255,255,255,.7)'; g.beginPath(); g.ellipse(x + r * 0.35, y - r * 1.05, r * 0.15, r * 0.09, -0.5, 0, 6.29); g.fill();
+    } else if (style === 'eyeball') {
+      const gr = g.createRadialGradient(x - r * 0.4, y - r * 0.5, 1, x, y, r * 1.2); gr.addColorStop(0, '#ffffff'); gr.addColorStop(1, '#d8c8c8');
+      g.fillStyle = gr; g.beginPath(); g.arc(x, y - r * 0.1, r * 1.05, 0, 6.29); g.fill();
+      g.strokeStyle = 'rgba(220,60,60,.5)'; g.lineWidth = 1;
+      for (let i = 0; i < 5; i++) { const a = i * 1.3; g.beginPath(); g.moveTo(x + Math.cos(a) * r, y - r * 0.1 + Math.sin(a) * r); g.lineTo(x + Math.cos(a) * r * 0.55, y - r * 0.1 + Math.sin(a) * r * 0.55); g.stroke(); }
+      const lx = x + Math.sin(t * 0.8) * r * 0.3, ly = y - r * 0.2 + (bite ? -r * 0.2 : 0);
+      g.fillStyle = '#3fc63a'; g.beginPath(); g.arc(lx, ly, r * 0.5, 0, 6.29); g.fill();
+      g.fillStyle = '#071a0a'; g.beginPath(); g.arc(lx, ly, r * (bite ? 0.35 : 0.22), 0, 6.29); g.fill();
+      shine();
+    } else if (style === 'lantern') {
+      g.globalCompositeOperation = 'lighter'; g.globalAlpha = 0.75 + Math.sin(t * 7) * 0.08;
+      g.drawImage(this.tintGlow('#ffb85a'), x - r * 4, y - r * 4.2, r * 8, r * 8);
+      g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+      g.fillStyle = '#3a2a1a'; g.fillRect(x - r * 0.75, y - r * 1.5, r * 1.5, r * 0.3); g.fillRect(x - r * 0.85, y + r * 0.25, r * 1.7, r * 0.35);
+      const gr = g.createRadialGradient(x, y - r * 0.6, 1, x, y - r * 0.6, r); gr.addColorStop(0, '#fff6d0'); gr.addColorStop(0.5, '#ffc04a'); gr.addColorStop(1, '#c86a10');
+      g.fillStyle = gr; g.fillRect(x - r * 0.6, y - r * 1.2, r * 1.2, r * 1.45);
+      g.strokeStyle = '#3a2a1a'; g.lineWidth = 2 * s; g.strokeRect(x - r * 0.6, y - r * 1.2, r * 1.2, r * 1.45);
+      g.beginPath(); g.arc(x, y - r * 1.55, r * 0.45, Math.PI, 0); g.stroke();
+    } else if (style === 'crystal') {
+      glow('#7ad8ff', 0.8);
+      g.save(); g.translate(x, y - r * 0.3);
+      const pts = [[0, -r * 1.4], [r * 0.9, -r * 0.2], [0, r * 0.9], [-r * 0.9, -r * 0.2]];
+      const faces = [['#e8fbff', [0, 1, 2]], ['#7ad8ff', [0, 2, 3]], ['#3a9ad8', [1, 2]], ['#bff0ff', [0, 1]]];
+      for (const [col, idx] of faces) { g.fillStyle = col; g.beginPath(); g.moveTo(0, 0); for (const i of idx) g.lineTo(...pts[i]); g.closePath(); g.fill(); }
+      g.strokeStyle = 'rgba(255,255,255,.8)'; g.lineWidth = 1.5; g.beginPath(); pts.forEach((p, i) => (i ? g.lineTo(...p) : g.moveTo(...p))); g.closePath(); g.stroke();
+      const tw = Math.max(0, Math.sin(t * 3)); g.fillStyle = `rgba(255,255,255,${tw})`; g.fillRect(-r * 0.5, -r * 0.8, r * 0.7 * tw + 1, 2); g.fillRect(-r * 0.17, -r * 1.1, 2, r * 0.7 * tw + 1);
+      g.restore();
+    } else if (style === 'golden') {
+      glow('#ffd23a', 0.9);
+      const art = this.a['goop:kinggloop'];
+      if (art) { const w = r * 3.2, h = w * art.height / art.width; g.drawImage(art, x - w / 2, y - h * 0.75 + Math.sin(t * 2) * 2, w, h); }
+      else { g.fillStyle = '#ffd23a'; g.beginPath(); g.arc(x, y, r, 0, 6.29); g.fill(); }
+    }
+  }
+
+  /** Small live preview of a loadout for the tackle box (draws into its own canvas). */
+  drawPreview(ctx, look, dt) {
+    const c = ctx.canvas, w = c.width, h = c.height;
+    this.previewT = (this.previewT || 0) + dt;
+    const saveT = this.t, saveLook = this.look, saveReel = this.reeling;
+    this.t = this.previewT; this.look = look; this.reeling = true;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const bg = ctx.createLinearGradient(0, 0, 0, h);
+    bg.addColorStop(0, '#0b2a3a'); bg.addColorStop(0.45, '#0f4a5e'); bg.addColorStop(0.46, '#0c3a4c'); bg.addColorStop(1, '#06202c');
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
+    const k = Math.min(w / 900, h / 360);
+    ctx.setTransform(k, 0, 0, k, (w - 900 * k) / 2, 0);
+    const t = this.t;
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 16; i++) { ctx.globalAlpha = 0.08 + 0.06 * Math.sin(t * 2 + i); ctx.drawImage(this.dot, (i * 97 + t * 20) % 1100 - 100, 175 + (i % 6) * 32, 160, 6); }
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+    const rod = { bx: 150, by: 430, tipX: 560, tipY: 60, cx: 300, cy: 200, tension: 0 };
+    const bx = 770, by = 190 + Math.sin(t * 2.6) * 4;
+    const lc = this.lineColor(), l = LINES[look.line] || LINES.classic;
+    ctx.lineCap = 'round';
+    const curve = () => { ctx.beginPath(); ctx.moveTo(rod.tipX, rod.tipY); ctx.quadraticCurveTo((rod.tipX + bx) / 2 + 20, (rod.tipY + by) / 2 + 40, bx, by - 36); ctx.stroke(); };
+    if (l.glow) { ctx.strokeStyle = lc; ctx.globalAlpha = 0.3; ctx.lineWidth = 7; curve(); ctx.globalAlpha = 1; }
+    ctx.strokeStyle = lc; ctx.lineWidth = 2.4; curve();
+    // under the water down to the lure
+    ctx.globalAlpha = 0.6; ctx.beginPath(); ctx.moveTo(bx, by + 10); ctx.quadraticCurveTo(bx - 20, by + 60, bx - 80, by + 92); ctx.stroke(); ctx.globalAlpha = 1;
+    ctx.save(); ctx.translate(bx - 80, by + 92); ctx.scale(2, 2); this.drawLure(ctx, 0, 0, t); ctx.restore();
+    this.drawBobber(ctx, bx, by, 2.2, PHASES.CAST, t);
+    this.drawRod(ctx, rod);
+    this.t = saveT; this.look = saveLook; this.reeling = saveReel;
   }
 
   drawGoopUnder(g, game, t) {

@@ -22,7 +22,11 @@ The game is published with GitHub Pages (Settings → Pages → Deploy from a br
 7. **Find the secret places.** Three spots are not on the path. They only show themselves when conditions line up, marked by a beacon (and a `?` on the minimap). Walk up to the beacon to find them. Old Wiggs drops rumours about them on the map and the bounty board.
 8. **Do bounties.** Three new bounties go up on Old Wiggs' board (on the dock, or the board button) every morning. They pay Essence and bait the moment you finish them. You can swap unfinished ones for 25 Essence.
 9. **Pick a buddy.** Open any Goop you've caught and tap **Make buddy**. It hops along beside you, adds +10% Essence and flags nearby secrets.
-10. **Spend Essence** on bait and tackle upgrades: Rod (faster reeling), Line (wider safe zone) and Lure (faster bites, better rare odds).
+10. **Open the tackle box** (🎣 button or `B`). Every item shows in a live preview before you buy:
+    - **Rods** (10): each has its own look and handling, e.g. Carbon Striker (fast but narrow zone), Ironwood Hauler (halves lunges), Coral Wand (sweet Goops ×1.6), Storm Caller (bonus in bad weather), Crystal Caster (shiny ×1.6), Abyssal Reach (Legendaries ×1.8). Better rods unlock as your GoopDex grows.
+    - **Skins** (10 colourways for any rod, including animated Galaxy and Prismatic), **bobbers** (8 styles, e.g. Rubber Duck, Goop Eye, Pond Lantern, Golden Goop) and **lines** (6 colours).
+    - **Lures** (9): kept once bought and upgradeable to level 3. They speed up bites, attract fight types, favour rare Goops by day or night, grow bigger catches, boost shinies, calm fights or dive for Epics.
+    - **Bait** (used up one per cast) and **extras**: Hourglass (skip to the next time of day), Weather Totem (pick the weather), Frenzy Flare, Wiggs' Tip (learn where an unknown Goop bites), the Fish Finder (live odds of what's biting where you stand), buddy treats (your buddy grows, +4% Essence per level) and tackle tuning (Reel Gears, Line Strength, Sharp Hooks).
 
 ## Systems
 - **85 Goop species** across 5 rarities, each with a portrait, a habitat, a favourite food, a fight pattern and a size range. 13 of them live only in the secret spots (regional variants of North Pond Goops).
@@ -48,7 +52,7 @@ The game is published with GitHub Pages (Settings → Pages → Deploy from a br
   - **Visitor:** each day a Rare or Epic Goop visits a spot it doesn't normally live at.
   - **Moon:** a 5-day cycle drawn in the night sky. On a full moon night Legendaries are twice as likely and shiny odds double.
 - **Collection depth:** size records, 1-in-48 shinies (triple Essence), 17 field notes, and 13 **collections** (Jelly Jamboree, Hot Rocks, Legends of North Pond…) that award a trophy and Essence when every Goop in them is caught.
-- **Saves:** stored in `localStorage` (save version 3). Version-2 saves load with the new fields filled in (and a few starter baits); version-1 saves still migrate.
+- **Saves:** stored in `localStorage` (save version 3; tackle fields are filled in for older saves). Version-2 saves load with the new fields filled in (and a few starter baits); version-1 saves still migrate.
 
 ## Architecture
 - `src/game.js` — all rules and state (no DOM): species, spots and secrets, the shore zones (`shoreZone`, `zonePool`), baits, encounter pool, fight simulation (streaks, lunges), bounties, collections, `SaveStore`, `FishingGame`.
@@ -59,6 +63,7 @@ The game is published with GitHub Pages (Settings → Pages → Deploy from a br
   - Animated water: wobbling strips, a mirrored reflection of the far shore, a moon/sun glitter path and caustics.
   - Weather: rain with splash rings, fog banks, storms with lightning bolts and flashes. Also fireflies, lantern and mushroom glows, and an animated waterfall.
   - Gameplay visuals: rod that bends with tension, cast arc, bobber, the Goop's shadow underwater, Goops leaping mid-fight, lunge warnings, a catch reveal with god-rays, and a line-snap recoil.
+  - Tackle looks: every rod style is drawn in code (bamboo joints, carbon weave, glass, magma seams, storm sparks, crystal glints, abyssal runes), recoloured by skins; bobbers, lines and lures each have their own drawings. The tackle box preview reuses the same drawing code.
   - World features: the sandbar, the cave mouth in the second waterfall's cliff, the wreck's mast, clue beacons, frenzy leaps, Old Wiggs' bounty board on the dock, your buddy Goop, and the moon's phases.
   - Render resolution drops on its own when frames run slow.
 - `src/audio.js` — procedural Web Audio sound effects and ambience (crickets, rain, the waterfall's roar, birds, cave drips, waves). There are no audio files. `N` toggles mute.

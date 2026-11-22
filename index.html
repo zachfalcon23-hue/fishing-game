@@ -9,7 +9,7 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='34' r='26' fill='%2359e04a'/%3E%3Ccircle cx='24' cy='28' r='7' fill='%23fff'/%3E%3Ccircle cx='25' cy='29' r='3.5' fill='%23062a10'/%3E%3Cpath d='M14 46q4 12 6 0M38 50q3 10 5 0' fill='%2359e04a'/%3E%3C/svg%3E">
   <link rel="preload" as="font" type="font/woff2" href="assets/fonts/lilita-one.woff2" crossorigin>
   <link rel="preload" as="image" href="assets/ui/title.webp">
-  <link rel="stylesheet" href="src/style.css?v=0.5">
+  <link rel="stylesheet" href="src/style.css?v=0.6">
 </head>
 <body>
 <div class="loader" id="loader">
@@ -43,11 +43,11 @@
           <span class="chip phase" id="phaseTag">READY</span>
         </div>
       </div>
-      <div class="event-tag" id="eventTag" aria-live="polite"></div>
+      <div class="hud-left"><div class="event-tag" id="eventTag" aria-live="polite"></div><div class="finder" id="finder" hidden></div></div>
       <div class="side-btns">
         <button id="mapBtn" class="side-btn" aria-label="Pond map (M)" title="Pond map (M)"></button>
         <button id="boardBtn" class="side-btn" aria-label="Bounty board" title="Bounty board"></button>
-        <button id="baitBtn" class="side-btn bait" aria-label="Bait box (B)" title="Bait box (B)"></button>
+        <button id="baitBtn" class="side-btn bait" aria-label="Tackle box (B)" title="Tackle box (B)"></button>
       </div>
       <nav class="minimap" id="minimap" aria-label="Pond map"></nav>
       <div class="toast" id="message" role="status" aria-live="polite">Cast your line to begin.</div>
@@ -82,7 +82,7 @@
       <button id="reelBtn" class="slime-btn reel" aria-pressed="false">REEL / HOOK <kbd>SPACE</kbd></button>
       <button id="rightBtn" class="slime-btn walk" aria-label="Walk right">▶</button>
     </div>
-    <p id="tip" class="tip"><b>Hold ◀ ▶</b> (or swipe, or <b>A / D</b>) to roam the shore; a quick tap hops to the next stop. Cast anywhere. Hook the instant you see <b>!</b> for a perfect hook, keep the needle in the green to build a streak, and ease off when a Goop flashes <b>!!</b>. Bait that matches what a Goop eats brings it running. Some places only show up at the right time or weather.</p>
+    <p id="tip" class="tip"><b>Hold ◀ ▶</b> (or swipe, or <b>A / D</b>) to roam the shore; a quick tap hops to the next stop. Cast anywhere. Hook the instant you see <b>!</b> for a perfect hook, keep the needle in the green to build a streak, and ease off when a Goop flashes <b>!!</b>. Open the tackle box (🎣) for rods, skins, lures and more. Some places only show up at the right time or weather.</p>
   </section>
 
   <section class="lower-grid">
@@ -117,7 +117,8 @@
       <article class="card">
         <div class="card-head"><h2>BAIT &amp; TACKLE</h2><span>SHOP</span></div>
         <div class="buddy-line" id="buddyLine"></div>
-        <div id="baitShop" class="option-list"></div>
+        <div class="loadout" id="loadoutCard"></div>
+        <button id="openTackle" class="slime-btn small wide">OPEN TACKLE BOX</button>
         <div id="shopList" class="option-list"></div>
       </article>
     </div>
@@ -129,7 +130,7 @@
     <div id="setList" class="set-list"></div>
   </section>
 
-  <footer><span>GOOP FISHING · BUILD 0.5 · OPEN POND</span><button id="resetBtn" class="ghost">RESET SAVE</button></footer>
+  <footer><span>GOOP FISHING · BUILD 0.6 · TACKLE BOX</span><button id="resetBtn" class="ghost">RESET SAVE</button></footer>
 </main>
 
 <dialog id="dexDetail" class="dex-detail">
@@ -163,12 +164,15 @@
   <div class="card-foot"><small>Bounties pay out the moment you finish them. New ones every morning.</small><button id="rerollBtn2" class="mini-btn">NEW BOUNTIES</button></div>
 </dialog>
 
-<dialog id="baitDlg" class="sheet" aria-labelledby="baitTitle">
-  <button class="close" data-close="baitDlg" aria-label="Close">✕</button>
-  <h3 id="baitTitle">BAIT BOX</h3>
-  <p class="sheet-tip">Every Goop has a favourite food (see its GoopDex page). Matching bait makes it bite three times as often, and sooner. One bait is used per cast; the worm is free.</p>
-  <div id="baitList" class="option-list"></div>
+<dialog id="tackleDlg" class="sheet tackle-sheet" aria-labelledby="tackleTitle">
+  <button class="close" data-close="tackleDlg" aria-label="Close">✕</button>
+  <div class="tk-top"><h3 id="tackleTitle">TACKLE BOX</h3><span class="tk-wallet"><span class="orb" aria-hidden="true"></span><b id="tkEssence">0</b></span></div>
+  <canvas id="previewCanvas" class="tk-preview" width="900" height="300" aria-label="Preview of your rod, bobber, line and lure"></canvas>
+  <div class="loadout" id="tkLoadout"></div>
+  <div class="tk-tabs" id="tackleTabs" role="tablist"></div>
+  <p class="sheet-tip">Tap a card to preview it, then buy or equip. Lures you buy are kept and can be upgraded to level 3.</p>
+  <div id="tackleList" class="tackle-grid"></div>
 </dialog>
-<script type="module" src="src/main.js?v=0.5"></script>
+<script type="module" src="src/main.js?v=0.6"></script>
 </body>
 </html>

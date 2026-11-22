@@ -1,5 +1,6 @@
 import {
-  GOOPS, SPOTS, SPOT_BY, UPGRADES, NOTES, PHASES, BAITS, SETS, TASTES, MOON, REROLL_COST, BUDDY_BONUS,
+  GOOPS, SPOTS, SPOT_BY, UPGRADES, NOTES, PHASES, BAITS, SETS, TASTES, MOON, REROLL_COST, WEATHER,
+  RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, buddyBonus,
   FishingGame, conditionText, tasteBait,
 } from './game.js';
 import { Scene, loadAssets, GOOP_ART, SPOT_X, SPOT_GAP, WORLD_MIN, WORLD_MAX, CLUE_X, toShore, fromShore } from './scene.js';
@@ -191,14 +192,14 @@ function renderShop() {
     const btn = cost == null ? '<button disabled>MAX</button>' : `<button data-buy="${kind}" ${s.essence < cost ? 'disabled' : ''}>${cost}</button>`;
     return `<div class="option"><span class="ico">${ICON[kind]}</span><div class="txt"><b>${u.name} · Lv ${level}/${u.cost.length}</b><small>${u.desc}</small><div class="pips">${pips}</div></div>${btn}</div>`;
   }).join('');
-  $('baitShop').innerHTML = baitRows();
-  if ($('baitDlg').open) $('baitList').innerHTML = baitRows();
+  setHTML('loadoutCard', loadoutHTML());
+  if ($('tackleDlg').open) renderTackle();
   const b = BAITS[s.bait];
-  setHTML('baitBtn', `<span class="emoji">${b.icon}</span><i>${s.bait === 'worm' ? '∞' : s.baits[s.bait] || 0}</i>`);
-  $('baitBtn').title = `Bait: ${b.name}`;
+  setHTML('baitBtn', `<span class="emoji">🎣</span><i>${b.icon}${s.bait === 'worm' ? '' : s.baits[s.bait] || 0}</i>`);
+  $('baitBtn').title = `Tackle box · bait: ${b.name}`;
   const buddy = s.buddy ? GOOPS.find((g) => g.id === s.buddy) : null;
   setHTML('buddyLine', buddy
-    ? `<img src="${GOOP_ART(buddy.id)}" alt=""><span><b>${buddy.name}</b> is your buddy · +${Math.round(BUDDY_BONUS * 100)}% Essence. It spots secrets nearby.</span>`
+    ? `<img src="${GOOP_ART(buddy.id)}" alt=""><span><b>${buddy.name}</b> is your buddy · level ${s.buddyLv + 1} · +${Math.round(buddyBonus(s.buddyLv) * 100)}% Essence. It spots secrets nearby. Feed it treats in the tackle box to help it grow.</span>`
     : '<span>No buddy yet. Open any Goop you’ve caught in the GoopDex and tap <b>MAKE BUDDY</b>.</span>');
 }
 
@@ -298,7 +299,7 @@ let lastLists = '';
 function renderLists(force) {
   const s = game.state;
   const sig = JSON.stringify([s.essence, s.spot, game.here, s.discovered, s.gear, game.dexCount, s.stats.caught, s.notes.length, s.completed, game.busy, dexFilter,
-    Object.keys(snaps).length, s.seen.length, s.bait, s.baits, s.buddy, s.sets, s.bounties.map((b) => b.have + b.id), s.frenzy, s.visitor, s.timeIndex, s.weather, SECRETS.map((id) => game.secretVisible(id))]);
+    Object.keys(snaps).length, s.seen.length, s.bait, s.baits, s.buddy, s.buddyLv, s.equip, s.owned, s.finder, s.tips.length, s.sets, s.bounties.map((b) => b.have + b.id), s.frenzy, s.visitor, s.timeIndex, s.weather, SECRETS.map((id) => game.secretVisible(id))]);
   if (!force && sig === lastLists) return;
   lastLists = sig;
   renderDex(); renderSpots(); renderShop(); renderNotes(); renderMinimap(); renderBounties(); renderSets();
@@ -394,6 +395,7 @@ function render(dt) {
   $('boardBtn').classList.toggle('alert', boardUnseen());
   renderFight();
   renderLists(false);
+  renderFinder();
 }
 
 function showCatchCard(c) {
@@ -446,7 +448,10 @@ function handleEvents() {
         break;
       case 'escaped': sfx.snap(); navigator.vibrate?.([40, 40, 80]); break;
       case 'missedBite': sfx.splash(); break;
-      case 'upgrade': case 'buyBait': sfx.coin(); lastLists = ''; bumpWallet(); break;
+      case 'upgrade': case 'buyBait': case 'lure': case 'finder': case 'buddyTrain': sfx.coin(); lastLists = ''; bumpWallet(); break;
+      case 'tackle': if (d.bought) { sfx.coin(); bumpWallet(); } else sfx.note(); lastLists = ''; break;
+      case 'charm': sfx.secret(); lastLists = ''; bumpWallet(); finderSig = ''; break;
+      case 'tip': lastLists = ''; break;
       case 'bait': sfx.note(); lastLists = ''; break;
       case 'baitOut': notify(`Out of ${BAITS[d.bait].name} — back to worms. Restock in the bait box.`, 3000); lastLists = ''; break;
       case 'buddy': sfx.discover(); lastLists = ''; break;
@@ -557,6 +562,179 @@ function tapWalk(dir) {
   const x = nextStop(dir);
   if (x == null) { warnEdge(dir); return; }
   walker.target = x;
+}
+
+// ---------- tackle box ----------
+
+let tackleTab = 'rods';
+let tryOn = null; // { kind, id } previewed but not equipped
+const TABS = [['rods', 'RODS'], ['skins', 'SKINS'], ['bobbers', 'BOBBERS'], ['lines', 'LINES'], ['lures', 'LURES'], ['bait', 'BAIT'], ['extras', 'EXTRAS']];
+const TABLE = { rods: RODS, skins: SKINS, bobbers: BOBBERS, lines: LINES };
+const SLOT = { rods: 'rod', skins: 'skin', bobbers: 'bobber', lines: 'line', lures: 'lure' };
+
+function rodBadges(r) {
+  const st = r.stats, out = [];
+  if (st.reel) out.push([st.reel > 1 ? 'up' : 'down', `Reel ×${st.reel}`]);
+  if (st.zone) out.push([st.zone > 0 ? 'up' : 'down', `Zone ${st.zone > 0 ? '+' : '−'}${Math.round(Math.abs(st.zone) * 200)}%`]);
+  if (st.bite) out.push(['up', `Bites ${Math.round((1 - st.bite) * 100)}% sooner`]);
+  if (st.force) out.push(['up', `Pull −${Math.round((1 - st.force) * 100)}%`]);
+  if (st.lunge) out.push(['up', `Lunges −${Math.round((1 - st.lunge) * 100)}%`]);
+  if (st.taste) out.push(['up', `${TASTES[st.taste]} ×${st.tasteMul}`]);
+  if (st.when) out.push(['up', 'Storm bonus']);
+  if (st.shiny) out.push(['up', `Shiny ×${st.shiny}`]);
+  if (st.epic) out.push(['up', `Epic ×${st.epic}`]);
+  if (st.legend) out.push(['up', `Legendary ×${st.legend}`]);
+  if (!out.length) out.push(['', 'Balanced']);
+  return out.map(([c, txt]) => `<em class="stat ${c}">${txt}</em>`).join('');
+}
+
+function swatch(kind, id) {
+  if (kind === 'skins') {
+    const p = SKINS[id].pal;
+    if (!p) return '<span class="swatch factory"></span>';
+    if (SKINS[id].anim === 'rainbow') return '<span class="swatch rainbow"></span>';
+    return `<span class="swatch" style="background:linear-gradient(90deg,${p.shaft[0]},${p.shaft[1]} 40%,${p.shaft[2]} 75%,${p.tip})"></span>`;
+  }
+  if (kind === 'lines') { const c = LINES[id].color; return `<span class="swatch line ${c === 'rainbow' ? 'rainbow' : ''}" style="${c === 'rainbow' ? '' : `background:${c};box-shadow:0 0 8px ${c}`}"></span>`; }
+  return '';
+}
+
+function tackleCards() {
+  const s = game.state;
+  if (tackleTab === 'bait') return baitRows();
+  if (tackleTab === 'extras') return extrasHTML();
+  if (tackleTab === 'lures') {
+    return Object.entries(LURES).map(([id, l]) => {
+      const lv = id === 'none' ? 1 : s.owned.lures[id] || 0;
+      const on = s.equip.lure === id;
+      const cost = game.lureCost(id);
+      const pips = id === 'none' ? '' : `<div class="pips">${l.cost.map((_, i) => `<i class="${i < lv ? 'on' : ''}"></i>`).join('')}</div>`;
+      const now = id !== 'none' && lv ? `<em class="stat up">${l.fx(l.lv[lv - 1])}</em>` : '';
+      const next = id !== 'none' && lv < 3 ? `<em class="stat next">${lv ? 'Next: ' : ''}${l.fx(l.lv[lv])}</em>` : '';
+      const buy = cost != null ? `<button class="buy" data-lure-buy="${id}" ${s.essence < cost ? 'disabled' : ''}>${lv ? 'UPGRADE' : 'BUY'} · ${cost}</button>` : '';
+      const eq = lv ? (on ? '<button class="on" disabled>EQUIPPED</button>' : `<button class="use" data-lure-eq="${id}">EQUIP</button>`) : '';
+      return `<div class="tk-card ${on ? 'equipped' : ''} ${tryOn?.kind === 'lures' && tryOn.id === id ? 'trying' : ''}" data-try="lures:${id}"><div class="tk-head"><b>${l.name}</b>${pips}</div><small>${l.desc}</small><div class="stats-row">${now}${next}</div><div class="tk-btns">${eq}${buy}</div></div>`;
+    }).join('');
+  }
+  const table = TABLE[tackleTab];
+  return Object.entries(table).map(([id, it]) => {
+    const owned = s.owned[tackleTab].includes(id);
+    const on = s.equip[SLOT[tackleTab]] === id;
+    const locked = (it.dex || 0) > game.dexCount;
+    const btn = on ? '<button class="on" disabled>EQUIPPED</button>'
+      : owned ? `<button class="use" data-tk-eq="${tackleTab}:${id}">EQUIP</button>`
+        : locked ? `<button disabled>🔒 GOOPDEX ${it.dex}</button>`
+          : `<button class="buy" data-tk-buy="${tackleTab}:${id}" ${s.essence < it.cost ? 'disabled' : ''}>BUY · ${it.cost}</button>`;
+    const badges = tackleTab === 'rods' ? `<div class="stats-row">${rodBadges(it)}</div>` : '';
+    return `<div class="tk-card ${on ? 'equipped' : ''} ${locked ? 'locked' : ''} ${tryOn?.kind === tackleTab && tryOn.id === id ? 'trying' : ''}" data-try="${tackleTab}:${id}"><div class="tk-head">${swatch(tackleTab, id)}<b>${it.name}</b></div><small>${it.desc}</small>${badges}<div class="tk-btns">${btn}</div></div>`;
+  }).join('');
+}
+
+function extrasHTML() {
+  const s = game.state;
+  const charms = Object.entries(CHARMS).map(([id, c]) => {
+    const extra = id === 'totem'
+      ? `<div class="wx-pick">${Object.entries(WEATHER).map(([w, wd]) => `<button data-charm="totem" data-arg="${w}" ${s.essence < c.cost || game.busy || s.weather === w ? 'disabled' : ''}>${ICON[w] || ICON.Day}${wd.label}</button>`).join('')}</div>`
+      : `<button class="buy" data-charm="${id}" ${s.essence < c.cost || game.busy ? 'disabled' : ''}>USE · ${c.cost}</button>`;
+    return `<div class="tk-card"><div class="tk-head"><span class="emoji">${c.icon}</span><b>${c.name}</b><i class="cost">${c.cost}</i></div><small>${c.desc}</small><div class="tk-btns">${extra}</div></div>`;
+  }).join('');
+  const finder = `<div class="tk-card ${s.finder ? 'equipped' : ''}"><div class="tk-head"><span class="emoji">📡</span><b>Fish Finder</b></div><small>Shows the Goops most likely to bite where you stand, with their odds. Updates as you walk.</small><div class="tk-btns">${s.finder ? '<button class="on" disabled>INSTALLED</button>' : `<button class="buy" data-finder ${s.essence < FINDER_COST ? 'disabled' : ''}>BUY · ${FINDER_COST}</button>`}</div></div>`;
+  const bud = s.buddy ? GOOPS.find((g) => g.id === s.buddy) : null;
+  const tc = game.trainCost();
+  const buddy = `<div class="tk-card"><div class="tk-head">${bud ? `<img class="mini" src="${GOOP_ART(bud.id)}" alt="">` : '<span class="emoji">🐸</span>'}<b>Buddy Treats</b>${bud ? `<i class="cost">LV ${s.buddyLv + 1}</i>` : ''}</div><small>${bud ? `Feed ${esc(bud.name)} to make it grow: +4% Essence per level (now +${Math.round(buddyBonus(s.buddyLv) * 100)}%).` : 'Pick a buddy in the GoopDex first.'}</small><div class="pips">${BUDDY_TRAIN.map((_, i) => `<i class="${i < s.buddyLv ? 'on' : ''}"></i>`).join('')}</div><div class="tk-btns">${bud ? (tc == null ? '<button disabled>MAX</button>' : `<button class="buy" data-train ${s.essence < tc ? 'disabled' : ''}>FEED · ${tc}</button>`) : ''}</div></div>`;
+  const ups = Object.entries(UPGRADES).map(([kind, u]) => {
+    const cost = game.upgradeCost(kind), level = s.gear[kind];
+    return `<div class="tk-card"><div class="tk-head"><span class="ico-s">${ICON[kind]}</span><b>${u.name}</b></div><small>${u.desc}</small><div class="pips">${u.cost.map((_, i) => `<i class="${i < level ? 'on' : ''}"></i>`).join('')}</div><div class="tk-btns">${cost == null ? '<button disabled>MAX</button>' : `<button class="buy" data-buy="${kind}" ${s.essence < cost ? 'disabled' : ''}>UPGRADE · ${cost}</button>`}</div></div>`;
+  }).join('');
+  return `<h4 class="tk-sub">CHARMS</h4>${charms}<h4 class="tk-sub">GADGETS & BUDDY</h4>${finder}${buddy}<h4 class="tk-sub">TACKLE TUNING</h4>${ups}`;
+}
+
+function loadoutHTML() {
+  const e = game.state.equip, s = game.state;
+  const b = BAITS[s.bait];
+  const lure = LURES[e.lure];
+  return [
+    ['🎣', RODS[e.rod].name], ['🎨', SKINS[e.skin].name], ['🔴', BOBBERS[e.bobber].name], ['🧵', LINES[e.line].name],
+    ['🪝', `${lure.name}${e.lure !== 'none' ? ` Lv${s.owned.lures[e.lure]}` : ''}`], [b.icon, `${b.name} ×${s.bait === 'worm' ? '∞' : s.baits[s.bait] || 0}`],
+  ].map(([i, t]) => `<span><i>${i}</i>${esc(t)}</span>`).join('');
+}
+
+function renderTackle() {
+  setHTML('tackleTabs', TABS.map(([id, label]) => `<button data-tktab="${id}" class="${tackleTab === id ? 'on' : ''}">${label}</button>`).join(''));
+  $('tackleList').innerHTML = tackleCards();
+  setHTML('tkLoadout', loadoutHTML());
+  setText('tkEssence', game.state.essence);
+}
+
+function previewLook() {
+  const e = { ...game.state.equip };
+  if (tryOn) e[SLOT[tryOn.kind]] = tryOn.id;
+  return { style: RODS[e.rod]?.style || 'wood', skin: e.skin, bobber: e.bobber, line: e.line, lure: e.lure, lureLv: game.state.owned.lures[e.lure] || 0 };
+}
+
+function openTackle(tab) {
+  if (tab) tackleTab = tab;
+  tryOn = null;
+  renderTackle();
+  openDialog('tackleDlg');
+}
+
+let previewLast = 0;
+function previewLoop(ts) {
+  if (!$('tackleDlg').open || !scene) { previewLast = 0; return; }
+  const dt = previewLast ? Math.min(0.05, (ts - previewLast) / 1000) : 0;
+  previewLast = ts;
+  const c = $('previewCanvas');
+  const r = c.getBoundingClientRect();
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const w = Math.round(r.width * dpr), h = Math.round(r.height * dpr);
+  if (w > 0 && (c.width !== w || c.height !== h)) { c.width = w; c.height = h; }
+  scene.drawPreview(c.getContext('2d'), previewLook(), dt);
+  requestAnimationFrame(previewLoop);
+}
+$('tackleDlg').addEventListener('toggle', () => { if ($('tackleDlg').open) requestAnimationFrame(previewLoop); });
+new MutationObserver(() => { if ($('tackleDlg').open && !previewLast) requestAnimationFrame(previewLoop); }).observe($('tackleDlg'), { attributes: true, attributeFilter: ['open'] });
+
+$('tackleDlg').addEventListener('click', (e) => {
+  const tab = e.target.closest('[data-tktab]')?.dataset.tktab;
+  if (tab) { tackleTab = tab; tryOn = null; renderTackle(); return; }
+  const buy = e.target.closest('[data-tk-buy]')?.dataset.tkBuy;
+  if (buy) { const [k, id] = buy.split(':'); if (game.buyTackle(k, id)) { tryOn = null; } renderTackle(); return; }
+  const eq = e.target.closest('[data-tk-eq]')?.dataset.tkEq;
+  if (eq) { const [k, id] = eq.split(':'); game.equipTackle(k, id); tryOn = null; renderTackle(); return; }
+  const lb = e.target.closest('[data-lure-buy]')?.dataset.lureBuy;
+  if (lb) { game.buyLure(lb); tryOn = null; renderTackle(); return; }
+  const le = e.target.closest('[data-lure-eq]')?.dataset.lureEq;
+  if (le) { game.equipLure(le); tryOn = null; renderTackle(); return; }
+  const charm = e.target.closest('[data-charm]');
+  if (charm) { game.useCharm(charm.dataset.charm, charm.dataset.arg); renderTackle(); return; }
+  if (e.target.closest('[data-finder]')) { game.buyFinder(); renderTackle(); return; }
+  if (e.target.closest('[data-train]')) { game.trainBuddy(); renderTackle(); return; }
+  const up = e.target.closest('[data-buy]')?.dataset.buy;
+  if (up) { game.buyUpgrade(up); renderTackle(); return; }
+  if (e.target.closest('[data-bait], [data-buybait]')) { setTimeout(renderTackle, 0); return; }
+  const tr = e.target.closest('[data-try]')?.dataset.try;
+  if (tr && !e.target.closest('button')) { const [k, id] = tr.split(':'); tryOn = { kind: k, id }; $('tackleList').querySelectorAll('.tk-card').forEach((n) => n.classList.toggle('trying', n.dataset.try === tr)); }
+});
+
+// ---------- fish finder ----------
+
+let finderSig = '';
+function renderFinder() {
+  const el = $('finder');
+  const show = game.state.finder && !game.busy && game.phase !== PHASES.CAUGHT;
+  el.hidden = !show;
+  if (!show) return;
+  const s = game.state;
+  const sig = [Math.round(s.shore * 10), s.bait, s.timeIndex, s.weather, s.equip.lure, s.equip.rod, s.frenzy, s.seen.length, game.dexCount, s.discovered.length].join('|');
+  if (sig === finderSig) return;
+  finderSig = sig;
+  const rows = game.forecast(4).map(({ id, chance }) => {
+    const seen = s.seen.includes(id) || !!s.dex[id];
+    const g = GOOPS.find((x) => x.id === id);
+    return `<div class="f-row r-${g.rarity}"><img src="${GOOP_ART(id)}" alt="" class="${s.dex[id] ? '' : 'locked'}"><span>${seen ? esc(g.name) : '???'}</span><b>${chance < 0.01 ? '<1' : Math.round(chance * 100)}%</b></div>`;
+  }).join('');
+  el.innerHTML = `<div class="f-title">📡 FISH FINDER</div>${rows}`;
 }
 
 // ---------- loop ----------
@@ -690,7 +868,7 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'Space') { e.preventDefault(); press(); }
   else if (e.code === 'KeyC' || e.code === 'Enter') { if (document.activeElement?.tagName !== 'BUTTON' || e.code === 'KeyC') { e.preventDefault(); cast(); } }
   else if (e.code === 'KeyM') { e.preventDefault(); openMap(); }
-  else if (e.code === 'KeyB') { e.preventDefault(); openBait(); }
+  else if (e.code === 'KeyB') { e.preventDefault(); openTackle(); }
   else if (e.code === 'KeyN') toggleMute();
 });
 window.addEventListener('keyup', (e) => {
@@ -717,7 +895,6 @@ function openBounties() {
   openDialog('bountyDlg');
   markBoardSeen();
 }
-function openBait() { $('baitList').innerHTML = baitRows(); openDialog('baitDlg'); }
 
 document.addEventListener('click', (e) => {
   const walk = e.target.closest('[data-walk]')?.dataset.walk;
@@ -752,7 +929,8 @@ $('shopList').addEventListener('click', (e) => {
 for (const id of ['rerollBtn', 'rerollBtn2']) $(id).addEventListener('click', () => { if (game.rerollBounties()) { setHTML('bountyDlgList', bountyHTML()); lastLists = ''; } });
 $('mapBtn').addEventListener('click', openMap);
 $('boardBtn').addEventListener('click', openBounties);
-$('baitBtn').addEventListener('click', openBait);
+$('baitBtn').addEventListener('click', () => openTackle());
+$('openTackle').addEventListener('click', () => openTackle());
 $('resetBtn').addEventListener('click', () => { if (confirm('Reset your GoopDex, Essence and upgrades?')) { game.reset(); lastLists = ''; } });
 
 function toggleMute() { sfx.unlock(); sfx.setMuted(!sfx.muted); paintMute(); }

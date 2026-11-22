@@ -237,9 +237,9 @@ export const isFullMoon = (day) => moonPhase(day) === 3;
 
 // Permanent tackle upgrades, bought with Essence. cost[i] buys level i + 1.
 export const UPGRADES = {
-  rod: { name: 'Rod', desc: 'Reel faster inside the safe zone.', cost: [120, 320, 700] },
-  line: { name: 'Line', desc: 'Wider safe zone, gentler on snaps.', cost: [150, 360, 750] },
-  lure: { name: 'Lure', desc: 'Faster bites and better odds at rare Goops.', cost: [100, 280, 650] },
+  rod: { name: 'Reel Gears', desc: 'Reel faster inside the safe zone (works with any rod).', cost: [120, 320, 700] },
+  line: { name: 'Line Strength', desc: 'Wider safe zone, gentler on snaps.', cost: [150, 360, 750] },
+  lure: { name: 'Sharp Hooks', desc: 'Faster bites and better odds at rare Goops.', cost: [100, 280, 650] },
 };
 
 // Bait. One is used up per cast (except the worm). Matching a Goop's taste makes it bite ×3 more often.
@@ -273,6 +273,116 @@ export const SETS = [
 
 export const BUDDY_BONUS = 0.1;
 export const REROLL_COST = 25;
+
+// ---------- tackle box ----------
+// Rods have their own look and handling; skins recolour any rod; bobbers and lines are cosmetic;
+// lures are kept (not used up) and have three levels each. Everything is bought with Essence.
+
+/** Rod stats: reel (catch speed ×), zone (safe-zone widening each side), force (Goop pull ×), lunge (lunge power ×),
+ *  bite (wait ×), shiny (×), essence (×), taste/tasteMul (bite odds for a food), legend/epic (odds ×), when (weather for a bonus). */
+export const RODS = {
+  twig: { name: 'Willow Twig', cost: 0, dex: 0, style: 'wood', desc: 'A bendy starter rod. Honest and balanced.', stats: {} },
+  bamboo: { name: 'Bamboo Classic', cost: 220, dex: 0, style: 'bamboo', desc: 'Light and springy: reels a bit faster with a wider safe zone.', stats: { reel: 1.08, zone: 0.02 } },
+  glass: { name: 'Glass Slinger', cost: 420, dex: 3, style: 'glass', desc: 'Long, see-through casts land softly — bites come 15% sooner.', stats: { bite: 0.85, zone: 0.02 } },
+  carbon: { name: 'Carbon Striker', cost: 750, dex: 8, style: 'carbon', desc: 'Very fast reeling, but a narrower safe zone. For steady hands.', stats: { reel: 1.35, zone: -0.03 } },
+  oak: { name: 'Ironwood Hauler', cost: 750, dex: 8, style: 'oak', desc: 'Heavy and stubborn: Goops pull weaker and their lunges are halved. Reels slower.', stats: { reel: 0.92, force: 0.82, lunge: 0.5, zone: 0.03 } },
+  coral: { name: 'Coral Wand', cost: 900, dex: 12, style: 'coral', desc: 'Sweet-toothed Goops can’t resist it (×1.6 bites). Reels a little faster.', stats: { taste: 'sweet', tasteMul: 1.6, reel: 1.1 } },
+  ember: { name: 'Magma Pole', cost: 900, dex: 12, style: 'ember', desc: 'Warm to the touch: Ember Goops bite ×1.6 and pull 10% weaker.', stats: { taste: 'ember', tasteMul: 1.6, force: 0.9 } },
+  storm: { name: 'Storm Caller', cost: 1300, dex: 18, style: 'storm', desc: 'In rain or storms, Goops pull 30% weaker and pay 30% more Essence.', stats: { when: ['rain', 'storm'], reel: 1.05 } },
+  crystal: { name: 'Crystal Caster', cost: 1600, dex: 24, style: 'crystal', desc: 'Shimmers in the light: shiny chance ×1.6, faster reeling, wider zone.', stats: { shiny: 1.6, reel: 1.15, zone: 0.02 } },
+  abyss: { name: 'Abyssal Reach', cost: 3000, dex: 40, style: 'abyss', desc: 'Forged in the Deep Drop. Legendaries ×1.8, Epics ×1.3, strong all-round.', stats: { legend: 1.8, epic: 1.3, reel: 1.2, zone: 0.03, lunge: 0.8 } },
+};
+
+/** Rod colourways: [dark, mid, light, highlight] for the shaft, grip colour, [hi, mid, lo] for the reel, tip glow. */
+export const SKINS = {
+  factory: { name: 'Factory Finish', cost: 0, desc: 'The rod’s own colours.' },
+  slime: { name: 'Slime Time', cost: 150, pal: { shaft: ['#0c3a12', '#1f8d2c', '#59e04a', '#d9ff7a'], grip: '#2a1a0a', reel: ['#eaffd0', '#8df28a', '#14502e'], tip: '#c6ff5a' }, desc: 'Gooey lime green, the house colour.' },
+  midnight: { name: 'Midnight', cost: 150, pal: { shaft: ['#05060f', '#1a1f3a', '#38407a', '#9aa8ff'], grip: '#101018', reel: ['#cfd8ff', '#4a5aa8', '#0a0f2a'], tip: '#9aa8ff' }, desc: 'Inky blue-black with a starlight tip.' },
+  sunset: { name: 'Sunset Fade', cost: 200, pal: { shaft: ['#3a0a1a', '#c0306a', '#ff8a3a', '#ffe0a0'], grip: '#3a1a10', reel: ['#fff0c0', '#ff9a4a', '#7a1a2a'], tip: '#ffb070' }, desc: 'Dusk over the pond, in paint.' },
+  bubblegum: { name: 'Bubblegum', cost: 200, pal: { shaft: ['#5a1040', '#e050a8', '#ff9ad8', '#fff0fa'], grip: '#4a1a3a', reel: ['#ffffff', '#ff7ac8', '#8a1a5a'], tip: '#ff9ad8' }, desc: 'Sweet pink. Koi love it (not really).' },
+  frost: { name: 'Frostbite', cost: 250, pal: { shaft: ['#0a2a40', '#3a9ad8', '#a6f6ff', '#ffffff'], grip: '#1a3040', reel: ['#ffffff', '#7ad8ff', '#0c4a66'], tip: '#a6f6ff' }, desc: 'Icy blues with a frosted tip.' },
+  drip: { name: 'Goop Drip', cost: 400, drips: true, pal: { shaft: ['#2a0f4a', '#8a4bf0', '#c58bff', '#f3d2ff'], grip: '#1a0833', reel: ['#f3d2ff', '#c58bff', '#3a1a6a'], tip: '#c6ff5a' }, desc: 'Purple, dripping with green goop.' },
+  gold: { name: 'Gold Rush', cost: 600, pal: { shaft: ['#5a3a00', '#c8901a', '#ffd23a', '#fff6c0'], grip: '#3a2000', reel: ['#fffbe0', '#ffd23a', '#7a5000'], tip: '#fff27a' }, desc: 'Solid(ish) gold. Shows you mean business.' },
+  galaxy: { name: 'Galaxy', cost: 900, anim: 'galaxy', pal: { shaft: ['#0a0418', '#3a1a7a', '#8a5aff', '#ffffff'], grip: '#0a0418', reel: ['#ffffff', '#8a5aff', '#1a0a3a'], tip: '#ffffff' }, desc: 'A swirl of stars that drifts along the rod.' },
+  rainbow: { name: 'Prismatic', cost: 1200, anim: 'rainbow', pal: { shaft: ['#202020', '#ff4a4a', '#4affc8', '#ffffff'], grip: '#202020', reel: ['#ffffff', '#ff9aff', '#3a1a3a'], tip: '#ffffff' }, desc: 'Every colour at once, always moving.' },
+};
+
+export const BOBBERS = {
+  classic: { name: 'Red & White', cost: 0, desc: 'The one your grandpa used.' },
+  slime: { name: 'Slime Blob', cost: 120, desc: 'A wobbly green blob with googly eyes.' },
+  star: { name: 'Starfloat', cost: 180, desc: 'A little golden star that twinkles.' },
+  duck: { name: 'Rubber Duck', cost: 250, desc: 'Squeak. The Goops find it hilarious.' },
+  eyeball: { name: 'Goop Eye', cost: 300, desc: 'It watches the water so you don’t have to.' },
+  lantern: { name: 'Pond Lantern', cost: 400, desc: 'Glows warmly — easy to spot at night.' },
+  crystal: { name: 'Crystal Float', cost: 600, desc: 'A faceted gem that sparkles.' },
+  golden: { name: 'Golden Goop', cost: 900, desc: 'A tiny golden King Gloop. Pure flex.' },
+};
+
+export const LINES = {
+  classic: { name: 'Clear Mono', cost: 0, color: '#eafff4', desc: 'Plain and nearly invisible.' },
+  slime: { name: 'Neon Slime', cost: 80, color: '#8df28a', glow: true, desc: 'Glows lime green.' },
+  pink: { name: 'Hot Pink', cost: 80, color: '#ff7ac8', glow: true, desc: 'Loud and proud.' },
+  ember: { name: 'Ember Braid', cost: 120, color: '#ffb44a', glow: true, desc: 'Smoulders orange.' },
+  gold: { name: 'Gold Thread', cost: 300, color: '#ffd23a', glow: true, desc: 'Fancy.' },
+  rainbow: { name: 'Rainbow Line', cost: 500, color: 'rainbow', glow: true, desc: 'Cycles through every colour.' },
+};
+
+/** Lures are kept once bought and upgrade through three levels; `lv` values are per level. */
+export const LURES = {
+  none: { name: 'Plain Hook', cost: [], desc: 'No lure. Just a hook and hope.' },
+  spinner: { name: 'Silver Spinner', cost: [120, 280, 550], desc: 'A flashing blade: bites come sooner.', lv: [0.85, 0.75, 0.65], fx: (v) => `Bites ${Math.round((1 - v) * 100)}% sooner` },
+  jig: { name: 'Bounce Jig', cost: [150, 320, 600], desc: 'Jumpy Goops (pulse and dart fighters) chase it.', lv: [1.6, 2, 2.6], fx: (v) => `Pulse & dart Goops ×${v}` },
+  crank: { name: 'Drift Crank', cost: [150, 320, 600], desc: 'Slow, wobbling swim for lazy Goops (steady, drift and sleepy).', lv: [1.5, 1.8, 2.2], fx: (v) => `Steady, drift & sleepy ×${v}` },
+  spoon: { name: 'Shimmer Spoon', cost: [200, 420, 800], desc: 'Catches the sunlight: rare Goops by day and dawn.', lv: [1.3, 1.6, 2], fx: (v) => `Rare+ ×${v} at dawn & day` },
+  glowjig: { name: 'Glow Jig', cost: [200, 420, 800], desc: 'Glows in the dark: rare Goops at dusk and night.', lv: [1.3, 1.6, 2], fx: (v) => `Rare+ ×${v} at dusk & night` },
+  trophy: { name: 'Trophy Plug', cost: [250, 500, 900], desc: 'Only the big ones bother. Bigger catches, bonus Essence on records.', lv: [1.6, 1.3, 1.05], fx: (v) => `Bigger catches (size curve ${v}) · records +50% Essence` },
+  clover: { name: 'Lucky Clover', cost: [300, 650, 1200], desc: 'Four leaves, four times the luck (almost).', lv: [1.4, 1.8, 2.3], fx: (v) => `Shiny chance ×${v}` },
+  feather: { name: 'Feather Fly', cost: [180, 380, 700], desc: 'So gentle that hooked Goops barely fight.', lv: [0.9, 0.84, 0.78], fx: (v) => `Goops pull ${Math.round((1 - v) * 100)}% weaker` },
+  diver: { name: 'Deep Diver', cost: [350, 700, 1300], desc: 'Dives deep for Epics and Legendaries, but bites take longer.', lv: [1.4, 1.8, 2.4], fx: (v) => `Epic+ ×${v}, bites 20% slower` },
+};
+
+/** One-off things to spend Essence on. */
+export const CHARMS = {
+  hourglass: { name: 'Hourglass', icon: '⏳', cost: 40, desc: 'Skip ahead to the next time of day.' },
+  totem: { name: 'Weather Totem', icon: '🌦️', cost: 70, desc: 'Call the weather you want, right now.' },
+  flare: { name: 'Frenzy Flare', icon: '🎆', cost: 120, desc: 'Start a feeding frenzy where you stand.' },
+  tip: { name: 'Wiggs’ Tip', icon: '💬', cost: 50, desc: 'Old Wiggs tells you where and when an unknown Goop bites.' },
+};
+export const FINDER_COST = 600;
+/** Cost to train your buddy to the next level; each level adds +4% Essence and makes it bigger. */
+export const BUDDY_TRAIN = [120, 300, 600, 1000];
+export const buddyBonus = (lv = 0) => BUDDY_BONUS + 0.04 * lv;
+
+/** Combined effect of the equipped rod and lure in the given conditions. */
+export function tackleMods(equip = {}, owned = {}, ctx = {}) {
+  const m = { reel: 1, zone: 0, force: 1, lunge: 1, bite: 1, shiny: 1, essence: 1, sizeExp: 2, recordMul: 1, taste: {}, pattern: {}, rare: 1, epic: 1, legend: 1 };
+  const r = RODS[equip.rod]?.stats || {};
+  if (r.reel) m.reel *= r.reel;
+  if (r.zone) m.zone += r.zone;
+  if (r.force) m.force *= r.force;
+  if (r.lunge) m.lunge *= r.lunge;
+  if (r.bite) m.bite *= r.bite;
+  if (r.shiny) m.shiny *= r.shiny;
+  if (r.taste) m.taste[r.taste] = r.tasteMul;
+  if (r.legend) m.legend *= r.legend;
+  if (r.epic) m.epic *= r.epic;
+  if (r.when && r.when.includes(ctx.weather)) { m.force *= 0.7; m.essence *= 1.3; }
+  const id = equip.lure, lvl = owned.lures?.[id] || 0;
+  if (id && id !== 'none' && lvl > 0) {
+    const v = LURES[id].lv[lvl - 1];
+    const day = ['Dawn', 'Day'].includes(ctx.time);
+    if (id === 'spinner') m.bite *= v;
+    else if (id === 'jig') { m.pattern.pulse = v; m.pattern.dart = v; }
+    else if (id === 'crank') { m.pattern.steady = v; m.pattern.drift = v; m.pattern.sleepy = v; }
+    else if (id === 'spoon' && day) m.rare *= v;
+    else if (id === 'glowjig' && !day) m.rare *= v;
+    else if (id === 'trophy') { m.sizeExp = v; m.recordMul = 1.5; }
+    else if (id === 'clover') m.shiny *= v;
+    else if (id === 'feather') m.force *= v;
+    else if (id === 'diver') { m.epic *= v; m.legend *= v; m.bite *= 1.2; }
+  }
+  return m;
+}
 
 /** Plain-language description of when a Goop bites (used by the GoopDex). */
 export function conditionText(goop) {
@@ -310,7 +420,7 @@ export function conditionsMet(goop, weather, time) {
  * Weighted pool of Goops at one spot for the given conditions.
  * `event` may hold { frenzy: spotId, visitor: { goop, spot }, fullMoon }.
  */
-export function encounterPool({ spot = SPOT_BY.dock, weather = 'clear', time = 'Day', lure = 0, bait = 'worm', event = {} } = {}) {
+export function encounterPool({ spot = SPOT_BY.dock, weather = 'clear', time = 'Day', lure = 0, bait = 'worm', event = {}, mods = null } = {}) {
   const b = BAITS[bait] || BAITS.worm;
   const ids = new Set(spot.goops);
   if (event.visitor && event.visitor.spot === spot.id) ids.add(event.visitor.goop);
@@ -325,6 +435,12 @@ export function encounterPool({ spot = SPOT_BY.dock, weather = 'clear', time = '
     if (event.visitor?.goop === g.id && event.visitor.spot === spot.id) weight = Math.max(weight * 4, 6);
     if (event.frenzy === spot.id && g.rarity !== 'Common') weight *= 1.3;
     if (event.fullMoon && time === 'Night' && g.rarity === 'Legendary') weight *= 2;
+    if (mods) {
+      weight *= (mods.taste[g.taste] || 1) * (mods.pattern[g.pattern] || 1);
+      if (RANK[g.rarity] >= 2) weight *= mods.rare;
+      if (RANK[g.rarity] === 3) weight *= mods.epic;
+      if (RANK[g.rarity] === 4) weight *= mods.legend;
+    }
     return { ...g, weight };
   });
 }
@@ -401,11 +517,11 @@ export function makeFight(goop, gear = {}, env = {}) {
   const rng = env.rng || Math.random;
   return {
     goop, progress: 0, stamina: goop.stamina, tension: 0.5, phase: 0, elapsed: 0, caught: false, escaped: false,
-    safeLo: g.safeLo, safeHi: g.safeHi, reelRate: g.reelRate, snapGuard: g.snapGuard,
+    safeLo: g.safeLo - (env.zone ?? 0), safeHi: g.safeHi + (env.zone ?? 0), reelRate: g.reelRate * (env.reel ?? 1), snapGuard: g.snapGuard,
     forceMul: (env.forceMul ?? 1) * (goop.force ?? 1),
     streak: 0, combo: 1, best: 1,
     rng, nextLunge: lunges(goop) ? 2.4 + rng() * 2.2 : null, warn: false,
-    lungePower: 0.3 + 0.05 * RANK[goop.rarity], log: [],
+    lungePower: (0.3 + 0.05 * RANK[goop.rarity]) * (env.lunge ?? 1), log: [],
   };
 }
 
@@ -542,7 +658,9 @@ export class SaveStore {
       version: SAVE_VERSION, essence: 0, dex: {}, seen: [], notes: [], day: 1, weather: 'clear', caughtToday: 0,
       timeIndex: 1, casts: 0, spot: 'dock', shore: 0, discovered: ['dock'], completed: [],
       gear: { rod: 0, line: 0, lure: 0 }, stats: { caught: 0, escaped: 0, missed: 0, shiny: 0, perfect: 0, dodges: 0, bounties: 0 },
-      bait: 'worm', baits: { sugar: 3, mud: 3 }, buddy: null, sets: [],
+      bait: 'worm', baits: { sugar: 3, mud: 3 }, buddy: null, buddyLv: 0, sets: [], tips: [], finder: false,
+      owned: { rods: ['twig'], skins: ['factory'], bobbers: ['classic'], lines: ['classic'], lures: {} },
+      equip: { rod: 'twig', skin: 'factory', bobber: 'classic', line: 'classic', lure: 'none' },
       bounties: [], bountyDay: 0, frenzy: null, visitor: null, rumors: [],
     };
   }
@@ -629,6 +747,20 @@ export class SaveStore {
     s.buddy = ids.has(p.buddy) && s.dex[p.buddy] ? p.buddy : null;
     s.sets = list(p.sets, (id) => SETS.some((x) => x.id === id));
     s.rumors = list(p.rumors, (id) => !!SPOT_BY[id]?.secret);
+    // tackle box
+    const o = p.owned && typeof p.owned === 'object' ? p.owned : {};
+    const keep = (v, table, base) => [...new Set([base, ...(Array.isArray(v) ? v.filter((k) => table[k]) : [])])];
+    s.owned = { rods: keep(o.rods, RODS, 'twig'), skins: keep(o.skins, SKINS, 'factory'), bobbers: keep(o.bobbers, BOBBERS, 'classic'), lines: keep(o.lines, LINES, 'classic'), lures: {} };
+    if (o.lures && typeof o.lures === 'object') for (const [k, v] of Object.entries(o.lures)) if (LURES[k] && k !== 'none') { const n = Math.min(3, Math.floor(num(v, 0))); if (n) s.owned.lures[k] = n; }
+    const e = p.equip && typeof p.equip === 'object' ? p.equip : {};
+    s.equip = {
+      rod: s.owned.rods.includes(e.rod) ? e.rod : 'twig', skin: s.owned.skins.includes(e.skin) ? e.skin : 'factory',
+      bobber: s.owned.bobbers.includes(e.bobber) ? e.bobber : 'classic', line: s.owned.lines.includes(e.line) ? e.line : 'classic',
+      lure: s.owned.lures[e.lure] ? e.lure : 'none',
+    };
+    s.finder = p.finder === true;
+    s.buddyLv = Math.min(BUDDY_TRAIN.length, Math.floor(num(p.buddyLv, 0)));
+    s.tips = list(p.tips, (id) => ids.has(id));
     // bounties
     s.bountyDay = Math.floor(num(p.bountyDay, 0));
     s.bounties = Array.isArray(p.bounties) ? p.bounties.filter((b) => b && typeof b === 'object' && BOUNTY_KINDS.includes(b.kind) && typeof b.text === 'string')
@@ -803,7 +935,8 @@ export class FishingGame {
     const s = this.state;
     const bait = BAITS[s.bait] && (s.bait === 'worm' || s.baits[s.bait] > 0) ? s.bait : 'worm';
     const ev = this.event;
-    const pool = zonePool(z, { weather: s.weather, time: this.timeOfDay, lure: s.gear.lure, bait, event: ev });
+    const mods = this.mods();
+    const pool = zonePool(z, { weather: s.weather, time: this.timeOfDay, lure: s.gear.lure, bait, event: ev, mods });
     const picked = weightedPick(pool, this.rng);
     this.goop = picked ? GOOPS.find((g) => g.id === picked.id) : GOOPS[0];
     this.fight = null;
@@ -814,6 +947,7 @@ export class FishingGame {
     let wait = (st.biteMin + this.rng() * (st.biteMax - st.biteMin)) * this.weather.biteMul * (1 - 0.1 * s.gear.lure);
     if (BAITS[bait].taste && BAITS[bait].taste === this.goop.taste) wait *= 0.75;
     if (frenzy) wait *= 0.5;
+    wait *= mods.bite;
     this.biteAt = Math.max(0.6, wait);
     this.castCtx = { spot: z.spot.id, hot: z.hot, bait, frenzy, essenceMul: st.essenceMul, weather: s.weather, time: this.timeOfDay };
     if (bait !== 'worm') {
@@ -895,7 +1029,8 @@ export class FishingGame {
     } else if (this.phase === PHASES.BITE) {
       if (pressed) {
         this.phase = PHASES.FIGHT;
-        this.fight = makeFight(this.goop, this.state.gear, { forceMul: this.weather.forceMul, rng: this.rng });
+        const m = this.mods();
+        this.fight = makeFight(this.goop, this.state.gear, { forceMul: this.weather.forceMul * m.force, rng: this.rng, reel: m.reel, zone: m.zone, lunge: m.lunge });
         const perfect = this.timer <= PERFECT_HOOK;
         this.fight.perfect = perfect;
         if (perfect) { this.fight.progress = 0.12; this.state.stats.perfect += 1; }
@@ -938,10 +1073,12 @@ export class FishingGame {
     const prev = s.dex[id] || { count: 0, fastest: null, best: null, shiny: 0 };
     const time = this.fight.elapsed;
     const [lo, hi] = g.size;
-    const size = Math.round((lo + (hi - lo) * this.rng() ** 2) * 10) / 10; // big ones are rare
+    const mods = this.mods(ctx);
+    const size = Math.round((lo + (hi - lo) * this.rng() ** mods.sizeExp) * 10) / 10; // big ones are rare
     let odds = SHINY_ODDS;
     if (ctx.bait === 'golden') odds *= 2;
     if (this.fullMoon && ctx.time === 'Night') odds *= 2;
+    odds *= mods.shiny;
     const shiny = this.rng() > 1 - odds;
     const record = prev.best == null || size > prev.best;
     s.dex[id] = {
@@ -952,7 +1089,9 @@ export class FishingGame {
     };
     let mul = ctx.essenceMul * (shiny ? 3 : 1);
     if (ctx.frenzy) mul *= 1.5;
-    if (s.buddy) mul *= 1 + BUDDY_BONUS;
+    if (s.buddy) mul *= 1 + buddyBonus(s.buddyLv);
+    mul *= mods.essence;
+    if (record && !(prev.count === 0)) mul *= mods.recordMul;
     const reward = Math.round(g.essence * mul);
     this.lastReward = reward;
     s.essence += reward;
@@ -1016,7 +1155,7 @@ export class FishingGame {
 
   /** Has the player learned where/when a Goop bites (caught it or read its note)? */
   knows(goopId) {
-    return !!this.state.dex[goopId] || this.state.notes.some((id) => NOTES.find((n) => n.id === id)?.reveals === goopId);
+    return !!this.state.dex[goopId] || this.state.tips.includes(goopId) || this.state.notes.some((id) => NOTES.find((n) => n.id === id)?.reveals === goopId);
   }
 
   // ----- bait, buddy and shop -----
@@ -1044,8 +1183,136 @@ export class FishingGame {
     if (id !== null && !this.state.dex[id]) return false;
     this.state.buddy = id;
     const g = GOOPS.find((x) => x.id === id);
-    this.message = g ? `${g.name} is your buddy now! +${Math.round(BUDDY_BONUS * 100)}% Essence` : 'Your buddy heads home for a nap.';
+    this.message = g ? `${g.name} is your buddy now! +${Math.round(buddyBonus(this.state.buddyLv) * 100)}% Essence` : 'Your buddy heads home for a nap.';
     this.emit('buddy', { goop: id });
+    this.saveStore.save(this.state);
+    return true;
+  }
+
+  // ----- tackle box -----
+
+  /** Rod + lure effects for the current (or given) conditions. */
+  mods(ctx = { weather: this.state.weather, time: this.timeOfDay }) { return tackleMods(this.state.equip, this.state.owned, ctx); }
+
+  /** Buy (if needed) and equip a rod, skin, bobber or line. kind: 'rods' | 'skins' | 'bobbers' | 'lines'. */
+  buyTackle(kind, id) {
+    const table = { rods: RODS, skins: SKINS, bobbers: BOBBERS, lines: LINES }[kind];
+    const item = table?.[id];
+    const s = this.state;
+    if (!item || s.owned[kind].includes(id)) return false;
+    if ((item.dex || 0) > this.dexCount || s.essence < item.cost) return false;
+    s.essence -= item.cost;
+    s.owned[kind].push(id);
+    this.message = `Bought ${item.name}!`;
+    this.emit('tackle', { kind, id, bought: true });
+    this.equipTackle(kind, id, true);
+    return true;
+  }
+
+  equipTackle(kind, id, quiet = false) {
+    const slot = { rods: 'rod', skins: 'skin', bobbers: 'bobber', lines: 'line' }[kind];
+    if (!slot || !this.state.owned[kind]?.includes(id)) return false;
+    this.state.equip[slot] = id;
+    if (!quiet) this.emit('tackle', { kind, id });
+    this.saveStore.save(this.state);
+    return true;
+  }
+
+  lureCost(id) {
+    const l = LURES[id];
+    const lv = this.state.owned.lures[id] || 0;
+    return l && id !== 'none' && lv < l.cost.length ? l.cost[lv] : null;
+  }
+
+  /** Buy a lure, or upgrade one you have to its next level. Equips it. */
+  buyLure(id) {
+    const cost = this.lureCost(id);
+    if (cost == null || this.state.essence < cost) return false;
+    this.state.essence -= cost;
+    const lv = (this.state.owned.lures[id] || 0) + 1;
+    this.state.owned.lures[id] = lv;
+    this.state.equip.lure = id;
+    this.message = lv === 1 ? `Bought the ${LURES[id].name}!` : `${LURES[id].name} upgraded to level ${lv}!`;
+    this.emit('lure', { id, lv });
+    this.saveStore.save(this.state);
+    return true;
+  }
+
+  equipLure(id) {
+    if (id !== 'none' && !this.state.owned.lures[id]) return false;
+    this.state.equip.lure = id;
+    this.emit('lure', { id, lv: this.state.owned.lures[id] || 0, equip: true });
+    this.saveStore.save(this.state);
+    return true;
+  }
+
+  /** Spend Essence on a one-off charm. `arg` is the weather for the totem. */
+  useCharm(id, arg) {
+    const c = CHARMS[id];
+    const s = this.state;
+    if (!c || this.busy || s.essence < c.cost) return false;
+    if (id === 'hourglass') {
+      s.timeIndex = (s.timeIndex + 1) % TIMES.length;
+      if (s.timeIndex === 0) { s.day += 1; s.caughtToday = 0; }
+      this.message = `⏳ Time flies… it’s ${this.timeOfDay.toLowerCase()} now.`;
+      this.emit('clock', { time: this.timeOfDay, weather: s.weather, day: s.day, frenzy: s.frenzy });
+      if (s.timeIndex === 0) this.ensureDaily();
+    } else if (id === 'totem') {
+      if (!WEATHER[arg] || arg === s.weather) return false;
+      s.weather = arg;
+      this.message = `🌦️ The totem hums… ${WEATHER[arg].label.toLowerCase()} rolls in.`;
+      this.emit('clock', { time: this.timeOfDay, weather: s.weather, day: s.day, frenzy: s.frenzy });
+    } else if (id === 'flare') {
+      const spot = this.zone().spot.id;
+      if (s.frenzy === spot) return false;
+      s.frenzy = spot;
+      this.message = `🎆 A frenzy breaks out at ${SPOT_BY[spot].name}!`;
+      this.emit('frenzy', { spot, flare: true });
+    } else if (id === 'tip') {
+      const unknown = GOOPS.filter((g) => !this.knows(g.id));
+      if (!unknown.length) return false;
+      const reachable = unknown.filter((g) => g.spots.some((sp) => this.spotUnlocked(sp)));
+      const pool = reachable.length ? reachable : unknown;
+      const g = pool[Math.floor(this.rng() * pool.length) % pool.length];
+      s.tips.push(g.id);
+      if (!s.seen.includes(g.id)) s.seen.push(g.id);
+      this.message = `💬 Wiggs: “${g.name}? ${conditionText(g)}.”`;
+      this.emit('tip', { goop: g.id });
+    }
+    s.essence -= c.cost;
+    this.emit('charm', { id });
+    this.saveStore.save(s);
+    return true;
+  }
+
+  buyFinder() {
+    if (this.state.finder || this.state.essence < FINDER_COST) return false;
+    this.state.essence -= FINDER_COST;
+    this.state.finder = true;
+    this.message = 'Fish Finder installed! It shows what’s biting wherever you stand.';
+    this.emit('finder');
+    this.saveStore.save(this.state);
+    return true;
+  }
+
+  /** What is likely to bite where you stand right now: [{ id, chance }], best first. */
+  forecast(limit = 5) {
+    const s = this.state;
+    const bait = s.bait === 'worm' || s.baits[s.bait] > 0 ? s.bait : 'worm';
+    const pool = zonePool(this.zone(), { weather: s.weather, time: this.timeOfDay, lure: s.gear.lure, bait, event: this.event, mods: this.mods() });
+    const total = pool.reduce((a, g) => a + g.weight, 0) || 1;
+    return pool.map((g) => ({ id: g.id, chance: g.weight / total })).sort((a, b) => b.chance - a.chance).slice(0, limit);
+  }
+
+  trainCost() { const lv = this.state.buddyLv; return this.state.buddy && lv < BUDDY_TRAIN.length ? BUDDY_TRAIN[lv] : null; }
+
+  trainBuddy() {
+    const cost = this.trainCost();
+    if (cost == null || this.state.essence < cost) return false;
+    this.state.essence -= cost;
+    this.state.buddyLv += 1;
+    this.message = `Your buddy grew! Buddy level ${this.state.buddyLv + 1} · +${Math.round(buddyBonus(this.state.buddyLv) * 100)}% Essence`;
+    this.emit('buddyTrain', { lv: this.state.buddyLv });
     this.saveStore.save(this.state);
     return true;
   }
