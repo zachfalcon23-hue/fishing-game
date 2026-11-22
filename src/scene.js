@@ -1,15 +1,22 @@
 // Goop Fishing — North Pond renderer (presentation only; reads game state, never changes it).
 // The pond is one continuous shoreline. The camera walks along it; every layer scrolls at its
 // own depth so near things slide past faster than far ones.
-import { PHASES, SPOTS, NOTES } from './game.js';
+import { PHASES, SPOTS, NOTES, SPOT_BY, GOOPS } from './game.js';
 
 export const W = 1920;
 export const H = 1080;
 export const HZ = 470;                       // horizon line (same all the way round the pond)
 export const SPOT_GAP = 1280;                // shoreline distance between neighbouring spots
-export const SPOT_X = Object.fromEntries(SPOTS.map((s, i) => [s.id, W / 2 + i * SPOT_GAP]));
-export const WORLD_MIN = SPOT_X[SPOTS[0].id];
-export const WORLD_MAX = SPOT_X[SPOTS[SPOTS.length - 1].id];
+export const SPOT_X = Object.fromEntries(SPOTS.map((s) => [s.id, W / 2 + s.pos * SPOT_GAP]));
+export const WORLD_MIN = Math.min(...Object.values(SPOT_X));
+export const WORLD_MAX = Math.max(...Object.values(SPOT_X));
+/** Shore position (in spot widths, as the game uses) of a world x, and back. */
+export const toShore = (x) => (x - W / 2) / SPOT_GAP;
+export const fromShore = (p) => W / 2 + p * SPOT_GAP;
+/** Where each secret's clue shows up along the shore (world x). */
+export const CLUE_X = { sandbar: SPOT_X.dock - 760, cave: SPOT_X.cave, wreck: SPOT_X.deep + 760 };
+/** Where the bounty board stands (world x, near the dock). */
+export const BOARD_X = SPOT_X.dock - 560;
 
 // ---------- assets ----------
 
@@ -107,6 +114,7 @@ const WEATHER_GRADE = {
 const SPOT_TINT = {
   dock: null, lily: ['#ff9ad8', 0.14], reeds: ['#9cff7a', 0.16], boulder: ['#ffb070', 0.1],
   falls: ['#7ad8ff', 0.18], grotto: ['#7a5cff', 0.24], deep: ['#3a2aff', 0.3],
+  sandbar: ['#9ab8ff', 0.3], cave: ['#ffb85a', 0.22], wreck: ['#3fd4c0', 0.26],
 };
 
 // Far scenery along the whole pond (x is world position, so it scrolls with parallax `d`).
@@ -119,6 +127,7 @@ const FAR = {
     { spot: 'falls', sx: 360, s: 1.2, base: HZ + 70, d: 0.4 },
     { spot: 'grotto', sx: 1000, s: 0.9, base: HZ + 50, d: 0.36, flip: true },
     { spot: 'deep', sx: 1500, s: 0.7, base: HZ + 40, d: 0.34 },
+    { spot: 'cave', sx: 700, s: 1.05, base: HZ + 66, d: 0.4, flip: true },
   ],
 };
 
@@ -171,17 +180,37 @@ const DRESSING = {
     fgL: 'reedsL', fgR: 'frameR', motes: '#6a5aff',
     lane: { x0: 780, x1: 1260, y0: 600, y1: 760 }, rod: { bx: 980, by: 1170 },
   },
+  // secret spots (only drawn once found)
+  sandbar: {
+    props: [{ k: 'boulderB', sx: 1620, s: 0.9, d: 0.82, ground: true, flip: true }],
+    lilies: [['lilyB', 420, 640, 0.5], ['lilyA', 1500, 700, 0.6]],
+    fgL: 'reedsL', motes: '#cfe0ff', sand: true,
+    lane: { x0: 820, x1: 1280, y0: 620, y1: 770 }, rod: { bx: 980, by: 1170 },
+  },
+  cave: {
+    props: [{ k: 'boulderA', sx: 1480, s: 1.1, d: 0.82, ground: true, flip: true }],
+    lilies: [],
+    fgL: 'frameL', fgR: 'frameR', motes: '#ffcf6a', crystals: true,
+    lane: { x0: 800, x1: 1240, y0: 620, y1: 770 }, rod: { bx: 980, by: 1170 },
+  },
+  wreck: {
+    props: [{ k: 'dock', sx: 420, sy: 560, s: 0.8, d: 0.62, flip: true, rot: -0.07, sunk: true }, { k: 'boulderB', sx: -60, s: 1.2, d: 0.84, ground: true }],
+    lilies: [],
+    fgR: 'reedsR', motes: '#7affe0', mast: true,
+    lane: { x0: 860, x1: 1300, y0: 640, y1: 780 }, rod: { bx: 980, by: 1170 },
+  },
 };
 
 // Where each field note lies on the shore (screen coords at its spot).
 const NOTE_POS = {
-  'n-dock-1': [470, 760], 'n-dock-2': [1640, 930],
+  'n-dock-1': [640, 1000], 'n-dock-2': [1640, 930],
   'n-lily-1': [250, 960], 'n-lily-2': [1720, 980],
   'n-reeds-1': [330, 930], 'n-reeds-2': [1560, 960],
   'n-boulder-1': [180, 720], 'n-boulder-2': [1700, 770],
   'n-falls-1': [420, 980], 'n-falls-2': [1650, 760],
   'n-grotto-1': [300, 960], 'n-grotto-2': [1620, 980],
   'n-deep-1': [200, 760], 'n-deep-2': [1760, 820],
+  'n-sandbar-1': [300, 940], 'n-cave-1': [1620, 960], 'n-wreck-1': [1700, 950],
 };
 
 const DOCK_LIGHTS = [
@@ -208,7 +237,10 @@ export class Scene {
     this.ctx = canvas.getContext('2d');
     this.a = assets;
     this.t = 0;
-    this.camX = WORLD_MIN;
+    this.camX = SPOT_X.dock;
+    this.anchorX = null;          // world x where the line was cast (tackle stays there)
+    this.revealed = new Set();    // secret spots found so far
+    this.buddy = { x: 0, hop: 0, jump: 0, face: 1, alert: 0 };
     this.cam = { x: 0, y: 0, zoom: 1, shake: 0 };
     this.particles = [];
     this.ripples = [];
@@ -361,6 +393,7 @@ export class Scene {
   onEvent(e, game) {
     const D = DRESSING[game.spot.id] || DRESSING.dock;
     if (e.type === 'cast') {
+      this.anchorX = this.camX;
       const tx = lerp(D.lane.x0, D.lane.x1, Math.random()), ty = lerp(D.lane.y0, D.lane.y1, Math.random());
       this.cast = { t: 0, dur: 0.75, tx, ty };
       this.reveal = null; this.snap = null; this.jump = null;
@@ -372,6 +405,7 @@ export class Scene {
       this.ring(this.bobber.x, this.bobber.y, 1.2);
     } else if (e.type === 'hooked') {
       this.cam.shake = 10;
+      if (e.detail.perfect) this.sparkle(this.bobber.x, this.bobber.y - 20, 24, '#fff27a');
       this.splash(this.bobber.x, this.bobber.y, 22, '#e8fdff', 1);
       this.ring(this.bobber.x, this.bobber.y, 1.6);
     } else if (e.type === 'catch') {
@@ -384,6 +418,13 @@ export class Scene {
       this.snap = { t: 0, x: this.bobber.x, y: this.bobber.y };
       this.splash(this.bobber.x, this.bobber.y, 18, '#ffffff', 1);
       this.cam.shake = 16;
+    } else if (e.type === 'lunge') {
+      this.cam.shake = 18;
+      this.splash(this.bobber.x, this.bobber.y, 20, '#ffffff', 1.1);
+    } else if (e.type === 'dodge') {
+      this.sparkle(this.bobber.x, this.bobber.y - 30, 14, '#8df28a');
+    } else if (e.type === 'secret') {
+      this.flash = Math.max(this.flash, 0.5);
     } else if (e.type === 'missedBite') {
       this.ring(this.bobber.x, this.bobber.y, 0.9);
     } else if (e.type === 'note') {
@@ -455,7 +496,14 @@ export class Scene {
     this.bobY = this.reducedMotion ? 0 : Math.abs(Math.sin(this.walkPhase)) * -6 * this.walk;
     this.s = this.px * this.cam.zoom * 1.03;
     // while fishing, the tackle area is at the spot; the camera is parked there
-    const spotOff = SPOT_X[spotId] - this.camX;
+    if (phase === PHASES.IDLE) this.anchorX = null;
+    const anchor = phase !== PHASES.IDLE && this.anchorX != null ? this.anchorX : this.camX;
+    const spotOff = anchor - this.camX;
+    void spotId;
+    const disc = game.state.discovered;
+    if (disc.length !== this.discLen) { this.discLen = disc.length; this.revealed = new Set(disc.filter((id) => SPOT_BY[id]?.secret)); }
+    this.moonPhase = game.moon ?? 3;
+    this.clues = ['sandbar', 'cave', 'wreck'].filter((id) => game.secretVisible?.(id));
     const focusX = fighting ? this.bobber.x + spotOff * 0.62 : W / 2, focusY = fighting ? this.bobber.y : H / 2;
     this.ox = W / 2 - (focusX - W / 2) * (this.cam.zoom - 1) * 0.6;
     this.oy = H / 2 - (focusY - H / 2) * (this.cam.zoom - 1) * 0.6;
@@ -487,6 +535,9 @@ export class Scene {
     base(0.55);
     this.drawWater(g, base, time, weather, t, spotOff);
 
+    this.drawSecretsMid(g, base, game, t);
+    this.drawFrenzy(g, base, game, t, dt);
+
     // ---- near shore, back to front ----
     const near = this.collectNear();
     for (const item of near) this.drawItem(g, base, item, time, weather, t, 'mid');
@@ -499,6 +550,8 @@ export class Scene {
     g.translate(-spotOff * 0.62, 0);
 
     for (const item of near) this.drawItem(g, base, item, time, weather, t, 'props');
+    this.drawBoard(g, base, game, t);
+    this.drawClues(g, base, t);
     this.drawNotes(g, base, game, t);
     this.drawGate(g, base, game, t, false);
 
@@ -516,6 +569,8 @@ export class Scene {
     // foreground framing plants
     for (const item of near) this.drawItem(g, base, item, time, weather, t, 'fg');
     this.drawGate(g, base, game, t, true);
+    g.setTransform(s, 0, 0, s, cw / 2 - this.ox * s + this.sx * s, ch / 2 - this.oy * s + (this.sy + this.bobY) * s);
+    this.drawBuddy(g, game, dt, t, input);
 
     // atmosphere
     this.drawFireflies(g, base, time, weather, t);
@@ -559,8 +614,9 @@ export class Scene {
     const bodyX = this.moonX(), bodyY = lerp(40, HZ, sky.sunY);
     if (weather !== 'storm') {
       const isMoon = time === 'Night';
-      const R = isMoon ? 68 : time === 'Day' ? 70 : 92;
-      const haloA = 1 - cloudy * 0.7;
+      const full = isMoon && this.moonPhase === 3;
+      const R = isMoon ? (full ? 88 : 68) : time === 'Day' ? 70 : 92;
+      const haloA = (1 - cloudy * 0.7) * (full ? 1.6 : isMoon && this.moonPhase === 0 ? 0.4 : 1);
       g.globalCompositeOperation = 'lighter';
       const halo = g.createRadialGradient(bodyX, bodyY, R * 0.6, bodyX, bodyY, R * 6);
       halo.addColorStop(0, hexA(sky.sun, 0.55 * haloA)); halo.addColorStop(0.3, hexA(sky.sun, 0.16 * haloA)); halo.addColorStop(1, hexA(sky.sun, 0));
@@ -574,6 +630,14 @@ export class Scene {
         g.fillStyle = 'rgba(120,145,190,.28)';
         for (const [cx, cy, cr] of [[-0.3, -0.2, 0.22], [0.25, 0.15, 0.16], [0.05, -0.45, 0.1], [-0.15, 0.4, 0.13], [0.42, -0.25, 0.09]]) {
           g.beginPath(); g.arc(bodyX + cx * R, bodyY + cy * R, cr * R, 0, 6.29); g.fill();
+        }
+        // phase shadow (5-day cycle: new, crescent, half, full, waning)
+        const dx = { 0: 0.08, 1: 0.45, 2: 1.0, 4: -1.0 }[this.moonPhase];
+        if (dx != null) {
+          g.save(); g.beginPath(); g.arc(bodyX, bodyY, R + 1, 0, 6.29); g.clip();
+          g.fillStyle = hexA(stops[1], 0.93);
+          g.beginPath(); g.arc(bodyX - dx * R, bodyY - dx * R * 0.12, R * 1.02, 0, 6.29); g.fill();
+          g.restore();
         }
       } else {
         const sg = g.createRadialGradient(bodyX, bodyY, 0, bodyX, bodyY, R);
@@ -597,7 +661,7 @@ export class Scene {
   }
 
   /** The moon drifts slowly across the sky as you walk round the pond. */
-  moonX() { return 1330 - (this.camX - WORLD_MIN) * 0.06; }
+  moonX() { return 1330 - (this.camX - SPOT_X.dock) * 0.06; }
 
   tintCloud(i, lit, shade) {
     const id = `cloud${i}|${lit}|${shade}`;
@@ -661,7 +725,11 @@ export class Scene {
         if (Math.abs(wx + ww / 2 - (W / 2 + this.camX * c.d)) > W + ww) continue;
         base(c.d, f);
         const y = c.base - wh;
-        if (c.flip) { f.save(); f.translate(wx + ww, y); f.scale(-1, 1); f.drawImage(wimg, 0, 0, ww, wh); this.drawFalls(f, 0, 0, ww, wh, t, time); f.restore(); }
+        if (c.flip) {
+          f.save(); f.translate(wx + ww, y); f.scale(-1, 1); f.drawImage(wimg, 0, 0, ww, wh); this.drawFalls(f, 0, 0, ww, wh, t, time);
+          if (c.spot === 'cave') this.drawCaveMouth(f, ww, wh, t);
+          f.restore();
+        }
         else { f.drawImage(wimg, wx, y, ww, wh); this.drawFalls(f, wx, y, ww, wh, t, time); }
       }
     }
@@ -823,6 +891,7 @@ export class Scene {
     const out = [];
     for (const sp of SPOTS) {
       if (Math.abs(SPOT_X[sp.id] - this.camX) > SPOT_GAP * 1.6) continue;
+      if (sp.secret && !this.revealed.has(sp.id)) continue;
       const D = DRESSING[sp.id];
       for (const [k, sx, sy, ls] of D.lilies) {
         const d = 0.55 + (sy - HZ) / (H - HZ) * 0.35;
@@ -853,6 +922,15 @@ export class Scene {
       const w = this.a[it.k].width * it.s, h = this.a[it.k].height * it.s;
       const x = this.layerX(it.wx, it.d);
       const y = it.ground ? H + 40 - h : it.sy;
+      if (it.sunk) {
+        // half under water: clip at the waterline and fade into the murk
+        g.save(); g.translate(x + w / 2, y + h * 0.4); g.rotate(it.rot || 0);
+        g.beginPath(); g.rect(-w, -h, w * 2, h * 1.12 + Math.sin(t * 1.2) * 3); g.clip();
+        g.scale(it.flip ? -1 : 1, 1); g.globalAlpha = 0.9; g.drawImage(img, -w / 2, -h * 0.4, w, h);
+        g.restore(); g.globalAlpha = 1;
+        g.fillStyle = 'rgba(10,40,50,.35)'; g.fillRect(x - 40, y + h * 0.42, w + 80, 6);
+        return;
+      }
       if (it.flip) { g.save(); g.translate(x + w, y); g.scale(-1, 1); g.drawImage(img, 0, 0, w, h); g.restore(); }
       else g.drawImage(img, x, y, w, h);
       if (it.lights === 'dock') this.drawLights(g, DOCK_LIGHTS, x, y, w, h, t, time, true);
@@ -1000,7 +1078,7 @@ export class Scene {
   }
 
   drawGateBadge(g, game, t, x) {
-    const next = SPOTS.find((s) => !game.spotUnlocked(s.id));
+    const next = SPOTS.find((s) => !s.secret && !game.spotUnlocked(s.id));
     if (next) {
       const y = 420 + Math.sin(t * 2) * 8;
       g.globalCompositeOperation = 'lighter'; g.globalAlpha = 0.5;
@@ -1016,6 +1094,306 @@ export class Scene {
       g.fillText(`Path overgrown · GoopDex ${game.dexCount} / ${next.unlockAt}`, x, y + 20);
     }
   }
+
+  // ----- secrets, events, buddy -----
+
+  /** Light beacon that marks a clue on the shore. */
+  drawBeacon(g, x, y, t, color) {
+    g.globalCompositeOperation = 'lighter';
+    const pulse = 0.6 + Math.sin(t * 3) * 0.25;
+    const gr = g.createLinearGradient(0, y - 420, 0, y);
+    gr.addColorStop(0, hexA(color, 0)); gr.addColorStop(0.7, hexA(color, 0.22 * pulse)); gr.addColorStop(1, hexA(color, 0.45 * pulse));
+    g.fillStyle = gr; g.fillRect(x - 26, y - 420, 52, 420);
+    g.globalAlpha = 0.8 * pulse; g.drawImage(this.tintGlow(color), x - 120, y - 120, 240, 240);
+    g.globalAlpha = 1;
+    g.save(); g.translate(x, y - 20); g.rotate(t * 0.8);
+    g.fillStyle = '#ffffff';
+    const k = 22 + Math.sin(t * 4) * 6;
+    g.beginPath();
+    for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4, r = i % 2 ? k * 0.28 : k; g.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
+    g.closePath(); g.fill();
+    g.restore();
+    g.globalCompositeOperation = 'source-over';
+  }
+
+  /** Sandbar ribbon, cave mouth and wreck mast: mid-ground features of the secret spots. */
+  drawSecretsMid(g, base, game, t) {
+    const near = (x) => Math.abs(x - this.camX) < W * 1.6;
+    // the sandbar: a long pale ribbon in the water west of the dock
+    const sandA = this.revealed.has('sandbar') ? 1 : this.clues.includes('sandbar') ? 0.45 + Math.sin(t * 1.5) * 0.1 : 0;
+    if (sandA > 0 && near(CLUE_X.sandbar)) {
+      const d = 0.6;
+      base(d);
+      const x0 = this.layerX(SPOT_X.sandbar - 1300, d), x1 = this.layerX(CLUE_X.sandbar + 240, d);
+      for (const [y, h, a, col] of [[612, 34, 0.9, '#d9c79a'], [640, 26, 0.75, '#c2ae80'], [664, 18, 0.5, '#a89670']]) {
+        g.globalAlpha = sandA * a;
+        const gr = g.createLinearGradient(0, y - h, 0, y + h);
+        gr.addColorStop(0, hexA(col, 0)); gr.addColorStop(0.45, col); gr.addColorStop(1, hexA(col, 0));
+        g.fillStyle = gr;
+        g.beginPath();
+        g.moveTo(x0, y);
+        for (let x = x0; x <= x1; x += 40) g.lineTo(x, y - h * (0.55 + 0.45 * Math.sin(x * 0.004 + y)) * Math.min(1, (x1 - x) / 260));
+        for (let x = x1; x >= x0; x -= 40) g.lineTo(x, y + h * 0.35 * Math.min(1, (x1 - x) / 260));
+        g.closePath(); g.fill();
+      }
+      g.globalAlpha = sandA * 0.5; g.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < 26; i++) {
+        const sx = x0 + ((i * 197) % Math.max(1, x1 - x0));
+        const tw = Math.max(0, Math.sin(t * 2.4 + i * 1.7));
+        g.drawImage(this.dot, sx - 6, 600 + (i % 4) * 9 - 6, 12 * tw + 2, 12 * tw + 2);
+      }
+      g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+    }
+    // the wreck's mast
+    const wreckFound = this.revealed.has('wreck');
+    if ((wreckFound || this.clues.includes('wreck')) && near(CLUE_X.wreck)) {
+      const d = 0.6;
+      base(d);
+      const mx = this.layerX(CLUE_X.wreck, d), my = 640;
+      const sway = Math.sin(t * 0.7) * 0.03;
+      g.save(); g.translate(mx, my); g.rotate(-0.16 + sway);
+      g.fillStyle = '#2a1a10';
+      g.fillRect(-9, -330, 18, 340);
+      g.fillRect(-90, -270, 180, 12);
+      g.fillStyle = 'rgba(220,230,220,.55)';
+      g.beginPath(); g.moveTo(-80, -258); g.quadraticCurveTo(-10, -200, -70, -120); g.lineTo(-84, -130); g.closePath(); g.fill();
+      g.strokeStyle = 'rgba(40,30,20,.7)'; g.lineWidth = 2;
+      g.beginPath(); g.moveTo(0, -320); g.lineTo(140, -10); g.moveTo(0, -320); g.lineTo(-150, -10); g.stroke();
+      g.restore();
+      g.fillStyle = 'rgba(200,240,240,.35)';
+      g.beginPath(); g.ellipse(mx, my + 6, 46, 8, 0, 0, 6.29); g.fill();
+    }
+  }
+
+  /** The hidden cave in the rock wall beside the second waterfall (local cliff coordinates). */
+  drawCaveMouth(g, ww, wh, t) {
+    const found = this.revealed.has('cave');
+    if (!found && !this.clues.includes('cave')) return;
+    const cx = ww * 0.84, wl = wh * 0.86;
+    const rx = found ? 74 : 9, ry = found ? 104 : 92;
+    g.save();
+    g.beginPath(); g.ellipse(cx, wl, rx, ry, 0, Math.PI, 0); g.closePath();
+    const ig = g.createRadialGradient(cx, wl - 20, 2, cx, wl - 30, ry * 1.1);
+    if (found) { ig.addColorStop(0, '#ffe2a0'); ig.addColorStop(0.22, '#d07a2a'); ig.addColorStop(0.55, '#3a1a0c'); ig.addColorStop(1, '#0a0503'); }
+    else { ig.addColorStop(0, '#ffffff'); ig.addColorStop(0.6, '#fff0b0'); ig.addColorStop(1, '#c09a5a'); }
+    g.fillStyle = ig; g.fill();
+    g.strokeStyle = 'rgba(10,8,6,.6)'; g.lineWidth = 6; g.stroke();
+    g.restore();
+    g.globalCompositeOperation = 'lighter';
+    if (found) {
+      g.globalAlpha = 0.5 + Math.sin(t * 1.3) * 0.08;
+      g.drawImage(this.tintGlow('#ffb85a'), cx - 170, wl - 170, 340, 260);
+      const crystals = [[-58, 2, 30, '#ffc04a'], [-44, -4, 20, '#c08aff'], [54, 3, 34, '#ffc04a'], [40, -2, 18, '#ffe08a'], [-12, 5, 14, '#c08aff'], [16, 6, 22, '#ffc04a']];
+      for (const [dx, dy, h, col] of crystals) {
+        const px = cx + dx, py = wl + dy;
+        g.globalAlpha = 0.5 + Math.sin(t * 1.8 + dx) * 0.15;
+        g.drawImage(this.tintGlow(col), px - h, py - h * 1.4, h * 2, h * 2);
+        g.globalAlpha = 0.95; g.fillStyle = col;
+        g.beginPath(); g.moveTo(px, py - h); g.lineTo(px + h * 0.3, py - h * 0.2); g.lineTo(px, py); g.lineTo(px - h * 0.3, py - h * 0.2); g.closePath(); g.fill();
+      }
+    } else {
+      for (let i = 0; i < 4; i++) {
+        g.globalAlpha = 0.12 + Math.sin(t * 0.9 + i) * 0.04;
+        g.fillStyle = '#fff2c0';
+        g.beginPath(); g.moveTo(cx - 6, wl - 80 + i * 14); g.lineTo(cx + 6, wl - 80 + i * 14); g.lineTo(cx - 120 - i * 30, wl + 90); g.lineTo(cx - 50 - i * 30, wl + 90); g.closePath(); g.fill();
+      }
+      g.globalAlpha = 0.7 + Math.sin(t * 2) * 0.15;
+      g.drawImage(this.tintGlow('#fff2c0'), cx - 50, wl - 110, 100, 130);
+    }
+    g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+  }
+
+  /** Feeding frenzy: Goops leaping out of the water at a spot. */
+  drawFrenzy(g, base, game, t, dt) {
+    const f = game.state.frenzy;
+    this.frenzyFx = (this.frenzyFx || []).filter((j) => (j.t += dt) < j.dur);
+    if (!f || game.phase === PHASES.FIGHT) return;
+    const wx = SPOT_X[f];
+    if (Math.abs(wx - this.camX) > W * 1.1) return;
+    const d = 0.62;
+    const D = DRESSING[f];
+    if (Math.random() < dt * 7 && this.frenzyFx.length < 18) {
+      this.frenzyFx.push({ ring: true, t: 0, dur: 0.8, x: lerp(D.lane.x0 - 260, D.lane.x1 + 260, Math.random()), y: lerp(D.lane.y0 - 20, D.lane.y1 + 30, Math.random()) });
+    }
+    if (Math.random() < dt * 3 && this.frenzyFx.filter((j) => !j.ring).length < 6) {
+      const ids = SPOT_BY[f].goops;
+      this.frenzyFx.push({ t: 0, dur: 0.9, id: ids[Math.floor(Math.random() * ids.length)], x: lerp(D.lane.x0 - 200, D.lane.x1 + 200, Math.random()), y: lerp(D.lane.y0, D.lane.y1, Math.random()), dir: Math.random() < 0.5 ? -1 : 1 });
+    }
+    const shift = this.layerX(wx, d) - W / 2; // spot-anchored "screen" coords at depth d
+    base(d);
+    g.translate(shift, 0);
+    const sheet = this.a.ripples;
+    for (const j of this.frenzyFx) {
+      const p = j.t / j.dur;
+      if (j.ring) {
+        if (!sheet) continue;
+        const fw = sheet.width / 8, size = 90 * (0.6 + (j.y - HZ) / (H - HZ));
+        g.globalCompositeOperation = 'lighter'; g.globalAlpha = (1 - p) * 0.7;
+        g.drawImage(sheet, Math.min(7, Math.floor(p * 8)) * fw, 0, fw, sheet.height, j.x - size / 2, j.y - size * 0.22, size, size * 0.44);
+        g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+        continue;
+      }
+      const sil = this.silhouette(j.id);
+      const art = this.a[`goop:${j.id}`];
+      if (sil && art) {
+        const sc = 0.26 * (0.6 + (j.y - HZ) / (H - HZ) * 0.8);
+        const x = j.x + j.dir * 120 * p, y = j.y - Math.sin(p * Math.PI) * 120;
+        g.save(); g.translate(x, y); g.rotate(j.dir * (p - 0.5) * 1.6); g.scale(-j.dir, 1);
+        const seen = game.state.seen.includes(j.id);
+        if (seen) { g.globalAlpha = 0.9; g.drawImage(art, -art.width * sc / 2, -art.height * sc / 2, art.width * sc, art.height * sc); }
+        g.globalAlpha = seen ? 0.35 : 0.9; g.drawImage(sil, -sil.width * sc / 2, -sil.height * sc / 2, sil.width * sc, sil.height * sc);
+        g.restore(); g.globalAlpha = 1;
+        if (Math.random() < 0.5) {
+          g.globalCompositeOperation = 'lighter'; g.globalAlpha = 0.6;
+          g.drawImage(this.dot, x - 8 + (Math.random() - 0.5) * 30, y + 10 + Math.random() * 20, 10, 10);
+          g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+        }
+      }
+      if (sheet) {
+        const fw = sheet.width / 8;
+        g.globalCompositeOperation = 'lighter';
+        for (const [rx, k] of [[j.x, p], [j.x + j.dir * 120, Math.max(0, p - 0.85) * 6]]) {
+          if (k <= 0 || k >= 1) continue;
+          const size = 160 * (0.5 + k);
+          g.globalAlpha = (1 - k) * 0.8;
+          g.drawImage(sheet, Math.min(7, Math.floor(k * 8)) * fw, 0, fw, sheet.height, rx - size / 2, j.y - size * 0.22, size, size * 0.44);
+        }
+        g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+      }
+    }
+  }
+
+  /** Clue beacons for secret spots whose conditions line up right now. */
+  drawClues(g, base, t) {
+    for (const id of this.clues) {
+      const d = 0.8, wx = CLUE_X[id];
+      if (Math.abs(wx - this.camX) > W * 1.3) continue;
+      base(d);
+      this.drawBeacon(g, this.layerX(wx, d), 760, t, id === 'cave' ? '#ffd27a' : id === 'wreck' ? '#7affe0' : '#cfe0ff');
+    }
+  }
+
+  hitClue(cx, cy) {
+    for (const id of this.clues) {
+      const d = 0.8;
+      const [px, py] = this.layerToCanvas(this.layerX(CLUE_X[id], d), 700, d);
+      if (Math.abs(cx - px) < 110 * this.s && Math.abs(cy - py) < 260 * this.s) return id;
+    }
+    return null;
+  }
+
+  /** Canvas pixel of a point drawn in layer coordinates at depth d. */
+  layerToCanvas(x, y, d) {
+    const s = this.s, cw = this.canvas.width, ch = this.canvas.height;
+    return [
+      cw / 2 - this.ox * s + (this.sx - this.cam.x * d * 46 - this.camX * d + x) * s,
+      ch / 2 - this.oy * s + (this.sy + this.bobY * d - this.cam.y * d * 16 + y) * s,
+    ];
+  }
+
+  /** Old Wiggs' bounty board, on the shore by the dock. */
+  drawBoard(g, base, game, t) {
+    const d = 0.9;
+    if (Math.abs(BOARD_X - this.camX) > W) return;
+    base(d);
+    const x = this.layerX(BOARD_X, d), y = 960;
+    g.translate(x, y); g.scale(0.78, 0.78); g.translate(-x, -y);
+    const ops = this.gradeOps(game.timeOfDay, game.state.weather, 0);
+    void ops;
+    const dark = game.timeOfDay === 'Night' ? 0.55 : game.timeOfDay === 'Day' ? 1 : 0.78;
+    const wood = (l) => { const v = Math.round(l * dark); return `rgb(${v},${Math.round(v * 0.66)},${Math.round(v * 0.4)})`; };
+    g.fillStyle = 'rgba(0,10,10,.35)'; g.beginPath(); g.ellipse(x, y + 8, 170, 22, 0, 0, 6.29); g.fill();
+    g.fillStyle = wood(90); g.fillRect(x - 128, y - 250, 22, 258); g.fillRect(x + 106, y - 250, 22, 258);
+    g.save(); g.translate(x, y - 190); g.rotate(-0.03);
+    g.fillStyle = wood(140); g.beginPath(); g.roundRect?.(-150, -78, 300, 156, 10); if (!g.roundRect) g.rect(-150, -78, 300, 156); g.fill();
+    g.strokeStyle = wood(70); g.lineWidth = 6; g.stroke();
+    g.strokeStyle = wood(105); g.lineWidth = 2;
+    for (let i = -1; i <= 1; i++) { g.beginPath(); g.moveTo(-146, i * 40 + 10); g.lineTo(146, i * 40 + 8); g.stroke(); }
+    // header plank
+    g.fillStyle = wood(165); g.fillRect(-120, -112, 240, 40);
+    g.fillStyle = `rgba(40,20,8,${0.9})`; g.font = '28px "Lilita One", system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText('BOUNTIES', 0, -91);
+    // pinned papers
+    const list = game.state.bounties || [];
+    for (let i = 0; i < 3; i++) {
+      const b = list[i];
+      const px = -95 + i * 95, py = 4 + (i % 2) * 6;
+      g.save(); g.translate(px, py); g.rotate((i - 1) * 0.08);
+      g.fillStyle = b?.done ? `rgba(190,230,170,${dark})` : `rgba(246,231,193,${dark})`;
+      g.fillRect(-36, -50, 72, 96);
+      g.fillStyle = 'rgba(120,80,40,.55)';
+      for (let k = 0; k < 4; k++) g.fillRect(-26, -32 + k * 16, 52 - (k % 2) * 14, 4);
+      g.fillStyle = '#c0392b'; g.beginPath(); g.arc(0, -44, 5, 0, 6.29); g.fill();
+      if (b?.done) { g.strokeStyle = '#2e8a3a'; g.lineWidth = 6; g.beginPath(); g.moveTo(-18, 18); g.lineTo(-4, 32); g.lineTo(22, 4); g.stroke(); }
+      g.restore();
+    }
+    g.restore();
+    // a lantern so it reads at night
+    if (game.timeOfDay !== 'Day') {
+      g.globalCompositeOperation = 'lighter'; g.globalAlpha = 0.7 + Math.sin(t * 7) * 0.05;
+      g.drawImage(this.tintGlow('#ffb85a'), x + 60, y - 380, 200, 200);
+      g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+      g.fillStyle = '#ffd890'; g.beginPath(); g.arc(x + 160, y - 280, 8, 0, 6.29); g.fill();
+    }
+    if (this.boardAlert) {
+      const by = y - 350 + Math.sin(t * 3) * 8;
+      g.globalCompositeOperation = 'lighter'; g.globalAlpha = 0.8;
+      g.drawImage(this.tintGlow('#fff27a'), x - 70, by - 70, 140, 140);
+      g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+      g.font = '900 64px "Lilita One", system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.lineWidth = 10; g.strokeStyle = '#0a2a1a'; g.strokeText('!', x, by); g.fillStyle = '#fff36b'; g.fillText('!', x, by);
+    }
+    this.boardPos = { x, y: y - 150, d };
+  }
+
+  hitBoard(cx, cy) {
+    if (!this.boardPos || Math.abs(BOARD_X - this.camX) > W) return false;
+    const [px, py] = this.layerToCanvas(this.boardPos.x, this.boardPos.y, this.boardPos.d);
+    return Math.abs(cx - px) < 140 * this.s && Math.abs(cy - py) < 120 * this.s;
+  }
+
+  /** Your buddy Goop bobs along at the water's edge, cheers catches and points out secrets. */
+  drawBuddy(g, game, dt, t, input) {
+    const id = game.state.buddy;
+    const art = id && this.a[`goop:${id}`];
+    if (!art) return;
+    const b = this.buddy;
+    const v = input.walkSpeed || 0;
+    if (Math.abs(v) > 0.05) b.face = v > 0 ? 1 : -1;
+    b.hop += dt * (2 + Math.abs(v) * 9);
+    b.jump = Math.max(0, b.jump - dt);
+    const hasAlert = this.clues.some((c) => Math.abs(CLUE_X[c] - this.camX) < W * 1.2) || !!input.noteNear;
+    b.alert = lerp(b.alert, hasAlert ? 1 : 0, 1 - Math.exp(-dt * 4));
+    if (hasAlert) {
+      const cx = this.clues.map((c) => CLUE_X[c]).find((x) => Math.abs(x - this.camX) < W * 1.2);
+      if (cx != null) b.face = cx > this.camX ? 1 : -1;
+    }
+    const x = 430 + Math.sin(t * 0.6) * 12;
+    const hopH = Math.abs(Math.sin(b.hop)) * (8 + Math.abs(v) * 30);
+    const jumpH = b.jump > 0 ? Math.sin((1 - b.jump / 0.8) * Math.PI) * 120 : 0;
+    const y = 1000 - hopH - jumpH;
+    const h = 118, w = art.width / art.height * h;
+    g.fillStyle = 'rgba(0,20,30,.35)';
+    g.beginPath(); g.ellipse(x, 1012, w * 0.38 * (1 - (hopH + jumpH) / 300), 10, 0, 0, 6.29); g.fill();
+    g.globalCompositeOperation = 'lighter'; g.globalAlpha = 0.25;
+    g.drawImage(this.tintGlow(GOOPS.find((x2) => x2.id === id)?.color || '#8df28a'), x - w * 0.7, y - h * 0.9, w * 1.4, h * 1.4);
+    g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+    const squash = 1 + Math.sin(b.hop * 2) * 0.04;
+    g.save(); g.translate(x, y); g.scale(b.face * squash, 1 / squash);
+    g.drawImage(game.state.dex[id]?.shiny ? this.shinyArt(id) : art, -w / 2, -h * 0.85, w, h);
+    g.restore();
+    if (b.alert > 0.05) {
+      const by = y - h - 30 + Math.sin(t * 6) * 5;
+      g.globalAlpha = b.alert;
+      g.fillStyle = 'rgba(2,14,20,.85)'; g.strokeStyle = '#fff27a'; g.lineWidth = 3;
+      g.beginPath(); g.arc(x + 30 * b.face, by, 26, 0, 6.29); g.fill(); g.stroke();
+      g.font = '900 34px "Lilita One", system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillStyle = '#fff36b'; g.fillText('!', x + 30 * b.face, by + 1);
+      g.globalAlpha = 1;
+    }
+  }
+
+  cheer() { this.buddy.jump = 0.8; }
 
   // ----- atmosphere -----
 
@@ -1047,7 +1425,7 @@ export class Scene {
     let col = null, wgt = 0;
     for (const sp of SPOTS) {
       const m = DRESSING[sp.id].motes;
-      if (!m) continue;
+      if (!m || (sp.secret && !this.revealed.has(sp.id))) continue;
       const w = clamp(1 - Math.abs(this.camX - SPOT_X[sp.id]) / SPOT_GAP, 0, 1);
       if (w > wgt) { wgt = w; col = m; }
     }
@@ -1228,6 +1606,17 @@ export class Scene {
       if (p >= 1 && this.snap.t > 1.2) this.snap = null;
     }
     this.drawRod(g, rod);
+    if (fight?.warn) {
+      const y = b.y - 110 * this.depthScale, k = 1 + Math.sin(t * 22) * 0.12;
+      g.save(); g.translate(b.x + off, y); g.scale(k * this.depthScale * 1.3, k * this.depthScale * 1.3);
+      g.globalCompositeOperation = 'lighter'; g.globalAlpha = 0.85;
+      g.drawImage(this.tintGlow('#ff5a4a'), -80, -80, 160, 160);
+      g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
+      g.font = '900 58px "Lilita One", system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.lineWidth = 10; g.strokeStyle = '#2a0505'; g.strokeText('!!', 0, 0);
+      g.fillStyle = '#ff6a5a'; g.fillText('!!', 0, 0);
+      g.restore();
+    }
     if (phase === PHASES.BITE) {
       const pop = 1 + Math.sin(t * 12) * 0.08;
       const y = b.y - 120 * this.depthScale;
@@ -1440,7 +1829,7 @@ export class Scene {
     // ambient colour of the nearby shore
     for (const sp of SPOTS) {
       const tint = SPOT_TINT[sp.id];
-      if (!tint) continue;
+      if (!tint || (sp.secret && !this.revealed.has(sp.id))) continue;
       const w = clamp(1 - Math.abs(this.camX - SPOT_X[sp.id]) / SPOT_GAP, 0, 1);
       if (w <= 0) continue;
       g.globalCompositeOperation = 'soft-light'; g.globalAlpha = tint[1] * w * (time === 'Day' ? 0.6 : 1);

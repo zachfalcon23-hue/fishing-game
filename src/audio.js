@@ -72,6 +72,34 @@ export class Sfx {
   bump() { this.tone({ f0: 160, f1: 90, dur: 0.18, type: 'triangle', gain: 0.18 }); }
   coin() { this.tone({ f0: 988, dur: 0.08, type: 'square', gain: 0.08 }); this.tone({ f0: 1319, dur: 0.18, type: 'square', gain: 0.08, delay: 0.07 }); }
   thunder() { this.noiseBurst({ dur: 2.2, f0: 500, f1: 40, gain: 0.8, attack: 0.02 }); }
+  perfect() { [1319, 1760, 2637].forEach((f, i) => this.tone({ f0: f, dur: 0.16, type: 'triangle', gain: 0.14, delay: 0.05 + i * 0.05 })); }
+  dodge() { this.tone({ f0: 520, f1: 1040, dur: 0.18, type: 'triangle', gain: 0.16 }); this.noiseBurst({ dur: 0.2, type: 'bandpass', f0: 2000, f1: 4000, q: 3, gain: 0.08 }); }
+  combo(level = 1.15) { const f = 660 * level; this.tone({ f0: f, dur: 0.1, type: 'sine', gain: 0.12 }); this.tone({ f0: f * 1.5, dur: 0.12, type: 'sine', gain: 0.08, delay: 0.05 }); }
+  warn() { this.tone({ f0: 300, f1: 280, dur: 0.12, type: 'square', gain: 0.09 }); this.tone({ f0: 300, f1: 280, dur: 0.12, type: 'square', gain: 0.09, delay: 0.18 }); }
+  secret() { [392, 494, 587, 784, 988, 1175, 1568].forEach((f, i) => { this.tone({ f0: f, dur: 0.5, type: 'triangle', gain: 0.13, delay: i * 0.08 }); this.tone({ f0: f * 2, dur: 0.4, type: 'sine', gain: 0.04, delay: i * 0.08 + 0.02 }); }); this.noiseBurst({ dur: 1.4, type: 'highpass', f0: 3000, f1: 8000, gain: 0.05, attack: 0.3 }); }
+  fanfare() { [[523, 0], [659, 0.1], [784, 0.2], [1047, 0.34]].forEach(([f, d]) => { this.tone({ f0: f, dur: 0.3, type: 'square', gain: 0.06, delay: d }); this.tone({ f0: f, dur: 0.4, type: 'triangle', gain: 0.12, delay: d }); }); }
+  drip() { const f = 900 + Math.random() * 900; this.tone({ f0: f, f1: f * 1.8, dur: 0.08, type: 'sine', gain: 0.09 }); this.tone({ f0: f * 0.5, f1: f * 0.9, dur: 0.25, type: 'sine', gain: 0.03, delay: 0.09 }); }
+  bird() {
+    const f = 2400 + Math.random() * 1600, n = 2 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < n; i++) this.tone({ f0: f, f1: f * (1.25 + Math.random() * 0.3), dur: 0.07, type: 'sine', gain: 0.035, delay: i * 0.11 });
+  }
+  wave() { this.noiseBurst({ dur: 1.6, type: 'lowpass', f0: 600, f1: 1400, gain: 0.08, attack: 0.6 }); }
+
+  /** Steady roar of the waterfall, louder the closer you are (0..1). */
+  setPlace({ falls = 0 } = {}) {
+    if (!this.ready) return;
+    if (!this.roar) {
+      const src = this.ctx.createBufferSource(); src.buffer = this.noise; src.loop = true;
+      const f = this.ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 900;
+      const g = this.ctx.createGain(); g.gain.value = 0;
+      src.connect(f).connect(g).connect(this.master); src.start();
+      this.roar = g; this.roarLevel = 0;
+    }
+    const level = Math.round(Math.min(1, falls) * 20) / 20;
+    if (level === this.roarLevel) return;
+    this.roarLevel = level;
+    this.roar.gain.setTargetAtTime(level * level * 0.2, this.ctx.currentTime, 0.4);
+  }
 
   /** Looping ambience: crickets at night, rain hiss in bad weather. */
   setAmbience({ night, rain }) {
