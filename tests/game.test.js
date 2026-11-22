@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   GOOPS, SPOTS, UPGRADES, NOTES, NOTE_REWARD, weightedPick, encounterPool, makeFight, tickFight, pullForce,
   FishingGame, SaveStore, PHASES, CASTS_PER_TIME, conditionsMet, conditionText,
-  SPOT_BY, BAITS, SETS, shoreZone, zonePool, makeBounties, bountyMatches, comboFor, LUNGE_WARN, PERFECT_HOOK, isFullMoon,
+  SPOT_BY, BAITS, SETS, RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, tackleMods, shoreZone, zonePool, makeBounties, bountyMatches, comboFor, LUNGE_WARN, PERFECT_HOOK, isFullMoon,
 } from '../src/game.js';
 
 function memStore(initial = null) {
@@ -504,4 +504,133 @@ test('reset wipes progress and the event log stays bounded', () => {
   g.reset();
   assert.equal(g.state.essence, 0);
   assert.equal(g.phase, PHASES.IDLE);
+});
+
+test('rods: dex-gated purchases, equip, and real effects on the fight and the pool', () => {
+  const g = newGame();
+  assert.equal(g.state.equip.rod, 'twig');
+  assert.equal(g.buyTackle('rods', 'bamboo'), false, 'broke');
+  g.state.essence = 5000;
+  assert.equal(g.buyTackle('rods', 'carbon'), false, 'needs a bigger GoopDex');
+  assert.ok(g.buyTackle('rods', 'bamboo'));
+  assert.equal(g.state.equip.rod, 'bamboo');
+  assert.equal(g.state.essence, 5000 - RODS.bamboo.cost);
+  assert.equal(g.buyTackle('rods', 'bamboo'), false, 'already owned');
+  for (const goop of GOOPS.slice(0, 12)) g.state.dex[goop.id] = { count: 1, fastest: null, best: null, shiny: 0 };
+  assert.ok(g.buyTackle('rods', 'carbon'));
+  const f = makeFight(GOOPS[0], {}, { reel: g.mods().reel, zone: g.mods().zone });
+  const base = makeFight(GOOPS[0]);
+  assert.ok(f.reelRate > base.reelRate && f.safeHi < base.safeHi, 'carbon: fast but narrow');
+  assert.ok(g.equipTackle('rods', 'twig'));
+  assert.equal(g.equipTackle('rods', 'abyss'), false, 'not owned');
+  const coral = tackleMods({ rod: 'coral' }, {}, {});
+  const lily = SPOT_BY.lily;
+  const sweet = encounterPool({ spot: lily }).find((x) => x.taste === 'sweet');
+  const w = (pool) => pool.find((x) => x.id === sweet.id).weight;
+  assert.ok(Math.abs(w(encounterPool({ spot: lily, mods: coral })) / w(encounterPool({ spot: lily })) - 1.6) < 1e-9);
+  const storm = tackleMods({ rod: 'storm' }, {}, { weather: 'storm' });
+  assert.ok(storm.force < 1 && storm.essence > 1);
+  assert.equal(tackleMods({ rod: 'storm' }, {}, { weather: 'clear' }).essence, 1);
+  for (const r of Object.values(RODS)) assert.ok(r.name && r.style && r.desc);
+});
+
+test('skins, bobbers and lines are bought once and equipped', () => {
+  const g = newGame();
+  g.state.essence = 10000;
+  for (const [kind, table, slot] of [['skins', SKINS, 'skin'], ['bobbers', BOBBERS, 'bobber'], ['lines', LINES, 'line']]) {
+    const id = Object.keys(table).find((k) => table[k].cost > 0);
+    assert.ok(g.buyTackle(kind, id));
+    assert.equal(g.state.equip[slot], id);
+    assert.equal(g.buyTackle(kind, id), false);
+  }
+  assert.equal(g.buyTackle('hats', 'x'), false);
+});
+
+test('lures level up to 3 and change odds, bites, sizes and shinies', () => {
+  const g = newGame();
+  g.state.essence = 100000;
+  assert.equal(g.lureCost('spinner'), LURES.spinner.cost[0]);
+  for (let i = 0; i < 3; i++) assert.ok(g.buyLure('spinner'));
+  assert.equal(g.state.owned.lures.spinner, 3);
+  assert.equal(g.lureCost('spinner'), null);
+  assert.equal(g.buyLure('spinner'), false, 'maxed');
+  assert.equal(g.mods().bite, LURES.spinner.lv[2]);
+  assert.ok(g.equipLure('none'));
+  assert.equal(g.equipLure('clover'), false, 'not owned');
+  const owned = { lures: { jig: 2, spoon: 1, glowjig: 1, trophy: 3, clover: 1, feather: 1, diver: 1 } };
+  assert.equal(tackleMods({ lure: 'jig' }, owned).pattern.dart, LURES.jig.lv[1]);
+  assert.ok(tackleMods({ lure: 'spoon' }, owned, { time: 'Day' }).rare > 1);
+  assert.equal(tackleMods({ lure: 'spoon' }, owned, { time: 'Night' }).rare, 1);
+  assert.ok(tackleMods({ lure: 'glowjig' }, owned, { time: 'Night' }).rare > 1);
+  assert.ok(tackleMods({ lure: 'trophy' }, owned).sizeExp < 2);
+  assert.ok(tackleMods({ lure: 'clover' }, owned).shiny > 1);
+  assert.ok(tackleMods({ lure: 'feather' }, owned).force < 1);
+  const d = tackleMods({ lure: 'diver' }, owned);
+  assert.ok(d.legend > 1 && d.bite > 1);
+  for (const [id, l] of Object.entries(LURES)) if (id !== 'none') { assert.equal(l.cost.length, 3); assert.equal(l.lv.length, 3); assert.ok(l.fx(l.lv[0]).length); }
+});
+
+test('charms: hourglass, weather totem, frenzy flare and tips cost Essence and work', () => {
+  const g = newGame();
+  assert.equal(g.useCharm('hourglass'), false, 'broke');
+  g.state.essence = 1000;
+  const t = g.state.timeIndex;
+  assert.ok(g.useCharm('hourglass'));
+  assert.equal(g.state.timeIndex, (t + 1) % 4);
+  assert.equal(g.state.essence, 1000 - CHARMS.hourglass.cost);
+  assert.ok(g.useCharm('totem', 'storm'));
+  assert.equal(g.state.weather, 'storm');
+  assert.equal(g.useCharm('totem', 'storm'), false, 'already storming');
+  assert.equal(g.useCharm('totem', 'meteors'), false);
+  g.setShore(1);
+  assert.ok(g.useCharm('flare'));
+  assert.equal(g.state.frenzy, 'lily');
+  const before = GOOPS.filter((x) => g.knows(x.id)).length;
+  assert.ok(g.useCharm('tip'));
+  assert.equal(GOOPS.filter((x) => g.knows(x.id)).length, before + 1);
+  g.cast();
+  assert.equal(g.useCharm('hourglass'), false, 'not mid-cast');
+});
+
+test('fish finder forecasts the pool; buddies train up', () => {
+  const g = newGame();
+  assert.equal(g.buyFinder(), false);
+  g.state.essence = FINDER_COST + 2000;
+  assert.ok(g.buyFinder());
+  assert.equal(g.buyFinder(), false, 'only once');
+  const fc = g.forecast(50);
+  assert.ok(fc.length > 3);
+  assert.ok(Math.abs(fc.reduce((a, x) => a + x.chance, 0) - 1) < 1e-9);
+  assert.ok(fc[0].chance >= fc[fc.length - 1].chance);
+  assert.equal(g.trainBuddy(), false, 'no buddy yet');
+  g.state.dex.gloop = { count: 1, fastest: null, best: null, shiny: 0 };
+  g.setBuddy('gloop');
+  assert.ok(g.trainBuddy());
+  assert.equal(g.state.buddyLv, 1);
+  g.goop = GOOPS[0]; g.phase = PHASES.FIGHT; g.fight = makeFight(GOOPS[0]); g.fight.caught = true;
+  g.update(0);
+  assert.equal(g.lastCatch.reward, Math.round(8 * 1.14));
+  g.state.essence = 100000;
+  while (g.trainBuddy());
+  assert.equal(g.state.buddyLv, BUDDY_TRAIN.length);
+});
+
+test('tackle saves round-trip and junk tackle data is cleaned', () => {
+  const g = newGame();
+  g.state.essence = 5000;
+  g.buyTackle('rods', 'bamboo'); g.buyLure('jig'); g.buyTackle('skins', 'gold');
+  const { store } = memStore(JSON.stringify(g.state));
+  const s = store.load();
+  assert.equal(s.equip.rod, 'bamboo');
+  assert.equal(s.owned.lures.jig, 1);
+  assert.equal(s.equip.skin, 'gold');
+  const bad = memStore(JSON.stringify({ version: 3, owned: { rods: ['abyss', 'fake'], lures: { jig: 9, nope: 2, none: 1 } }, equip: { rod: 'fake', lure: 'nope', skin: 'gold' }, buddyLv: 99, finder: 'yes', tips: ['nope', 'gloop'] })).store.load();
+  assert.deepEqual(bad.owned.rods, ['twig', 'abyss']);
+  assert.deepEqual(bad.owned.lures, { jig: 3 });
+  assert.equal(bad.equip.rod, 'twig');
+  assert.equal(bad.equip.lure, 'none');
+  assert.equal(bad.equip.skin, 'factory', 'skin not owned');
+  assert.equal(bad.buddyLv, BUDDY_TRAIN.length);
+  assert.equal(bad.finder, false);
+  assert.deepEqual(bad.tips, ['gloop']);
 });
