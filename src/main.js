@@ -1,5 +1,8 @@
-import { GOOPS, SPOTS, UPGRADES, NOTES, PHASES, FishingGame, conditionText } from './game.js';
-import { Scene, loadAssets, GOOP_ART, SPOT_X, SPOT_GAP, WORLD_MIN, WORLD_MAX } from './scene.js';
+import {
+  GOOPS, SPOTS, SPOT_BY, UPGRADES, NOTES, PHASES, BAITS, SETS, TASTES, MOON, REROLL_COST, BUDDY_BONUS,
+  FishingGame, conditionText, tasteBait,
+} from './game.js';
+import { Scene, loadAssets, GOOP_ART, SPOT_X, SPOT_GAP, WORLD_MIN, WORLD_MAX, CLUE_X, toShore, fromShore } from './scene.js';
 import { Sfx } from './audio.js';
 
 const $ = (id) => document.getElementById(id);
@@ -10,15 +13,29 @@ const sfx = new Sfx();
 let scene = null;
 
 let reelHeld = false;
+let drag = null;
 let tapLatch = false;
 const pointer = { px: 0, py: 0 };
 const newDex = new Set();
 const keys = { left: false, right: false };
 const held = { left: false, right: false, drag: 0 };
-const walker = { x: SPOT_X[game.state.spot], v: 0, target: null, step: 0 };
+const pressAt = { left: 0, right: 0, keyLeft: 0, keyRight: 0 };
+const walker = { x: fromShore(game.state.shore ?? 0), v: 0, target: null, step: 0 };
 const WALK_SPEED = 950;
+const TAP_MS = 230;
 let dexFilter = 'all';
 const snaps = {};
+const SECRETS = ['sandbar', 'cave', 'wreck'];
+const SPOT_ICON = { sandbar: '🌙', dock: '⚓', lily: '🪷', reeds: '🌾', boulder: '🪨', falls: '💧', cave: '💎', grotto: '🍄', deep: '🌀', wreck: '🛶' };
+const WIGGS = [
+  '“Bait matters, kid. Match what they like to eat and they’ll come running.”',
+  '“Keep the needle in the green and don’t let go. The longer you hold it, the faster they tire.”',
+  '“See a big Goop flash red? Let off the reel. Fighting a lunge head-on never works.”',
+  '“Hook ’em the instant the bobber dips. A clean hook is half the fight.”',
+  '“Full moon every fifth night. The legends get restless.”',
+  '“Feeding frenzies don’t last. When you see the water boil, go!”',
+  '“You don’t have to stand on a spot to fish, you know. Cast anywhere along the shore.”',
+];
 
 // ---------- icons ----------
 
@@ -33,10 +50,11 @@ const ICON = {
   rod: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 21 19 4M19 4v9a3 3 0 0 1-3 3M6 15a2 2 0 1 0 3 3"/></svg>',
   line: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="12" rx="8" ry="4"/><path d="M4 12v4c0 2.2 3.6 4 8 4s8-1.8 8-4v-4M12 8V3"/></svg>',
   lure: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v4"/><ellipse cx="12" cy="11" rx="4" ry="5"/><path d="M12 16v2a3 3 0 1 1-3 3"/></svg>',
+  map: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2V6zM9 4v14M15 6v14"/></svg>',
+  board: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M7 20l2-4M17 20l-2-4M7 8h6M7 12h10"/></svg>',
   soundOn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4zM16 8.5a5 5 0 0 1 0 7M19 5.5a9 9 0 0 1 0 13"/></svg>',
   soundOff: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4zM17 9l5 5M22 9l-5 5"/></svg>',
 };
-const TAG = { rain: 'RAIN', fog: 'FOG', storm: 'STORM', clear: 'CLEAR', Night: 'NIGHT', Dawn: 'DAWN', Day: 'DAY', Dusk: 'DUSK' };
 
 // ---------- DOM helpers ----------
 
@@ -54,12 +72,26 @@ function setHTML(id, value) {
   cache[`h:${id}`] = value;
   $(id).innerHTML = value;
 }
-const spotName = (id) => SPOTS.find((s) => s.id === id)?.name || id;
+const spotName = (id) => SPOT_BY[id]?.name || id;
+const goopName = (id) => GOOPS.find((g) => g.id === id)?.name || id;
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function openDialog(id) { const d = $(id); if (d.open) return; if (d.showModal) d.showModal(); else d.setAttribute('open', ''); sfx.unlock(); }
+function closeDialog(id) { const d = $(id); if (d.close) d.close(); else d.removeAttribute('open'); }
+const anyDialogOpen = () => [...document.querySelectorAll('dialog')].some((d) => d.open);
+
+// Toasts that arrive together are shown one after another.
+const notes = [];
+let noteAt = 0;
+function notify(text, gap = 2600) { notes.push({ text, gap }); }
+function pumpNotes() {
+  const now = performance.now();
+  if (notes.length && now >= noteAt) { const n = notes.shift(); game.message = n.text; noteAt = now + n.gap; }
+}
 
 // ---------- panels ----------
 
 function renderDexTabs() {
-  const tabs = [['all', 'ALL'], ...SPOTS.map((s) => [s.id, game.state.discovered.includes(s.id) ? s.name.replace(/^The /, '').toUpperCase() : '???'])];
+  const tabs = [['all', 'ALL'], ...SPOTS.filter((s) => !s.secret || game.state.discovered.includes(s.id)).map((s) => [s.id, game.state.discovered.includes(s.id) ? s.name.replace(/^The /, '').toUpperCase() : '???'])];
   setHTML('dexTabs', tabs.map(([id, label]) => {
     const p = id === 'all' ? { found: game.dexCount, total: GOOPS.length } : game.spotProgress(id);
     return `<button role="tab" data-tab="${id}" class="${dexFilter === id ? 'on' : ''}" aria-selected="${dexFilter === id}">${label} <i>${p.found}/${p.total}</i></button>`;
@@ -77,16 +109,19 @@ function renderDex() {
     const seen = game.state.seen.includes(g.id);
     const n = GOOPS.indexOf(g) + 1;
     const status = e ? `×${e.count}${e.best ? ` · ${e.best} cm` : ''}` : seen ? 'Seen — not caught' : 'Undiscovered';
+    const buddy = game.state.buddy === g.id ? '<span class="buddy-tag" title="Your buddy">BUDDY</span>' : '';
     return `<button class="dex-entry r-${g.rarity} ${e ? '' : 'locked'} ${seen && !e ? 'seen' : ''} ${newDex.has(g.id) ? 'new' : ''}" data-goop="${g.id}">`
-      + `<span class="num">#${String(n).padStart(2, '0')}</span>${e?.shiny ? '<span class="shiny" title="Shiny caught">✦</span>' : ''}`
+      + `<span class="num">#${String(n).padStart(2, '0')}</span>${e?.shiny ? '<span class="shiny" title="Shiny caught">✦</span>' : ''}${buddy}`
       + `<img src="${GOOP_ART(g.id)}" alt="" loading="lazy" draggable="false" class="${e?.shiny ? 'is-shiny' : ''}">`
       + `<b>${e || seen ? g.name : '???'}</b><small>${g.rarity.toUpperCase()}</small><span class="count">${status}</span></button>`;
   }).join('');
 }
 
+let detailId = null;
 function openDexDetail(id) {
   const g = GOOPS.find((x) => x.id === id);
   if (!g) return;
+  detailId = id;
   const e = game.state.dex[id];
   const seen = game.state.seen.includes(id);
   const knows = game.knows(id);
@@ -97,16 +132,22 @@ function openDexDetail(id) {
   $('ddRarity').textContent = `#${String(GOOPS.indexOf(g) + 1).padStart(2, '0')} · ${g.rarity.toUpperCase()}`;
   $('ddName').textContent = e || seen ? g.name : '???';
   $('ddWhere').textContent = knows ? conditionText(g) : seen ? `Lives at ${g.spots.map(spotName).join(' & ')}` : 'Habitat unknown — keep exploring and look for field notes.';
+  const bait = BAITS[tasteBait(g.taste)];
   $('ddStats').innerHTML = e
     ? `<div><span>CAUGHT</span><b>${e.count}</b></div><div><span>BIGGEST</span><b>${e.best ?? '—'} cm</b></div><div><span>FASTEST</span><b>${e.fastest != null ? `${e.fastest.toFixed(1)}s` : '—'}</b></div><div><span>SHINY</span><b>${e.shiny ? `✦ ${e.shiny}` : '—'}</b></div>`
     : `<div><span>SIZE RANGE</span><b>${knows ? `${g.size[0]}–${g.size[1]} cm` : '???'}</b></div><div><span>FIGHT</span><b>${seen ? g.pattern[0].toUpperCase() + g.pattern.slice(1) : '???'}</b></div>`;
+  $('ddBait').innerHTML = e || knows ? `Favourite food: <b>${TASTES[g.taste]}</b> — try ${bait.icon} <b>${bait.name}</b>` : '';
   $('ddHint').textContent = e || seen ? g.hint : '';
-  if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
+  const btn = $('ddBuddy');
+  btn.hidden = !e;
+  btn.textContent = game.state.buddy === id ? '✓ YOUR BUDDY' : 'MAKE BUDDY';
+  btn.classList.toggle('on', game.state.buddy === id);
+  openDialog('dexDetail');
 }
 
 function renderSpots() {
   const s = game.state;
-  $('spotList').innerHTML = SPOTS.map((sp) => {
+  $('spotList').innerHTML = SPOTS.filter((sp) => !sp.secret || s.discovered.includes(sp.id)).map((sp) => {
     const open = game.spotUnlocked(sp.id);
     const found = s.discovered.includes(sp.id);
     const here = game.here && s.spot === sp.id;
@@ -115,7 +156,8 @@ function renderSpots() {
     const bg = snaps[sp.id] ? `style="background-image:url(${snaps[sp.id]})"` : '';
     const sub = !open ? `GoopDex ${game.dexCount}/${sp.unlockAt} to clear the path` : !found ? 'Not yet visited' : `${p.found}/${p.total} Goops${done ? ' · ✓ complete' : ''} · Essence ×${sp.essenceMul}`;
     const btn = here ? '<button class="here" disabled>HERE</button>' : open ? `<button class="go" data-walk="${sp.id}" ${game.busy ? 'disabled' : ''}>WALK</button>` : '<button disabled>🔒</button>';
-    return `<div class="spot ${here ? 'current' : ''} ${open ? '' : 'locked'} ${done ? 'done' : ''}" ${bg}><div><b>${open || found ? sp.name : '???'}</b><small>${sub}</small>`
+    const tags = `${s.frenzy === sp.id ? '<em class="tag frenzy">✦ FRENZY</em>' : ''}${s.visitor?.spot === sp.id ? '<em class="tag visitor">VISITOR</em>' : ''}${sp.secret ? '<em class="tag secret">SECRET</em>' : ''}`;
+    return `<div class="spot ${here ? 'current' : ''} ${open ? '' : 'locked'} ${done ? 'done' : ''}" ${bg}><div><b>${open || found ? sp.name : '???'} ${tags}</b><small>${sub}</small>`
       + `<div class="spot-bar"><i style="width:${(p.found / p.total) * 100}%"></i></div></div>${btn}</div>`;
   }).join('');
 }
@@ -129,6 +171,17 @@ function renderNotes() {
     : '<p class="muted">Glowing bottles wash up along the shore. Tap one to read it — each reveals where a rare Goop hides.</p>';
 }
 
+function baitRows() {
+  const s = game.state;
+  return Object.entries(BAITS).map(([k, b]) => {
+    const n = k === 'worm' ? '∞' : s.baits[k] || 0;
+    const on = s.bait === k;
+    const use = on ? '<button class="on" disabled>IN USE</button>' : `<button class="use" data-bait="${k}" ${k !== 'worm' && !s.baits[k] ? 'disabled' : ''}>USE</button>`;
+    const buy = b.cost ? `<button data-buybait="${k}" ${s.essence < b.cost ? 'disabled' : ''} title="Buy ${b.pack}">+${b.pack} · ${b.cost}</button>` : '';
+    return `<div class="option bait-row ${on ? 'equipped' : ''}"><span class="ico emoji">${b.icon}</span><div class="txt"><b>${b.name} <i class="own">×${n}</i></b><small>${b.desc}</small></div><div class="btns">${use}${buy}</div></div>`;
+  }).join('');
+}
+
 function renderShop() {
   const s = game.state;
   $('shopList').innerHTML = Object.entries(UPGRADES).map(([kind, u]) => {
@@ -138,20 +191,105 @@ function renderShop() {
     const btn = cost == null ? '<button disabled>MAX</button>' : `<button data-buy="${kind}" ${s.essence < cost ? 'disabled' : ''}>${cost}</button>`;
     return `<div class="option"><span class="ico">${ICON[kind]}</span><div class="txt"><b>${u.name} · Lv ${level}/${u.cost.length}</b><small>${u.desc}</small><div class="pips">${pips}</div></div>${btn}</div>`;
   }).join('');
+  $('baitShop').innerHTML = baitRows();
+  if ($('baitDlg').open) $('baitList').innerHTML = baitRows();
+  const b = BAITS[s.bait];
+  setHTML('baitBtn', `<span class="emoji">${b.icon}</span><i>${s.bait === 'worm' ? '∞' : s.baits[s.bait] || 0}</i>`);
+  $('baitBtn').title = `Bait: ${b.name}`;
+  const buddy = s.buddy ? GOOPS.find((g) => g.id === s.buddy) : null;
+  setHTML('buddyLine', buddy
+    ? `<img src="${GOOP_ART(buddy.id)}" alt=""><span><b>${buddy.name}</b> is your buddy · +${Math.round(BUDDY_BONUS * 100)}% Essence. It spots secrets nearby.</span>`
+    : '<span>No buddy yet. Open any Goop you’ve caught in the GoopDex and tap <b>MAKE BUDDY</b>.</span>');
+}
+
+function bountyHTML() {
+  const s = game.state;
+  return s.bounties.map((b) => {
+    const pct = Math.round((b.have / b.need) * 100);
+    const bait = b.bait ? ` + ${BAITS[b.bait].icon}×${b.baitN}` : '';
+    return `<div class="bounty ${b.done ? 'done' : ''}"><div class="b-text"><b>${esc(b.text)}</b><small>${b.done ? '✓ Paid out' : `${b.have} / ${b.need}`}</small><div class="spot-bar wide"><i style="width:${pct}%"></i></div></div><div class="b-reward">+${b.essence}<small>ESSENCE${bait}</small></div></div>`;
+  }).join('') || '<p class="muted">No bounties posted.</p>';
+}
+
+function renderBounties() {
+  const html = bountyHTML();
+  setHTML('bountyList', html);
+  if ($('bountyDlg').open) setHTML('bountyDlgList', html);
+  const done = game.state.bounties.filter((b) => b.done).length;
+  setText('bountyCount', `${done} / ${game.state.bounties.length}`);
+  setHTML('boardBtn', `${ICON.board}<i>${done}/${game.state.bounties.length}</i>`);
+  const canReroll = game.state.essence >= REROLL_COST && game.state.bounties.some((b) => !b.done);
+  for (const id of ['rerollBtn', 'rerollBtn2']) { $(id).disabled = !canReroll; $(id).textContent = `NEW BOUNTIES · ${REROLL_COST}`; }
+}
+
+function renderSets() {
+  const s = game.state;
+  setText('setCount', `${s.sets.length} / ${SETS.length}`);
+  $('setList').innerHTML = SETS.map((set) => {
+    const done = s.sets.includes(set.id);
+    const have = set.goops.filter((id) => s.dex[id]).length;
+    const faces = set.goops.map((id) => {
+      const e = s.dex[id];
+      const seen = s.seen.includes(id);
+      return `<img src="${GOOP_ART(id)}" alt="${e || seen ? esc(goopName(id)) : '???'}" title="${e || seen ? esc(goopName(id)) : '???'}" class="${e ? '' : 'locked'}" loading="lazy">`;
+    }).join('');
+    return `<div class="set ${done ? 'done' : ''}"><div class="set-head"><span class="trophy">${done ? '🏆' : set.icon}</span><b>${set.name}</b><small>${done ? 'COMPLETE' : `${have}/${set.goops.length} · +${set.reward}`}</small></div><div class="faces">${faces}</div></div>`;
+  }).join('');
+}
+
+/** The pond map: spots around the shore, with fog over what you have not found. */
+function renderMap() {
+  const s = game.state;
+  const cx = 500, cy = 200, rx = 420, ry = 150;
+  const at = (pos) => {
+    const u = (pos + 1) / 9;
+    const a = (1 - u) * (Math.PI + 0.32) + u * -0.32;
+    return [cx + rx * Math.cos(a), cy - ry * Math.sin(a)];
+  };
+  const rumor = game.rumor();
+  const pins = SPOTS.map((sp) => {
+    const [x, y] = at(sp.pos);
+    const found = s.discovered.includes(sp.id);
+    const open = game.spotUnlocked(sp.id);
+    if (sp.secret && !found && rumor?.spot !== sp.id) return '';
+    const cls = ['pin', open ? 'open' : 'locked', found ? 'found' : 'fog', game.here && s.spot === sp.id ? 'here' : '', s.completed.includes(sp.id) ? 'done' : '', sp.secret ? 'secret' : ''].join(' ');
+    const label = found ? sp.name.replace(/^The /, '') : open ? 'Unexplored' : sp.secret ? '???' : `🔒 ${sp.unlockAt}`;
+    const p = game.spotProgress(sp.id);
+    const badge = `${s.frenzy === sp.id ? '<text class="bdg" dx="22" dy="-20">✦</text>' : ''}${s.visitor?.spot === sp.id ? '<text class="bdg v" dx="-30" dy="-20">👁</text>' : ''}`;
+    return `<g class="${cls}" ${open ? `data-walk="${sp.id}"` : ''} transform="translate(${x.toFixed(1)} ${y.toFixed(1)})" role="button" aria-label="${esc(label)}">`
+      + `<circle r="26"/><text class="ico" dy="8">${found ? SPOT_ICON[sp.id] : open ? '•' : sp.secret ? '?' : '🔒'}</text>${badge}`
+      + `<text class="lbl" dy="48">${esc(label)}</text>${found ? `<text class="sub" dy="64">${p.found}/${p.total}</text>` : ''}</g>`;
+  }).join('');
+  const [mx, my] = at(Math.max(-1, Math.min(8, toShore(walker.x))));
+  const fog = SPOTS.filter((sp) => !s.discovered.includes(sp.id)).map((sp) => { const [x, y] = at(sp.pos); return `<circle class="fogc" cx="${x}" cy="${y}" r="70"/>`; }).join('');
+  $('mapSvg').innerHTML = `<defs><radialGradient id="pondg" cx="50%" cy="45%"><stop offset="0" stop-color="#1b6a86"/><stop offset=".7" stop-color="#0c3a52"/><stop offset="1" stop-color="#082636"/></radialGradient>`
+    + `<filter id="fogblur"><feGaussianBlur stdDeviation="14"/></filter></defs>`
+    + `<ellipse cx="${cx}" cy="${cy}" rx="${rx + 46}" ry="${ry + 46}" fill="#16361f" stroke="#2f6b34" stroke-width="3"/>`
+    + `<ellipse cx="${cx}" cy="${cy}" rx="${rx - 34}" ry="${ry - 34}" fill="url(#pondg)" stroke="#8df28a" stroke-opacity=".35" stroke-width="2"/>`
+    + `<path d="M${at(-1).join(' ')} ${Array.from({ length: 37 }, (_, i) => at(-1 + i / 4).join(' ')).map((p) => `L${p}`).join(' ')}" fill="none" stroke="#e8d9a8" stroke-opacity=".5" stroke-width="4" stroke-dasharray="2 10" stroke-linecap="round"/>`
+    + `<g filter="url(#fogblur)">${fog}</g>${pins}`
+    + `<g class="me" transform="translate(${mx.toFixed(1)} ${(my - 40).toFixed(1)})"><path d="M-9 -14h18l-9 14z"/></g>`;
+  const v = s.visitor;
+  const parts = [`Day ${s.day} · ${game.timeOfDay} · ${game.weather.label}`, `${MOON[game.moon]}${game.fullMoon ? ' — legends stir tonight!' : ''}`];
+  if (s.frenzy) parts.push(`✦ Feeding frenzy at ${spotName(s.frenzy)}`);
+  if (v) parts.push(`👁 ${s.seen.includes(v.goop) ? goopName(v.goop) : 'A rare Goop'} is visiting ${spotName(v.spot)} today`);
+  setHTML('mapNews', parts.map((p) => `<span>${esc(p)}</span>`).join(''));
+  setHTML('mapRumor', rumor ? `<b>Old Wiggs:</b> ${esc(rumor.text)}` : s.discovered.filter((id) => SECRETS.includes(id)).length === 3 ? '<b>Old Wiggs:</b> “You’ve found every secret on this pond. I’m impressed.”' : '<b>Old Wiggs:</b> “Fill that GoopDex and the path will open up. Then come ask me again.”');
 }
 
 function renderMinimap() {
   const s = game.state;
   const span = WORLD_MAX - WORLD_MIN;
   const pct = (x) => `${((x - WORLD_MIN) / span) * 92 + 4}%`;
-  const pins = SPOTS.map((sp) => {
+  const pins = SPOTS.filter((sp) => !sp.secret || s.discovered.includes(sp.id)).map((sp) => {
     const open = game.spotUnlocked(sp.id);
     const p = game.spotProgress(sp.id);
-    const cls = [open ? 'open' : 'locked', s.spot === sp.id && game.here ? 'here' : '', s.completed.includes(sp.id) ? 'done' : ''].join(' ');
+    const cls = [open ? 'open' : 'locked', s.spot === sp.id && game.here ? 'here' : '', s.completed.includes(sp.id) ? 'done' : '', s.frenzy === sp.id ? 'frenzy' : '', sp.secret ? 'secret' : ''].join(' ');
     const label = open || s.discovered.includes(sp.id) ? sp.name.replace(/^The /, '') : '???';
     return `<button class="mm-pin ${cls}" style="left:${pct(SPOT_X[sp.id])}" data-walk="${sp.id}" title="${label}${open ? ` · ${p.found}/${p.total}` : ` · needs GoopDex ${sp.unlockAt}`}" aria-label="${label}"><i>${open ? '' : '🔒'}</i><span>${label}</span></button>`;
   }).join('');
-  setHTML('minimap', `<div class="mm-track"></div>${pins}<span class="mm-me" id="mmMe"></span>`);
+  const clues = SECRETS.filter((id) => game.secretVisible(id)).map((id) => `<span class="mm-clue" style="left:${pct(CLUE_X[id])}" title="Something is out there…">?</span>`).join('');
+  setHTML('minimap', `<div class="mm-track"></div>${pins}${clues}<span class="mm-me" id="mmMe"></span>`);
   const me = $('mmMe');
   if (me) me.style.left = pct(walker.x);
 }
@@ -159,10 +297,12 @@ function renderMinimap() {
 let lastLists = '';
 function renderLists(force) {
   const s = game.state;
-  const sig = JSON.stringify([s.essence, s.spot, game.here, s.discovered, s.gear, game.dexCount, s.stats.caught, s.notes.length, s.completed, game.busy, dexFilter, Object.keys(snaps).length, s.seen.length]);
+  const sig = JSON.stringify([s.essence, s.spot, game.here, s.discovered, s.gear, game.dexCount, s.stats.caught, s.notes.length, s.completed, game.busy, dexFilter,
+    Object.keys(snaps).length, s.seen.length, s.bait, s.baits, s.buddy, s.sets, s.bounties.map((b) => b.have + b.id), s.frenzy, s.visitor, s.timeIndex, s.weather, SECRETS.map((id) => game.secretVisible(id))]);
   if (!force && sig === lastLists) return;
   lastLists = sig;
-  renderDex(); renderSpots(); renderShop(); renderNotes(); renderMinimap();
+  renderDex(); renderSpots(); renderShop(); renderNotes(); renderMinimap(); renderBounties(); renderSets();
+  if ($('mapDlg').open) renderMap();
 }
 
 function renderFight() {
@@ -174,6 +314,7 @@ function renderFight() {
   const pct = (v) => Math.round(Math.max(0, Math.min(1, v)) * 100);
   hud.classList.toggle('in-zone', fight.tension >= fight.safeLo && fight.tension <= fight.safeHi);
   hud.classList.toggle('danger', fight.tension > 0.88 || fight.tension < 0.15);
+  hud.classList.toggle('warn', !!fight.warn);
   $('tensionBar').style.width = `${fight.tension * 100}%`;
   $('needle').style.left = `${fight.tension * 100}%`;
   $('safeZone').style.left = `${fight.safeLo * 100}%`;
@@ -183,6 +324,11 @@ function renderFight() {
   setText('tensionText', `${pct(fight.tension)}%`);
   setText('progressText', `${pct(fight.progress)}%`);
   setText('staminaText', `${pct(fight.stamina / game.goop.stamina)}%`);
+  setText('tensionLbl', fight.warn ? 'EASE OFF!' : 'TENSION');
+  const c = fight.combo || 1;
+  const combo = $('combo');
+  combo.classList.toggle('show', c > 1);
+  setText('combo', c > 1 ? `STREAK ×${c.toFixed(2).replace(/0$/, '')}` : '');
 }
 
 let shownEssence = null;
@@ -197,14 +343,14 @@ function renderEssence(dt) {
 }
 
 let lastMessage = '';
-function toast(text) { game.message = text; }
 function render(dt) {
   const p = game.phase;
   const walking = Math.abs(walker.v) > 30;
-  setText('phaseTag', walking ? 'WALKING' : !game.here ? 'EXPLORING' : PHASE_TAG[p]);
-  $('phaseTag').className = `chip phase ${walking || !game.here ? '' : PHASE_CLASS[p] || ''}`;
+  setText('phaseTag', walking ? 'WALKING' : PHASE_TAG[p]);
+  $('phaseTag').className = `chip phase ${walking ? '' : PHASE_CLASS[p] || ''}`;
   const w = game.state.weather;
   setHTML('weatherTag', `${ICON[game.timeOfDay]}${ICON[w] || ''}<span>${game.weather.label} · ${game.timeOfDay}</span>`);
+  pumpNotes();
   if (game.message !== lastMessage) {
     lastMessage = game.message;
     setText('message', game.message);
@@ -215,23 +361,37 @@ function render(dt) {
   setText('day', game.state.day);
   setText('today', game.state.caughtToday);
   setText('total', game.state.stats.caught);
-  const near = nearestSpot();
-  const dest = walker.target != null ? SPOTS.find((sp) => SPOT_X[sp.id] === walker.target) : null;
-  setText('spotLabel', (game.here ? game.spot.name : `${walker.v < 0 ? '◀ ' : ''}${(dest || near).name}${walker.v > 0 ? ' ▶' : ''}`).toUpperCase());
-  const prog = game.spotProgress(game.here ? game.spot.id : near.id);
+  const z = game.zone();
+  const near = z.spot;
+  const arrow = walker.v < -30 ? '◀ ' : '';
+  const arrowR = walker.v > 30 ? ' ▶' : '';
+  const label = game.here ? game.spot.name : z.between ? `Shore · ${z.between[0].name.replace(/^The /, '')} ↔ ${z.between[1].name.replace(/^The /, '')}` : `Shore near ${near.name.replace(/^The /, '')}`;
+  setText('spotLabel', `${arrow}${label}${arrowR}`.toUpperCase());
+  const prog = game.spotProgress(near.id);
   setText('spotProg', `${prog.found}/${prog.total}`);
-  $('castBtn').disabled = game.busy || !game.here || walking;
+  // event chip: frenzy nearby / full moon / visitor
+  const s = game.state;
+  const evs = [];
+  if (s.frenzy && z.mix.some(([sp, k]) => sp.id === s.frenzy && k >= 0.5)) evs.push('<span class="ev frenzy">✦ FRENZY HERE</span>');
+  else if (s.frenzy) evs.push(`<span class="ev">✦ FRENZY · ${spotName(s.frenzy).replace(/^The /, '').toUpperCase()}</span>`);
+  if (game.fullMoon && game.timeOfDay === 'Night') evs.push('<span class="ev moon">🌕 FULL MOON</span>');
+  setHTML('eventTag', evs.join(''));
+  $('castBtn').disabled = game.busy || walking;
+  setHTML('castBtn', game.here ? 'CAST LINE <kbd>C</kbd>' : 'CAST HERE <kbd>C</kbd>');
   const free = !game.busy;
   $('leftBtn').disabled = !free; $('rightBtn').disabled = !free;
-  $('walkHint').classList.toggle('show', free && game.here && game.state.discovered.length < 3 && !walking);
+  $('walkHint').classList.toggle('show', free && !walking && game.state.stats.caught < 3 && game.state.discovered.length < 3 && p === PHASES.IDLE);
   const reel = $('reelBtn');
   reel.classList.toggle('active', reelHeld);
   reel.classList.toggle('ready', p === PHASES.BITE && !reelHeld);
   reel.setAttribute('aria-pressed', String(reelHeld));
   if (p !== PHASES.CAUGHT) $('catchCard').hidden = true;
   sceneEl.classList.toggle('caught', p === PHASES.CAUGHT);
+  sceneEl.classList.toggle('fighting', game.busy);
   const me = $('mmMe');
   if (me) me.style.left = `${((walker.x - WORLD_MIN) / (WORLD_MAX - WORLD_MIN)) * 92 + 4}%`;
+  if (scene) scene.boardAlert = boardUnseen();
+  $('boardBtn').classList.toggle('alert', boardUnseen());
   renderFight();
   renderLists(false);
 }
@@ -246,6 +406,10 @@ function showCatchCard(c) {
   $('ccReward').textContent = `+${c.reward} Essence`;
   $('ccSize').textContent = `${c.size} cm${c.record ? ' · RECORD!' : ''}`;
   $('ccTime').textContent = `${c.time.toFixed(1)}s`;
+  const extras = [];
+  if (c.perfect) extras.push('PERFECT HOOK');
+  if (c.combo > 1) extras.push(`BEST STREAK ×${c.combo.toFixed(2).replace(/0$/, '')}`);
+  $('ccExtra').textContent = extras.join(' · ');
   const badge = $('ccNew');
   badge.hidden = !(c.firstTime || c.record || c.shiny);
   badge.textContent = c.firstTime ? 'NEW!' : c.shiny ? 'SHINY!' : 'RECORD!';
@@ -255,107 +419,131 @@ function showCatchCard(c) {
   card.style.animation = 'none'; void card.offsetWidth; card.style.animation = '';
 }
 
+// ---------- bounty board "seen" marker ----------
+
+function boardUnseen() {
+  try { return localStorage.getItem('goop-board-seen') !== `${game.state.bountyDay}`; } catch { return false; }
+}
+function markBoardSeen() { try { localStorage.setItem('goop-board-seen', `${game.state.bountyDay}`); } catch { /* ignore */ } }
+
 // ---------- events ----------
 
 let pendingCatch = null;
 function handleEvents() {
   for (const e of game.events.splice(0)) {
     scene?.onEvent(e, game);
+    const d = e.detail;
     switch (e.type) {
       case 'cast': sfx.cast(); break;
       case 'bite': sfx.bite(); navigator.vibrate?.(60); break;
-      case 'hooked': sfx.hook(); navigator.vibrate?.(30); lastLists = ''; break;
+      case 'hooked': sfx.hook(); if (d.perfect) sfx.perfect(); navigator.vibrate?.(30); lastLists = ''; break;
+      case 'lunge': sfx.snap(); navigator.vibrate?.([60, 30, 60]); break;
+      case 'dodge': sfx.dodge(); break;
+      case 'combo': sfx.combo(d.combo); break;
       case 'catch':
-        if (e.detail.firstTime) newDex.add(e.detail.goop);
-        lastLists = ''; pendingCatch = e.detail; sfx.splash(true);
+        if (d.firstTime) newDex.add(d.goop);
+        lastLists = ''; pendingCatch = d; sfx.splash(true); scene?.cheer();
         break;
       case 'escaped': sfx.snap(); navigator.vibrate?.([40, 40, 80]); break;
       case 'missedBite': sfx.splash(); break;
-      case 'upgrade': sfx.coin(); lastLists = ''; break;
+      case 'upgrade': case 'buyBait': sfx.coin(); lastLists = ''; bumpWallet(); break;
+      case 'bait': sfx.note(); lastLists = ''; break;
+      case 'baitOut': notify(`Out of ${BAITS[d.bait].name} — back to worms. Restock in the bait box.`, 3000); lastLists = ''; break;
+      case 'buddy': sfx.discover(); lastLists = ''; break;
       case 'discover':
         sfx.discover(); lastLists = '';
-        setTimeout(() => { if (scene && game.here && game.state.spot === e.detail.spot) { snaps[e.detail.spot] = scene.snapshot(360); lastLists = ''; } }, 1600);
+        setTimeout(() => { if (scene && game.here && game.state.spot === d.spot) { snaps[d.spot] = scene.snapshot(360); lastLists = ''; } }, 1600);
         break;
-      case 'travel': lastLists = ''; if (!snaps[e.detail.spot]) setTimeout(() => { if (scene && game.here) { snaps[game.state.spot] = scene.snapshot(360); lastLists = ''; } }, 1600); break;
-      case 'unlock': setTimeout(() => { toast(`The path to ${spotName(e.detail.spot)} is clear! Walk on to explore.`); sfx.discover(); }, 2600); lastLists = ''; break;
-      case 'spotComplete': setTimeout(() => { toast(`${spotName(e.detail.spot)} complete! +${e.detail.bonus} Essence bonus`); sfx.coin(); }, 3200); break;
+      case 'secret': sfx.secret(); lastLists = ''; walker.target = SPOT_X[d.spot]; navigator.vibrate?.([30, 50, 30, 50, 90]); break;
+      case 'travel': lastLists = ''; if (!snaps[d.spot]) setTimeout(() => { if (scene && game.here) { snaps[game.state.spot] = scene.snapshot(360); lastLists = ''; } }, 1600); break;
+      case 'unlock': setTimeout(() => { notify(`The path to ${spotName(d.spot)} is clear! Walk on to explore.`, 3200); sfx.discover(); }, 2400); lastLists = ''; break;
+      case 'spotComplete': setTimeout(() => { notify(`${spotName(d.spot)} complete! +${d.bonus} Essence bonus`); sfx.coin(); }, 3000); break;
+      case 'set': setTimeout(() => { notify(`🏆 Collection complete: ${SETS.find((x) => x.id === d.set).name}! +${d.reward} Essence`, 3400); sfx.fanfare(); }, 3200); lastLists = ''; break;
+      case 'bounty': setTimeout(() => { notify(`📜 Bounty done: ${d.text}! +${d.essence}${d.bait ? ` and ${BAITS[d.bait].icon}×${d.baitN}` : ''}`, 3400); sfx.fanfare(); }, 2600); lastLists = ''; break;
+      case 'newDay':
+        if (d.day > 1) notify(`☀️ Day ${d.day}: new bounties on the board${d.fullMoon ? ' · full moon tonight!' : ''}`, 3200);
+        lastLists = '';
+        break;
+      case 'frenzy': if (game.state.stats.caught > 0) notify(`✦ Feeding frenzy at ${spotName(d.spot)}! Fast bites, bonus Essence.`, 3000); lastLists = ''; break;
       case 'note': sfx.note(); lastLists = ''; break;
+      case 'reroll': sfx.coin(); lastLists = ''; bumpWallet(); break;
       case 'reset': newDex.clear(); lastLists = ''; shownEssence = null; walker.x = SPOT_X.dock; walker.target = null; break;
       default: break;
     }
   }
 }
+function bumpWallet() { const w = document.querySelector('.wallet'); w.classList.remove('bump'); void w.offsetWidth; w.classList.add('bump'); }
 
 // ---------- walking ----------
 
-function nearestSpot() {
-  let best = SPOTS[0], dist = Infinity;
-  for (const s of SPOTS) { const d = Math.abs(SPOT_X[s.id] - walker.x); if (d < dist) { dist = d; best = s; } }
-  return best;
+/** First spot on the path you cannot reach yet (secret spots are off the path). */
+const nextLocked = () => SPOTS.find((s) => !s.secret && !game.spotUnlocked(s.id));
+function gateX() { const n = nextLocked(); return n ? SPOT_X[n.id] - SPOT_GAP * 0.5 : null; }
+
+/** How far you can walk each way right now. */
+function bounds() {
+  const gate = gateX();
+  const west = game.spotUnlocked('sandbar') ? SPOT_X.sandbar - 260 : CLUE_X.sandbar - 40;
+  let east = game.spotUnlocked('wreck') ? SPOT_X.wreck + 260 : CLUE_X.wreck + 40;
+  if (gate != null) east = Math.min(east, gate - 300);
+  return { west, east, gated: gate != null && east === gate - 300 };
 }
 
-function gateX() {
-  const next = SPOTS.find((s) => !game.spotUnlocked(s.id));
-  return next ? SPOT_X[next.id] - SPOT_GAP * 0.5 : null;
+/** Next place of interest in a direction: open spots and any visible secret clue. */
+function nextStop(dir) {
+  const pts = SPOTS.filter((s) => game.spotUnlocked(s.id)).map((s) => SPOT_X[s.id]);
+  for (const id of SECRETS) if (game.secretVisible(id)) pts.push(CLUE_X[id]);
+  const b = bounds();
+  pts.push(b.west, b.east);
+  const ahead = pts.filter((x) => (dir > 0 ? x > walker.x + 60 : x < walker.x - 60)).sort((a, c) => (a - c) * dir);
+  return ahead.length ? ahead[0] : null;
 }
 
-let gateWarned = 0;
-function warnGate() {
-  if (performance.now() - gateWarned < 3000) return;
-  gateWarned = performance.now();
-  const next = SPOTS.find((s) => !game.spotUnlocked(s.id));
-  if (!next) return;
-  toast(`🔒 Path to ${next.name} is overgrown — catch ${next.unlockAt - game.dexCount} more new Goop${next.unlockAt - game.dexCount === 1 ? '' : 's'} to clear it.`);
+let edgeWarned = 0;
+function warnEdge(side) {
+  if (performance.now() - edgeWarned < 3200) return;
+  edgeWarned = performance.now();
+  if (side > 0 && bounds().gated) {
+    const n = nextLocked();
+    const left = n.unlockAt - game.dexCount;
+    notify(`🔒 Path to ${n.name} is overgrown — catch ${left} more new Goop${left === 1 ? '' : 's'} to clear it.`, 2800);
+  } else if (side < 0) {
+    notify(game.spotUnlocked('sandbar') ? 'Only open water past the sandbar.' : 'The water’s too deep to wade any further west… for now.', 2800);
+  } else {
+    notify(game.spotUnlocked('wreck') ? 'Nothing but deep water past the wreck.' : 'Only dark, deep water past here… for now.', 2800);
+  }
   sfx.bump();
 }
+
 function updateWalk(dt) {
-  const gate = gateX();
-  const maxX = gate != null ? gate - 300 : WORLD_MAX;
+  const b = bounds();
   let dir = (keys.right || held.right ? 1 : 0) - (keys.left || held.left ? 1 : 0) + held.drag;
   dir = Math.max(-1, Math.min(1, dir));
-  const free = !game.busy && !$('dexDetail').open;
-  if (!free) dir = 0;
+  const free = !game.busy && !anyDialogOpen();
+  if (!free) { dir = 0; if (game.busy) { walker.v = 0; walker.target = null; } }
   if (dir) {
     walker.target = null;
     walker.v += (dir * WALK_SPEED - walker.v) * Math.min(1, dt * 6);
+  } else if (walker.target != null) {
+    const want = Math.max(-WALK_SPEED, Math.min(WALK_SPEED, (walker.target - walker.x) * 3.2));
+    walker.v += (want - walker.v) * Math.min(1, dt * 7);
+    if (Math.abs(walker.target - walker.x) < 4 && Math.abs(walker.v) < 30) { walker.x = walker.target; walker.v = 0; walker.target = null; }
   } else {
-    if (walker.target == null) {
-      // Let go while moving: carry on to the next spot in that direction (a tap is enough to travel).
-      const sign = Math.sign(walker.v);
-      if (Math.abs(walker.v) > 60) {
-        const ahead = SPOTS.find((sp) => sign > 0 ? SPOT_X[sp.id] > walker.x + 5 : false)
-          || [...SPOTS].reverse().find((sp) => sign < 0 && SPOT_X[sp.id] < walker.x - 5);
-        if (ahead && game.spotUnlocked(ahead.id)) walker.target = SPOT_X[ahead.id];
-        else {
-          walker.target = SPOT_X[nearestSpot().id];
-          if (ahead) warnGate();
-        }
-      } else walker.target = SPOT_X[nearestSpot().id];
+    // coast to a stop wherever you let go; drift onto a spot if you stop right next to one
+    walker.v *= Math.exp(-dt * 6);
+    if (Math.abs(walker.v) < 140) {
+      const spot = SPOTS.filter((s) => game.spotUnlocked(s.id)).find((s) => Math.abs(SPOT_X[s.id] - walker.x) < 230 && Math.abs(SPOT_X[s.id] - walker.x) > 2);
+      if (spot) walker.target = SPOT_X[spot.id];
+      else if (Math.abs(walker.v) < 8) walker.v = 0;
     }
-    if (walker.target != null) {
-      const want = Math.max(-WALK_SPEED, Math.min(WALK_SPEED, (walker.target - walker.x) * 3.2));
-      walker.v += (want - walker.v) * Math.min(1, dt * 7);
-    } else walker.v *= Math.exp(-dt * 6);
   }
   walker.x += walker.v * dt;
-  if (walker.x > maxX) {
-    walker.x = maxX; walker.v = 0; walker.target = SPOT_X[nearestSpot().id];
-    warnGate();
-  }
-  if (walker.x < WORLD_MIN) { walker.x = WORLD_MIN; walker.v = Math.max(0, walker.v); }
-  // arrive / leave
-  const near = nearestSpot();
-  const atSpot = Math.abs(walker.x - SPOT_X[near.id]) < 10 && Math.abs(walker.v) < 25;
-  if (atSpot && !(game.here && game.state.spot === near.id) && !game.busy) {
-    walker.x = SPOT_X[near.id]; walker.v = 0; walker.target = null;
-    const gateMsg = performance.now() - gateWarned < 2500 ? game.message : null;
-    game.travel(near.id);
-    if (gateMsg && !game.events.some((e) => e.type === 'discover')) game.message = gateMsg;
-  } else if (game.here && Math.abs(walker.x - SPOT_X[game.state.spot]) > 60) {
-    game.leave();
-    $('catchCard').hidden = true;
-  }
-  // footsteps
+  if (walker.x > b.east) { walker.x = b.east; if (walker.v > 120 || held.right || keys.right || held.drag > 0) warnEdge(1); walker.v = 0; if (walker.target > b.east) walker.target = null; }
+  if (walker.x < b.west) { walker.x = b.west; if (walker.v < -120 || held.left || keys.left || held.drag < 0) warnEdge(-1); walker.v = 0; if (walker.target < b.west) walker.target = null; }
+  // secrets reveal themselves when you walk up to a clue
+  if (!game.busy) for (const id of SECRETS) if (game.secretVisible(id) && Math.abs(walker.x - CLUE_X[id]) < 220) game.revealSecret(id);
+  game.setShore(toShore(walker.x));
+  if (!game.here && game.phase === PHASES.CAUGHT) $('catchCard').hidden = true;
   if (Math.abs(walker.v) > 220) { walker.step -= dt; if (walker.step <= 0) { sfx.step(); walker.step = 0.34; } }
 }
 
@@ -364,11 +552,18 @@ function walkTo(id) {
   walker.target = SPOT_X[id];
   sfx.unlock();
 }
+function tapWalk(dir) {
+  if (game.busy) return;
+  const x = nextStop(dir);
+  if (x == null) { warnEdge(dir); return; }
+  walker.target = x;
+}
 
 // ---------- loop ----------
 
 let last = null;
 let clickTimer = 0;
+let ambientTimer = 2;
 function loop(ts) {
   const dt = last == null ? 0 : Math.min(0.08, (ts - last) / 1000);
   last = ts;
@@ -385,7 +580,21 @@ function loop(ts) {
     clickTimer -= dt;
     if (clickTimer <= 0) { sfx.click(game.fight?.tension ?? 0.5); clickTimer = 0.07; if ((game.fight?.tension ?? 0) > 0.9) sfx.strain(); }
   }
-  sfx.setAmbience({ night: game.timeOfDay === 'Night' || game.timeOfDay === 'Dusk', rain: ['rain', 'storm'].includes(game.state.weather) ? game.state.weather : null });
+  if (game.fight?.warn && !game.fight._warned) { game.fight._warned = true; sfx.warn(); }
+  if (game.fight && !game.fight.warn) game.fight._warned = false;
+  // ambience: crickets/rain, the waterfall's roar, birds by day and drips in the caves
+  const night = game.timeOfDay === 'Night' || game.timeOfDay === 'Dusk';
+  sfx.setAmbience({ night, rain: ['rain', 'storm'].includes(game.state.weather) ? game.state.weather : null });
+  const near = (id, r = SPOT_GAP) => Math.max(0, 1 - Math.abs(walker.x - SPOT_X[id]) / r);
+  sfx.setPlace({ falls: Math.max(near('falls'), near('cave') * 0.7) });
+  ambientTimer -= dt;
+  if (ambientTimer <= 0) {
+    ambientTimer = 1.5 + Math.random() * 3;
+    const caves = Math.max(near('cave'), near('grotto'));
+    if (caves > 0.3 && Math.random() < caves) sfx.drip();
+    else if (!night && game.state.weather === 'clear' && Math.random() < 0.6) sfx.bird();
+    else if (game.spotUnlocked('sandbar') && near('sandbar') > 0.4) sfx.wave();
+  }
   render(dt);
   requestAnimationFrame(loop);
 }
@@ -393,34 +602,47 @@ function loop(ts) {
 // ---------- input ----------
 
 function press() { sfx.unlock(); reelHeld = true; tapLatch = true; }
-function release() { reelHeld = false; held.left = false; held.right = false; held.drag = 0; }
+function release() { reelHeld = false; }
 function cast() {
   sfx.unlock();
-  if (!game.here) { toast('Walk to a fishing spot to cast.'); return; }
+  if (Math.abs(walker.v) > 30) return;
   if (game.cast()) { reelHeld = false; lastLists = ''; $('catchCard').hidden = true; }
 }
 
 const reelBtn = $('reelBtn');
 reelBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); press(); });
-for (const [id, side] of [['leftBtn', 'left'], ['rightBtn', 'right']]) {
+for (const [id, side, dir] of [['leftBtn', 'left', -1], ['rightBtn', 'right', 1]]) {
   const b = $(id);
-  b.addEventListener('pointerdown', (e) => { e.preventDefault(); sfx.unlock(); held[side] = true; });
+  b.addEventListener('pointerdown', (e) => { e.preventDefault(); sfx.unlock(); held[side] = true; pressAt[side] = performance.now(); });
+  const up = () => {
+    if (!held[side]) return;
+    held[side] = false;
+    if (performance.now() - pressAt[side] < TAP_MS) tapWalk(dir); // a quick tap walks to the next stop
+  };
+  b.addEventListener('pointerup', up);
+  b.addEventListener('pointerleave', () => { held[side] = false; });
   b.addEventListener('contextmenu', (e) => e.preventDefault());
 }
-window.addEventListener('pointerup', release);
-window.addEventListener('pointercancel', release);
-window.addEventListener('blur', () => { release(); keys.left = keys.right = false; });
+window.addEventListener('pointerup', () => { release(); held.left = false; held.right = false; held.drag = 0; drag = null; });
+window.addEventListener('pointercancel', () => { release(); held.left = false; held.right = false; held.drag = 0; });
+window.addEventListener('blur', () => { release(); keys.left = keys.right = false; held.left = held.right = false; held.drag = 0; });
 reelBtn.addEventListener('contextmenu', (e) => e.preventDefault());
 reelBtn.addEventListener('click', (e) => e.preventDefault());
 $('castBtn').addEventListener('click', () => { cast(); $('castBtn').blur(); });
 
-// Scene: tap to cast / reel / pick up a note; drag sideways to walk.
-let drag = null;
+// Scene: tap to cast / reel / pick up a note / read the board; drag sideways to walk.
+function canvasPoint(e) {
+  const r = canvas.getBoundingClientRect();
+  const k = canvas.width / Math.max(r.width, r.height * 16 / 9);
+  const offX = (r.width - Math.max(r.width, r.height * 16 / 9)) / 2;
+  const offY = (r.height - Math.max(r.height, r.width * 9 / 16)) / 2;
+  return [(e.clientX - r.left - offX) * k, (e.clientY - r.top - offY) * k];
+}
 sceneEl.addEventListener('pointerdown', (e) => {
-  if (e.target.closest('.minimap')) return;
+  if (e.target.closest('.minimap, .side-btns')) return;
   if (e.pointerType === 'mouse' && e.button !== 0) return;
   if (game.busy) { e.preventDefault(); press(); return; }
-  drag = { x: e.clientX, y: e.clientY, moved: false };
+  drag = { x: e.clientX, y: e.clientY, moved: false, at: performance.now() };
 });
 sceneEl.addEventListener('pointermove', (e) => {
   const r = sceneEl.getBoundingClientRect();
@@ -435,20 +657,24 @@ sceneEl.addEventListener('pointermove', (e) => {
 });
 sceneEl.addEventListener('pointerup', (e) => {
   if (!drag) return;
-  const d = drag; drag = null; held.drag = 0;
-  if (d.moved || game.busy) return;
-  // a tap: pick up a note under the finger, otherwise cast
+  const d = drag; drag = null;
+  const dir = held.drag; held.drag = 0;
+  if (game.busy) return;
+  if (d.moved) {
+    if (performance.now() - d.at < 280 && dir) tapWalk(dir); // a flick carries you to the next stop
+    return;
+  }
   if (scene) {
-    const r = canvas.getBoundingClientRect();
-    const k = canvas.width / Math.max(r.width, r.height * 16 / 9);
-    const offX = (r.width - Math.max(r.width, r.height * 16 / 9)) / 2;
-    const offY = (r.height - Math.max(r.height, r.width * 9 / 16)) / 2;
-    const id = scene.hitNote((e.clientX - r.left - offX) * k, (e.clientY - r.top - offY) * k, game);
+    const [cx, cy] = canvasPoint(e);
+    const id = scene.hitNote(cx, cy, game);
     if (id) {
       const note = NOTES.find((n) => n.id === id);
-      if (note.spot !== game.state.spot || !game.here) { walkTo(note.spot); toast('Walk over to pick it up.'); return; }
+      if (note.spot !== game.state.spot || !game.here) { walkTo(note.spot); notify('Walk over to pick it up.', 1800); return; }
       if (game.collectNote(id)) return;
     }
+    const clue = scene.hitClue(cx, cy);
+    if (clue) { walker.target = CLUE_X[clue]; return; }
+    if (scene.hitBoard(cx, cy)) { openBounties(); return; }
   }
   cast();
 });
@@ -457,40 +683,82 @@ sceneEl.addEventListener('contextmenu', (e) => e.preventDefault());
 
 window.addEventListener('keydown', (e) => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
-  if ($('dexDetail').open) return;
-  if (e.code === 'ArrowLeft' || e.code === 'KeyA') { keys.left = true; e.preventDefault(); sfx.unlock(); return; }
-  if (e.code === 'ArrowRight' || e.code === 'KeyD') { keys.right = true; e.preventDefault(); sfx.unlock(); return; }
+  if (anyDialogOpen()) return;
+  if (e.code === 'ArrowLeft' || e.code === 'KeyA') { if (!keys.left) pressAt.keyLeft = performance.now(); keys.left = true; e.preventDefault(); sfx.unlock(); return; }
+  if (e.code === 'ArrowRight' || e.code === 'KeyD') { if (!keys.right) pressAt.keyRight = performance.now(); keys.right = true; e.preventDefault(); sfx.unlock(); return; }
   if (e.repeat) return;
   if (e.code === 'Space') { e.preventDefault(); press(); }
   else if (e.code === 'KeyC' || e.code === 'Enter') { if (document.activeElement?.tagName !== 'BUTTON' || e.code === 'KeyC') { e.preventDefault(); cast(); } }
-  else if (e.code === 'KeyM') toggleMute();
+  else if (e.code === 'KeyM') { e.preventDefault(); openMap(); }
+  else if (e.code === 'KeyB') { e.preventDefault(); openBait(); }
+  else if (e.code === 'KeyN') toggleMute();
 });
 window.addEventListener('keyup', (e) => {
   if (e.code === 'Space') { e.preventDefault(); reelHeld = false; }
-  if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
-  if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
+  if (e.code === 'ArrowLeft' || e.code === 'KeyA') { keys.left = false; if (performance.now() - pressAt.keyLeft < TAP_MS - 60) tapWalk(-1); }
+  if (e.code === 'ArrowRight' || e.code === 'KeyD') { keys.right = false; if (performance.now() - pressAt.keyRight < TAP_MS - 60) tapWalk(1); }
 });
 document.addEventListener('visibilitychange', () => { if (document.hidden) { release(); keys.left = keys.right = false; } last = null; });
 
+function openMap() {
+  renderMap();
+  openDialog('mapDlg');
+  const wrap = document.querySelector('.map-wrap');
+  const me = $('mapSvg').querySelector('.me');
+  if (wrap && me && wrap.scrollWidth > wrap.clientWidth) {
+    const x = me.transform.baseVal.consolidate()?.matrix.e ?? 500;
+    wrap.scrollLeft = (x / 1000) * wrap.scrollWidth - wrap.clientWidth / 2;
+  }
+}
+function openBounties() {
+  setHTML('bountyDlgList', bountyHTML());
+  const r = game.rumor();
+  $('wiggsLine').textContent = r && Math.random() < 0.5 ? r.text : WIGGS[Math.floor(Math.random() * WIGGS.length)];
+  openDialog('bountyDlg');
+  markBoardSeen();
+}
+function openBait() { $('baitList').innerHTML = baitRows(); openDialog('baitDlg'); }
+
 document.addEventListener('click', (e) => {
   const walk = e.target.closest('[data-walk]')?.dataset.walk;
-  if (walk) { walkTo(walk); if (e.target.closest('#spotList')) sceneEl.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+  if (walk) {
+    walkTo(walk);
+    if (e.target.closest('#mapDlg')) closeDialog('mapDlg');
+    if (e.target.closest('#spotList')) sceneEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
   const tab = e.target.closest('[data-tab]')?.dataset.tab;
   if (tab) { dexFilter = tab; lastLists = ''; return; }
   const goop = e.target.closest('[data-goop]')?.dataset.goop;
   if (goop) { openDexDetail(goop); return; }
+  const bait = e.target.closest('[data-bait]')?.dataset.bait;
+  if (bait) { game.selectBait(bait); lastLists = ''; renderShop(); return; }
+  const buyBait = e.target.closest('[data-buybait]')?.dataset.buybait;
+  if (buyBait) { if (game.buyBait(buyBait)) { game.selectBait(buyBait); } lastLists = ''; renderShop(); return; }
+  const close = e.target.closest('[data-close]')?.dataset.close;
+  if (close) { closeDialog(close); return; }
+  if (e.target.tagName === 'DIALOG' && e.target.open) closeDialog(e.target.id); // backdrop
 });
-$('dexClose').addEventListener('click', () => $('dexDetail').close?.() ?? $('dexDetail').removeAttribute('open'));
-$('dexDetail').addEventListener('click', (e) => { if (e.target === $('dexDetail')) $('dexDetail').close?.(); });
+$('ddBuddy').addEventListener('click', () => {
+  if (!detailId) return;
+  game.setBuddy(game.state.buddy === detailId ? null : detailId);
+  openDexDetail(detailId);
+  lastLists = '';
+});
 $('shopList').addEventListener('click', (e) => {
   const kind = e.target.closest('[data-buy]')?.dataset.buy;
-  if (kind && game.buyUpgrade(kind)) { lastLists = ''; const w = document.querySelector('.wallet'); w.classList.remove('bump'); void w.offsetWidth; w.classList.add('bump'); }
+  if (kind && game.buyUpgrade(kind)) lastLists = '';
 });
+for (const id of ['rerollBtn', 'rerollBtn2']) $(id).addEventListener('click', () => { if (game.rerollBounties()) { setHTML('bountyDlgList', bountyHTML()); lastLists = ''; } });
+$('mapBtn').addEventListener('click', openMap);
+$('boardBtn').addEventListener('click', openBounties);
+$('baitBtn').addEventListener('click', openBait);
 $('resetBtn').addEventListener('click', () => { if (confirm('Reset your GoopDex, Essence and upgrades?')) { game.reset(); lastLists = ''; } });
 
 function toggleMute() { sfx.unlock(); sfx.setMuted(!sfx.muted); paintMute(); }
 function paintMute() { const b = $('muteBtn'); b.innerHTML = sfx.muted ? ICON.soundOff : ICON.soundOn; b.setAttribute('aria-pressed', String(sfx.muted)); }
 $('muteBtn').addEventListener('click', toggleMute);
+$('mapBtn').innerHTML = ICON.map;
 paintMute();
 
 let resizeRaf = 0;
@@ -505,6 +773,7 @@ async function boot() {
     $('loadFill').parentElement.setAttribute('aria-valuenow', String(Math.round(p * 100)));
   });
   scene = new Scene(canvas, assets);
+  scene.camX = walker.x;
   scene.onSplash = () => sfx.splash();
   scene.onReveal = () => {
     if (!pendingCatch) return;

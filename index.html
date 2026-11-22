@@ -4,19 +4,19 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#04121a">
-  <meta name="description" content="Goop Fishing — explore the shores of North Pond, hook glowing Goops and fill a GoopDex of 72 species.">
+  <meta name="description" content="Goop Fishing — roam the shores of North Pond, find its secret places, hook glowing Goops and fill a GoopDex of 85 species.">
   <title>Goop Fishing · North Pond</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='34' r='26' fill='%2359e04a'/%3E%3Ccircle cx='24' cy='28' r='7' fill='%23fff'/%3E%3Ccircle cx='25' cy='29' r='3.5' fill='%23062a10'/%3E%3Cpath d='M14 46q4 12 6 0M38 50q3 10 5 0' fill='%2359e04a'/%3E%3C/svg%3E">
   <link rel="preload" as="font" type="font/woff2" href="assets/fonts/lilita-one.woff2" crossorigin>
   <link rel="preload" as="image" href="assets/ui/title.webp">
-  <link rel="stylesheet" href="src/style.css?v=0.4.1">
+  <link rel="stylesheet" href="src/style.css?v=0.5">
 </head>
 <body>
 <div class="loader" id="loader">
   <div class="loader-art" aria-hidden="true"></div>
   <div class="loader-inner">
     <div class="slime-logo big" aria-label="Goop Fishing"><span class="word">GOOP</span><span class="word alt">FISHING</span><i class="drip d1"></i><i class="drip d2"></i><i class="drip d3"></i><i class="drip d4"></i></div>
-    <p class="loader-sub">NORTH POND · 72 GOOPS TO FIND</p>
+    <p class="loader-sub">NORTH POND · 85 GOOPS · 3 SECRETS</p>
     <div class="load-bar" role="progressbar" aria-label="Loading" aria-valuemin="0" aria-valuemax="100"><div id="loadFill"></div></div>
     <button id="startBtn" class="slime-btn start" hidden>TAP TO FISH</button>
     <p class="loader-hint" id="loadHint">Loading the pond…</p>
@@ -27,7 +27,7 @@
   <header class="topbar">
     <div class="slime-logo" aria-label="Goop Fishing"><span class="word">GOOP</span><span class="word alt">FISHING</span><i class="drip d1"></i><i class="drip d2"></i><i class="drip d3"></i></div>
     <div class="top-right">
-      <div class="dexpill" title="GoopDex"><span>GOOPDEX</span><strong id="dexPill">0/72</strong></div>
+      <div class="dexpill" title="GoopDex"><span>GOOPDEX</span><strong id="dexPill">0/85</strong></div>
       <div class="wallet" title="Essence"><span class="orb" aria-hidden="true"></span><div><span>ESSENCE</span><strong id="essence">0</strong></div></div>
       <button id="muteBtn" class="icon-btn" aria-label="Toggle sound" aria-pressed="false"></button>
     </div>
@@ -43,13 +43,20 @@
           <span class="chip phase" id="phaseTag">READY</span>
         </div>
       </div>
+      <div class="event-tag" id="eventTag" aria-live="polite"></div>
+      <div class="side-btns">
+        <button id="mapBtn" class="side-btn" aria-label="Pond map (M)" title="Pond map (M)"></button>
+        <button id="boardBtn" class="side-btn" aria-label="Bounty board" title="Bounty board"></button>
+        <button id="baitBtn" class="side-btn bait" aria-label="Bait box (B)" title="Bait box (B)"></button>
+      </div>
       <nav class="minimap" id="minimap" aria-label="Pond map"></nav>
       <div class="toast" id="message" role="status" aria-live="polite">Cast your line to begin.</div>
-      <div class="walk-hint" id="walkHint">TAP ▶ OR SWIPE TO EXPLORE THE SHORE</div>
+      <div class="walk-hint" id="walkHint">HOLD ◀ ▶ TO ROAM · CAST ANYWHERE</div>
 
       <div class="fight-hud dim" id="fightUi" aria-hidden="true">
+        <div class="combo" id="combo"></div>
         <div class="tension-row">
-          <span class="lbl">TENSION</span>
+          <span class="lbl" id="tensionLbl">TENSION</span>
           <div class="meter tension"><div id="tensionBar" class="tension-fill"></div><div id="safeZone" class="safe-zone"></div><div id="needle" class="needle"></div></div>
           <span class="val" id="tensionText">50%</span>
         </div>
@@ -64,17 +71,18 @@
         <div class="cc-rarity" id="ccRarity">COMMON</div>
         <h3 id="ccName">Gloop</h3>
         <div class="cc-stats"><span id="ccReward">+8 Essence</span><span id="ccSize">12 cm</span><span id="ccTime">4.2s</span></div>
+        <p class="cc-extra" id="ccExtra"></p>
         <p class="cc-hint" id="ccHint">Cast again to keep fishing</p>
       </div>
     </div>
 
     <div class="controls">
       <button id="leftBtn" class="slime-btn walk" aria-label="Walk left">◀</button>
-      <button id="castBtn" class="slime-btn">CAST LINE <kbd>C</kbd></button>
+      <button id="castBtn" class="slime-btn cast">CAST LINE <kbd>C</kbd></button>
       <button id="reelBtn" class="slime-btn reel" aria-pressed="false">REEL / HOOK <kbd>SPACE</kbd></button>
       <button id="rightBtn" class="slime-btn walk" aria-label="Walk right">▶</button>
     </div>
-    <p id="tip" class="tip">Explore the shore: tap <b>◀ ▶</b>, swipe the scene, tap the map pins, or use <b>A / D</b>. At a spot: cast, wait for the <b>!</b>, tap REEL to hook, then feather the reel to keep the needle in the green. Look for glowing bottles on the shore.</p>
+    <p id="tip" class="tip"><b>Hold ◀ ▶</b> (or swipe, or <b>A / D</b>) to roam the shore; a quick tap hops to the next stop. Cast anywhere. Hook the instant you see <b>!</b> for a perfect hook, keep the needle in the green to build a streak, and ease off when a Goop flashes <b>!!</b>. Bait that matches what a Goop eats brings it running. Some places only show up at the right time or weather.</p>
   </section>
 
   <section class="lower-grid">
@@ -91,7 +99,13 @@
       </article>
 
       <article class="card">
-        <div class="card-head"><h2>FIELD NOTES</h2><span id="notesCount">0 / 14</span></div>
+        <div class="card-head"><h2>BOUNTY BOARD</h2><span id="bountyCount">0 / 3</span></div>
+        <div id="bountyList" class="bounty-list"></div>
+        <div class="card-foot"><small>New bounties every morning.</small><button id="rerollBtn" class="mini-btn">NEW BOUNTIES</button></div>
+      </article>
+
+      <article class="card">
+        <div class="card-head"><h2>FIELD NOTES</h2><span id="notesCount">0 / 17</span></div>
         <div class="stats">
           <div><span>CAUGHT TODAY</span><strong id="today">0</strong></div>
           <div><span>TOTAL CAUGHT</span><strong id="total">0</strong></div>
@@ -101,26 +115,60 @@
       </article>
 
       <article class="card">
-        <div class="card-head"><h2>TACKLE SHOP</h2><span>UPGRADES</span></div>
+        <div class="card-head"><h2>BAIT &amp; TACKLE</h2><span>SHOP</span></div>
+        <div class="buddy-line" id="buddyLine"></div>
+        <div id="baitShop" class="option-list"></div>
         <div id="shopList" class="option-list"></div>
       </article>
     </div>
   </section>
 
-  <footer><span>GOOP FISHING · BUILD 0.4.1 · NORTH POND EXPEDITION</span><button id="resetBtn" class="ghost">RESET SAVE</button></footer>
+  <section class="card sets-card">
+    <div class="card-head"><h2>COLLECTIONS</h2><span id="setCount">0 / 0</span></div>
+    <p class="card-sub">Catch every Goop in a set to win its trophy and a big Essence reward.</p>
+    <div id="setList" class="set-list"></div>
+  </section>
+
+  <footer><span>GOOP FISHING · BUILD 0.5 · OPEN POND</span><button id="resetBtn" class="ghost">RESET SAVE</button></footer>
 </main>
 
 <dialog id="dexDetail" class="dex-detail">
-  <button class="close" id="dexClose" aria-label="Close">✕</button>
+  <button class="close" data-close="dexDetail" aria-label="Close">✕</button>
   <div class="dd-art"><img id="ddImg" alt=""></div>
   <div class="dd-body">
     <div class="dd-rarity" id="ddRarity"></div>
     <h3 id="ddName"></h3>
     <p class="dd-where" id="ddWhere"></p>
     <div class="dd-stats" id="ddStats"></div>
+    <p class="dd-bait" id="ddBait"></p>
     <p class="dd-hint" id="ddHint"></p>
+    <button class="slime-btn small" id="ddBuddy" hidden>MAKE BUDDY</button>
   </div>
 </dialog>
-<script type="module" src="src/main.js?v=0.4.1"></script>
+
+<dialog id="mapDlg" class="sheet map-sheet" aria-labelledby="mapTitle">
+  <button class="close" data-close="mapDlg" aria-label="Close">✕</button>
+  <h3 id="mapTitle">NORTH POND</h3>
+  <div class="map-news" id="mapNews"></div>
+  <div class="map-wrap"><svg id="mapSvg" class="pond-map" viewBox="0 0 1000 420" role="img" aria-label="Map of North Pond"></svg></div>
+  <p class="rumor" id="mapRumor"></p>
+  <p class="sheet-tip">Tap a spot to walk there.</p>
+</dialog>
+
+<dialog id="bountyDlg" class="sheet" aria-labelledby="bountyTitle">
+  <button class="close" data-close="bountyDlg" aria-label="Close">✕</button>
+  <h3 id="bountyTitle">OLD WIGGS' BOUNTY BOARD</h3>
+  <p class="rumor" id="wiggsLine"></p>
+  <div id="bountyDlgList" class="bounty-list"></div>
+  <div class="card-foot"><small>Bounties pay out the moment you finish them. New ones every morning.</small><button id="rerollBtn2" class="mini-btn">NEW BOUNTIES</button></div>
+</dialog>
+
+<dialog id="baitDlg" class="sheet" aria-labelledby="baitTitle">
+  <button class="close" data-close="baitDlg" aria-label="Close">✕</button>
+  <h3 id="baitTitle">BAIT BOX</h3>
+  <p class="sheet-tip">Every Goop has a favourite food (see its GoopDex page). Matching bait makes it bite three times as often, and sooner. One bait is used per cast; the worm is free.</p>
+  <div id="baitList" class="option-list"></div>
+</dialog>
+<script type="module" src="src/main.js?v=0.5"></script>
 </body>
 </html>

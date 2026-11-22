@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   GOOPS, SPOTS, UPGRADES, NOTES, NOTE_REWARD, weightedPick, encounterPool, makeFight, tickFight, pullForce,
   FishingGame, SaveStore, PHASES, CASTS_PER_TIME, conditionsMet, conditionText,
+  SPOT_BY, BAITS, SETS, shoreZone, zonePool, makeBounties, bountyMatches, comboFor, LUNGE_WARN, PERFECT_HOOK, isFullMoon,
 } from '../src/game.js';
 
 function memStore(initial = null) {
@@ -177,14 +178,179 @@ test('spots open as the GoopDex fills, and walking is blocked mid-cast', () => {
   assert.equal(g.travel('nowhere'), false);
 });
 
-test('you can only cast while standing at a spot', () => {
+test('you can cast anywhere on the shore; between spots you fish a blend of both', () => {
   const g = newGame();
-  assert.ok(g.leave());
-  assert.equal(g.cast(), false);
-  g.travel('dock');
-  assert.ok(g.cast());
+  g.setShore(0.5);
+  assert.equal(g.here, false, 'halfway between the dock and Lily Cove');
+  const z = g.zone();
+  assert.equal(z.hot, false);
+  assert.deepEqual(z.mix.map(([s]) => s.id), ['dock', 'lily']);
+  const pool = zonePool(z, { weather: 'clear', time: 'Day' });
+  assert.ok(pool.some((x) => x.id === 'dripfin'), 'dock-only Goop');
+  assert.ok(pool.some((x) => x.id === 'blushkoi'), 'cove-only Goop');
+  assert.ok(g.cast(), 'casting on the open shore works');
+  g.phase = PHASES.IDLE;
+  g.setShore(1.05);
+  assert.ok(g.here && g.state.spot === 'lily', 'walking up to a spot arrives at it');
+  // locked spots are not part of the open shore
+  const far = shoreZone(3, g.openSpots());
+  assert.equal(far.spot.id, 'lily');
+  assert.equal(far.mix.length, 1);
 });
 
+test('baits: matching taste triples weight, one is used per cast, and they can be bought', () => {
+  const lily = SPOT_BY.lily;
+  const w = (pool, id) => pool.find((x) => x.id === id).weight;
+  const plain = encounterPool({ spot: lily, bait: 'worm' });
+  const sugar = encounterPool({ spot: lily, bait: 'sugar' });
+  const koi = plain.find((x) => x.taste === 'sweet');
+  assert.ok(Math.abs(w(sugar, koi.id) / w(plain, koi.id) - 3) < 1e-9);
+  const g = newGame();
+  assert.equal(g.state.baits.sugar, 3, 'new players get a few starter baits');
+  assert.ok(g.selectBait('sugar'));
+  assert.equal(g.selectBait('ember'), false, 'none owned');
+  g.cast();
+  assert.equal(g.state.baits.sugar, 2);
+  assert.equal(g.castCtx.bait, 'sugar');
+  g.phase = PHASES.IDLE; g.cast(); g.phase = PHASES.IDLE; g.cast();
+  assert.equal(g.state.baits.sugar, undefined);
+  assert.equal(g.state.bait, 'worm', 'falls back to the worm when the bait runs out');
+  assert.ok(g.events.some((e) => e.type === 'baitOut'));
+  assert.equal(g.buyBait('ember'), false, 'broke');
+  g.state.essence = BAITS.ember.cost;
+  assert.ok(g.buyBait('ember'));
+  assert.equal(g.state.baits.ember, BAITS.ember.pack);
+  assert.equal(g.state.essence, 0);
+  assert.equal(g.buyBait('worm'), false);
+});
+
+test('golden goo favours rare Goops and events change the pool', () => {
+  const deep = SPOT_BY.deep;
+  const w = (pool, id) => pool.find((x) => x.id === id)?.weight ?? 0;
+  assert.ok(w(encounterPool({ spot: deep, bait: 'golden' }), 'goopshark') > w(encounterPool({ spot: deep }), 'goopshark'));
+  assert.equal(w(encounterPool({ spot: SPOT_BY.dock }), 'goldkoi'), 0);
+  const visit = encounterPool({ spot: SPOT_BY.dock, event: { visitor: { goop: 'goldkoi', spot: 'dock' } } });
+  assert.ok(w(visit, 'goldkoi') > 0, 'a visitor shows up away from home');
+  const night = encounterPool({ spot: deep, time: 'Night', event: { fullMoon: true } });
+  assert.ok(w(night, 'abyssmelt') > w(encounterPool({ spot: deep, time: 'Night' }), 'abyssmelt'));
+  assert.ok(isFullMoon(3) && !isFullMoon(4));
+});
+
+test('a perfect hook gives a head start; a late hook does not', () => {
+  const g = newGame();
+  g.cast();
+  runUntil(g, PHASES.BITE);
+  g.update(0.05, { reel: false });
+  g.update(0.05, { reel: true });
+  assert.ok(g.fight.perfect && g.fight.progress > 0);
+  const h = newGame();
+  h.cast();
+  runUntil(h, PHASES.BITE);
+  for (let t = 0; t < PERFECT_HOOK + 0.2; t += 0.05) h.update(0.05, { reel: false });
+  h.update(0.05, { reel: true });
+  assert.equal(h.phase, PHASES.FIGHT);
+  assert.equal(h.fight.perfect, false);
+});
+
+test('lunges warn first and easing off dodges them', () => {
+  const rare = GOOPS.find((x) => x.rarity === 'Rare' && x.pattern === 'steady');
+  const run = (reelDuringLunge) => {
+    const f = makeFight(rare, {}, { rng: () => 0 });
+    assert.ok(f.nextLunge > 0);
+    f.nextLunge = LUNGE_WARN + 0.05;
+    tickFight(f, { reel: false }, 0.06);
+    assert.ok(f.warn, 'warning shows before the lunge');
+    f.tension = 0.5;
+    while (!f.log.length) tickFight(f, { reel: reelDuringLunge }, 0.05);
+    return f;
+  };
+  assert.deepEqual(run(false).log, ['dodge']);
+  assert.ok(run(true).log.includes('lunge'));
+  assert.equal(makeFight(GOOPS[0]).nextLunge, null, 'common Gloops do not lunge');
+});
+
+test('staying in the zone builds a combo that speeds the catch', () => {
+  assert.equal(comboFor(0), 1);
+  assert.ok(comboFor(3) > comboFor(1.3));
+  assert.equal(comboFor(999), comboFor(4.8 * 10));
+  const f = makeFight(GOOPS[0]);
+  f.tension = 0.55;
+  for (let i = 0; i < 120; i++) { tickFight(f, { reel: f.tension < 0.6 }, 1 / 60); }
+  assert.ok(f.best >= 1);
+});
+
+test('bounties: three a day, progress on matching catches and pay out once', () => {
+  const g = newGame();
+  assert.equal(g.state.bounties.length, 3);
+  assert.equal(g.state.bountyDay, 1);
+  const list = makeBounties(() => 0.5, { open: [SPOT_BY.dock], dexCount: 10, day: 4 });
+  assert.equal(new Set(list.map((b) => b.kind)).size, 3, 'no duplicate kinds');
+  assert.ok(bountyMatches({ kind: 'rarity', rarity: 'Rare' }, { rarity: 'Epic' }));
+  assert.equal(bountyMatches({ kind: 'rarity', rarity: 'Rare' }, { rarity: 'Common' }), false);
+  assert.ok(bountyMatches({ kind: 'size', cm: 20 }, { size: 21 }));
+  g.state.bounties = [{ id: 't', kind: 'count', need: 2, have: 0, done: false, text: 'Catch 2', essence: 50, bait: 'mud', baitN: 4 }];
+  const catchOne = () => { g.goop = GOOPS[0]; g.phase = PHASES.FIGHT; g.fight = makeFight(GOOPS[0]); g.fight.caught = true; g.update(0); };
+  catchOne();
+  assert.equal(g.state.bounties[0].have, 1);
+  const before = g.state.essence;
+  catchOne();
+  assert.ok(g.state.bounties[0].done);
+  assert.equal(g.state.baits.mud, 3 + 4);
+  assert.ok(g.state.essence >= before + 50);
+  const paid = g.state.essence;
+  catchOne();
+  assert.equal(g.state.essence, paid + 8, 'no second payout');
+  // a new day brings new bounties
+  g.state.timeIndex = 3; g.state.casts = CASTS_PER_TIME - 1; g.phase = PHASES.IDLE;
+  g.cast();
+  assert.equal(g.state.day, 2);
+  assert.equal(g.state.bountyDay, 2);
+  assert.ok(g.state.bounties.every((b) => b.id.startsWith('d2-')));
+});
+
+test('collections pay out when every Goop in the set is caught', () => {
+  const g = newGame();
+  const set = SETS.find((x) => x.id === 'regulars');
+  for (const id of set.goops.slice(1)) g.state.dex[id] = { count: 1, fastest: null, best: null, shiny: 0 };
+  g.goop = GOOPS.find((x) => x.id === set.goops[0]); g.phase = PHASES.FIGHT; g.fight = makeFight(g.goop); g.fight.caught = true;
+  g.update(0);
+  assert.ok(g.state.sets.includes('regulars'));
+  assert.ok(g.events.some((e) => e.type === 'set' && e.detail.reward === set.reward));
+  for (const s of SETS) for (const id of s.goops) assert.ok(GOOPS.some((x) => x.id === id), `${s.id}: ${id}`);
+});
+
+test('a buddy must be caught first and adds a bonus', () => {
+  const g = newGame();
+  assert.equal(g.setBuddy('gloop'), false);
+  g.state.dex.gloop = { count: 1, fastest: null, best: null, shiny: 0 };
+  assert.ok(g.setBuddy('gloop'));
+  g.goop = GOOPS[0]; g.phase = PHASES.FIGHT; g.fight = makeFight(GOOPS[0]); g.fight.caught = true;
+  g.update(0);
+  assert.equal(g.lastCatch.reward, Math.round(8 * 1.1));
+});
+
+test('secret spots show up only when conditions line up, and stay found', () => {
+  const g = newGame();
+  g.state.timeIndex = 1; // day
+  assert.equal(g.secretVisible('sandbar'), false);
+  assert.equal(g.revealSecret('sandbar'), false);
+  assert.equal(g.spotUnlocked('sandbar'), false);
+  g.state.timeIndex = 3; // night
+  assert.ok(g.secretVisible('sandbar'));
+  assert.ok(g.revealSecret('sandbar'));
+  assert.equal(g.state.essence, 60);
+  assert.ok(g.spotUnlocked('sandbar'));
+  assert.equal(g.secretVisible('sandbar'), false, 'only found once');
+  g.state.timeIndex = 1;
+  assert.equal(g.secretVisible('cave'), false, 'the falls are still locked');
+  assert.equal(g.rumor(), null, 'no rumour about places you cannot reach yet');
+  for (const goop of GOOPS.slice(0, 12)) g.state.dex[goop.id] = { count: 1, fastest: null, best: null, shiny: 0 };
+  assert.ok(g.secretVisible('cave'));
+  assert.equal(g.rumor().spot, 'cave');
+  // a saved secret survives a reload
+  const { store } = memStore(JSON.stringify(g.state));
+  assert.ok(store.load().discovered.includes('sandbar'));
+});
 test('every species has art-ready ids, a valid rarity and at least one habitat', () => {
   const ids = new Set();
   for (const goop of GOOPS) {
@@ -219,7 +385,8 @@ test('hard requirements keep a Goop out of the pool until conditions line up', (
 test('catches roll a size, track records and shiny variants', () => {
   const rolls = [0.99, 0.999]; // size near max, then shiny
   const { store } = memStore();
-  const g = new FishingGame({ rng: () => (rolls.length ? rolls.shift() : 0), saveStore: store });
+  const g = new FishingGame({ rng: () => 0, saveStore: store });
+  g.rng = () => (rolls.length ? rolls.shift() : 0);
   g.goop = GOOPS[0]; g.phase = PHASES.FIGHT; g.fight = makeFight(GOOPS[0]); g.fight.caught = true;
   g.update(0);
   const e = g.state.dex.gloop;
@@ -243,7 +410,12 @@ test('completing a spot pays a one-time bonus and new spots announce themselves'
   const types = g.events.map((e) => e.type);
   assert.ok(types.includes('spotComplete'));
   assert.ok(g.state.completed.includes('dock'));
-  assert.ok(types.includes('unlock'), 'the dock set is big enough to open the reeds');
+  // crossing a threshold announces the newly opened stretch of shore
+  const h = newGame();
+  for (const goop of GOOPS.slice(1, 3)) h.state.dex[goop.id] = { count: 1, fastest: null, best: null, shiny: 0 };
+  h.goop = GOOPS[0]; h.phase = PHASES.FIGHT; h.fight = makeFight(h.goop); h.fight.caught = true;
+  h.update(0);
+  assert.ok(h.events.some((e) => e.type === 'unlock' && e.detail.spot === 'reeds'));
 });
 
 test('field notes are picked up once, at their own spot, and teach the Goop', () => {
@@ -261,7 +433,7 @@ test('field notes are picked up once, at their own spot, and teach the Goop', ()
 test('save storage recovers from malformed data and version mismatch', () => {
   const mem = { v: 'bad', getItem() { return this.v; }, setItem(k, v) { this.v = v; }, removeItem() { this.v = null; } };
   const store = new SaveStore(mem);
-  assert.equal(store.load().version, 2);
+  assert.equal(store.load().version, 3);
   mem.v = JSON.stringify({ version: 99, essence: 999 });
   assert.equal(store.load().essence, 0);
 });
@@ -284,13 +456,36 @@ test('save sanitizing drops bad values and keeps good ones', () => {
   assert.ok(s.timeIndex <= 3);
 });
 
+test('version-2 saves load with new fields filled in and bad new fields are dropped', () => {
+  const { store } = memStore(JSON.stringify({
+    version: 2, essence: 30, dex: { gloop: { count: 1 } }, discovered: ['dock', 'sandbar'], spot: 'dock',
+  }));
+  const s = store.load();
+  assert.equal(s.version, 3);
+  assert.equal(s.baits.sugar, 3, 'returning players get starter bait');
+  assert.equal(s.bait, 'worm');
+  assert.ok(s.discovered.includes('sandbar'), 'found secrets are kept');
+  const bad = memStore(JSON.stringify({
+    version: 3, bait: 'ember', baits: { ember: 0, glow: 'x', fake: 9 }, buddy: 'lumen', sets: ['bogus', 'jelly'],
+    bounties: [{ kind: 'nope', text: 'x' }, 5], frenzy: 'deep', visitor: { goop: 'nope', spot: 'dock' }, shore: 99,
+  })).store.load();
+  assert.equal(bad.bait, 'worm');
+  assert.deepEqual(bad.baits, {});
+  assert.equal(bad.buddy, null, 'must be caught to be a buddy');
+  assert.deepEqual(bad.sets, ['jelly']);
+  assert.deepEqual(bad.bounties, []);
+  assert.equal(bad.frenzy, null, 'cannot frenzy at a locked spot');
+  assert.equal(bad.visitor, null);
+  assert.equal(bad.shore, 0);
+});
+
 test('version-1 saves migrate: GoopDex kept, old lake purchases refunded', () => {
   const { mem, store } = memStore(JSON.stringify({
     version: 1, essence: 40, dex: { gloop: { count: 2, fastest: 3.1 }, lumen: { count: 1 } }, day: 3, weather: 'clear',
     caughtToday: 1, spot: 'reeds', unlocked: ['pond', 'reeds'], gear: { rod: 1 },
   }));
   const s = store.load();
-  assert.equal(s.version, 2);
+  assert.equal(s.version, 3);
   assert.equal(s.essence, 240, 'the 200 paid for Reed Shallows comes back');
   assert.equal(s.dex.gloop.count, 2);
   assert.equal(s.dex.gloop.fastest, 3.1);
@@ -305,7 +500,7 @@ test('reset wipes progress and the event log stays bounded', () => {
   const g = newGame();
   g.state.essence = 50;
   for (let i = 0; i < 200; i++) g.emit('x');
-  assert.ok(g.events.length <= 50);
+  assert.ok(g.events.length <= 60);
   g.reset();
   assert.equal(g.state.essence, 0);
   assert.equal(g.phase, PHASES.IDLE);
