@@ -149,6 +149,8 @@ function openDexDetail(id) {
   const trackBtn = $('ddTrack');
   const canTrack = !!e || seen || knows;
   trackBtn.hidden = !canTrack;
+  trackBtn.disabled = game.busy;
+  trackBtn.title = game.busy ? 'Finish the current cast before changing your hunt target.' : '';
   trackBtn.textContent = game.state.trackedGoop === id ? 'STOP TRACKING' : 'TRACK THIS GOOP';
   trackBtn.classList.toggle('on', game.state.trackedGoop === id);
   openDialog('dexDetail');
