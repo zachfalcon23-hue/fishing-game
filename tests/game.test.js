@@ -230,18 +230,35 @@ test('catch awards Essence and records Dex entry', () => {
   assert.ok(mem.v, 'catch is saved');
 });
 
-test('best fight streak earns a capped Essence skill bonus', () => {
-  const g = newGame();
-  g.cast();
-  g.phase = PHASES.FIGHT;
-  g.goop = GOOPS[0];
-  g.fight = makeFight(GOOPS[0]);
-  g.fight.best = 1.6;
-  g.fight.caught = true;
-  g.update(0);
-  assert.equal(g.lastCatch.skillBonus, 0.1);
-  assert.equal(g.lastCatch.reward, 9, 'a max streak raises an 8 Essence catch to 9');
-  assert.equal(g.state.essence, 9);
+test('hook timing and fight execution combine into a capped Essence skill bonus', () => {
+  const catchWith = ({ hookGrade, best = 1 }) => {
+    const g = newGame();
+    g.cast();
+    g.phase = PHASES.FIGHT;
+    g.goop = GOOPS[0];
+    g.fight = makeFight(GOOPS[0]);
+    g.fight.hookGrade = hookGrade;
+    g.fight.best = best;
+    g.fight.caught = true;
+    g.update(0);
+    return g;
+  };
+  const perfect = catchWith({ hookGrade: 'perfect' });
+  assert.equal(perfect.lastCatch.hookSkillBonus, 0.05);
+  assert.equal(perfect.lastCatch.skillBonus, 0.05);
+  assert.equal(perfect.lastCatch.reward, 8, 'the small bonus is retained through whole-Essence rounding');
+
+  const clean = catchWith({ hookGrade: 'clean' });
+  assert.equal(clean.lastCatch.hookSkillBonus, 0.025);
+  assert.equal(clean.lastCatch.skillBonus, 0.025);
+
+  const late = catchWith({ hookGrade: 'late' });
+  assert.equal(late.lastCatch.hookSkillBonus, 0);
+  assert.equal(late.lastCatch.skillBonus, 0);
+
+  const skilled = catchWith({ hookGrade: 'perfect', best: 1.6 });
+  assert.equal(skilled.lastCatch.skillBonus, 0.15, 'perfect timing stacks with streak skill up to the 15% cap');
+  assert.equal(skilled.lastCatch.reward, 9);
 });
 
 test('full round trip: cast, bite, hook, fight', () => {
