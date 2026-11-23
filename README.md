@@ -7,6 +7,7 @@ A dependency-free browser fishing and Goop-collection game for Goopamon, with a 
 - `npm run check` checks JavaScript syntax across the engine, renderer, interface, audio, Aquarium, wildlife, and test modules.
 - `npm test` runs the Node regression suite (Node 20+).
 - `npm run test:browser` runs the current-mainline Playwright smoke tests (after installing pinned Playwright and Chromium as in CI).
+- `npm run economy:audit` prints a source-derived economy report for all current spots, weather/time combinations, and three equipment profiles.
 - See [`RELEASE_CHECKLIST.md`](RELEASE_CHECKLIST.md) for the current mainline verification and release gates.
 
 ## Local playtest session data
@@ -16,6 +17,12 @@ Open **PLAYTEST SESSION · LOCAL ONLY** in the Field Notes card to see session m
 - Measurements stay in memory in the current browser session. They are not written to the game save and are never uploaded.
 - The recent-round detail is bounded to the latest 500 rounds; summary counters continue for the current page session.
 - Use **EXPORT JSON** to download the session for balancing and playtest review, or **RESET SESSION** to clear the measurements without resetting game progress.
+
+## Economy audit
+
+The current-source economy audit is generated from the live encounter pool and reward/bite formulas in `src/game.js`. It covers all current spots, weather and time conditions, and starter/field/deep-hunter tackle profiles. It reports encounter rarity shares, expected Essence per successful catch, and expected bite delay.
+
+The report is a neutral diagnostic baseline. It does not claim Essence/hour or catches/hour because fight success, fight duration, movement, quest/set rewards and player skill must be measured separately. Run `npm run economy:audit` after changing species weights, habitats, weather, tackle modifiers, bite windows or reward formulas.
 
 ## Play online
 The game is published with GitHub Pages (Settings → Pages → Deploy from a branch → `main` / root): https://zachfalcon23-hue.github.io/fishing-game/
