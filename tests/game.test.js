@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { fightReactionPose } from '../src/scene.js';
 import {
   GOOPS, SPOTS, UPGRADES, NOTES, NOTE_REWARD, weightedPick, encounterPool, makeFight, tickFight, pullForce,
   FishingGame, SaveStore, PHASES, CASTS_PER_TIME, conditionsMet, conditionText,
@@ -1129,4 +1130,26 @@ test('Epics fight in two stages and Legendaries in three, with a breather betwee
   assert.ok(f.stamina > stam, 'it catches its breath');
   assert.equal(f.progress, prog, 'no progress lost or gained during the break');
   assert.equal(f.caught, false);
+});
+test('fight outcome reactions are bounded, directional, and expire deterministically', () => {
+  const start = 10_000;
+  const win = fightReactionPose({ type: 'win', move: 'swerve', at: start, duration: 1 }, start + 500, 300, 500, 500);
+  assert.ok(win);
+  assert.equal(win.type, 'win');
+  assert.equal(win.move, 'swerve');
+  assert.ok(win.x < 300, 'a successful counter makes the Goop recoil away from the bobber');
+  assert.ok(win.y > 500, 'a successful counter briefly sinks the Goop');
+  assert.ok(win.scale < 1);
+  assert.ok(win.alpha < 1);
+
+  const fail = fightReactionPose({ type: 'fail', move: 'thrash', at: start, duration: 0.8 }, start + 400, 300, 500, 500);
+  assert.ok(fail);
+  assert.equal(fail.type, 'fail');
+  assert.ok(fail.x > 300, 'a failed counter makes the Goop surge toward the bobber');
+  assert.ok(fail.y < 500, 'a failed counter brings the Goop closer to the surface');
+  assert.ok(fail.scale > 1);
+
+  assert.equal(fightReactionPose({ type: 'win', at: start, duration: 1 }, start + 1_000, 300, 500, 500), null);
+  assert.equal(fightReactionPose({ type: 'win', at: start, duration: 0 }, start + 100, 300, 500, 500), null);
+  assert.equal(fightReactionPose(null, start + 100, 300, 500, 500), null);
 });
