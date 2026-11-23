@@ -633,6 +633,26 @@ test('rods: dex-gated purchases, equip, and real effects on the fight and the po
   for (const r of Object.values(RODS)) assert.ok(r.name && r.style && r.desc);
 });
 
+test('equipped fishing lines have distinct mechanical roles in the actual fight', () => {
+  const owned = {};
+  const mods = (line) => tackleMods({ line }, owned);
+  const mono = mods('classic');
+  const slime = mods('slime');
+  const pink = mods('pink');
+  const braid = mods('ember');
+  const gold = mods('gold');
+  const rainbow = mods('rainbow');
+  assert.ok(mono.bite < 1 && mono.snapGuard > 1, 'mono trades faster bites for weaker over-tension tolerance');
+  assert.ok(slime.zone > 0 && slime.reel < 1, 'slime line is forgiving but slower');
+  assert.ok(pink.reel > 1 && pink.zone < 0, 'pink line rewards precision');
+  assert.ok(braid.force < 1 && braid.snapGuard < 1 && braid.bite > 1, 'braid controls strong Goops but attracts bites more slowly');
+  assert.ok(gold.shiny > 1 && gold.essence > 1, 'gold line is for reward hunting');
+  assert.ok(rainbow.zone > 0 && rainbow.reel > 1, 'rainbow line is a balanced option');
+  const goop = GOOPS.find((g) => g.rarity === 'Rare');
+  const fight = makeFight(goop, {}, { snapGuard: braid.snapGuard });
+  assert.ok(fight.snapGuard < makeFight(goop).snapGuard, 'line protection reaches fight simulation');
+});
+
 test('skins, bobbers and lines are bought once and equipped', () => {
   const g = newGame();
   g.state.essence = 10000;
