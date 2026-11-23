@@ -12,6 +12,7 @@ const $ = (id) => document.getElementById(id);
 const canvas = $('gameCanvas');
 const sceneEl = $('scene');
 const game = new FishingGame();
+if (game.saveStore.lastLoadRecovered) game.message = 'Recovered your last valid save from backup. Your progress has been restored.';
 const sessionTelemetry = new SessionTelemetry();
 const sfx = new Sfx();
 let scene = null;
