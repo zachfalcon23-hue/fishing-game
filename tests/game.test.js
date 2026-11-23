@@ -654,6 +654,25 @@ test('rod handling identities affect actual fight tolerance', () => {
   assert.ok(fight.snapGuard > makeFight(goop).snapGuard, 'rod shock absorption reaches the fight simulation');
 });
 
+test('fishing lines provide distinct tactical bonuses and trade-offs', () => {
+  const mods = (line) => tackleMods({ line }, {});
+  const mono = mods('classic');
+  const slime = mods('slime');
+  const pink = mods('pink');
+  const braid = mods('ember');
+  const gold = mods('gold');
+  const rainbow = mods('rainbow');
+  assert.ok(mono.bite < 1 && mono.snapGuard > 1, 'mono improves bite speed but protects against tension');
+  assert.ok(slime.zone > 0 && slime.reel < 1, 'slime line is forgiving but slower');
+  assert.ok(pink.reel > 1 && pink.zone < 0, 'pink line rewards precise play');
+  assert.ok(braid.force < 1 && braid.snapGuard < 1 && braid.bite > 1, 'braid weakens Goops but has slower bites and lower shock tolerance');
+  assert.ok(gold.shiny > 1 && gold.essence > 1, 'gold line improves rewards');
+  assert.ok(rainbow.zone > 0 && rainbow.reel > 1, 'rainbow line is a balanced option');
+  const goop = GOOPS.find((g) => g.rarity === 'Rare');
+  const fight = makeFight(goop, {}, { snapGuard: slime.snapGuard ?? 1 });
+  assert.ok(fight.snapGuard > makeFight(goop).snapGuard, 'line shock protection reaches fight simulation');
+});
+
 test('skins, bobbers and lines are bought once and equipped', () => {
   const g = newGame();
   g.state.essence = 10000;
