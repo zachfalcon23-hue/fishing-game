@@ -480,7 +480,11 @@ export class Scene {
       this.cam.shake = 18;
       this.splash(this.bobber.x, this.bobber.y, 20, '#ffffff', 1.1);
     } else if (e.type === 'dodge') {
-      this.sparkle(this.bobber.x, this.bobber.y - 30, 14, '#8df28a');
+      // A clean read should feel like the line snaps free of danger, not just a counter tick.
+      this.cam.shake = Math.max(this.cam.shake, 7);
+      this.splash(this.bobber.x, this.bobber.y, 24, '#b9fff0', 0.9);
+      this.ring(this.bobber.x, this.bobber.y, 1.55);
+      this.sparkle(this.bobber.x, this.bobber.y - 34, 22, '#8df28a');
     } else if (e.type === 'secret') {
       this.flash = Math.max(this.flash, 0.5);
     } else if (e.type === 'missedBite') {
