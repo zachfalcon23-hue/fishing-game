@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>GOOPYVERSE · Willowmere Expedition</title>
+<style>
+:root{color-scheme:dark;--ink:#f4f7e9;--muted:#a8b9a4;--lime:#a5ff5d;--panel:#10251f;--line:#3e6650;--gold:#ffd66e}
+*{box-sizing:border-box}body{margin:0;background:#081713;color:var(--ink);font:15px system-ui,sans-serif}
+header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:#0b201a;border-bottom:1px solid #284b39;gap:8px;flex-wrap:wrap}
+.logo{font-weight:1000;letter-spacing:.12em;color:var(--lime)}.stats{display:flex;gap:12px;color:var(--muted);font-size:13px}.stats b{color:white}
+main{max-width:1120px;margin:auto;padding:14px;display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:14px}
+#stage{position:relative;background:#173d30;border:2px solid #477455;border-radius:18px;overflow:hidden;box-shadow:0 18px 50px #0008}
+canvas{display:block;width:100%;height:auto;touch-action:none}
+#toast{position:absolute;left:12px;bottom:12px;background:#06130ddd;border:1px solid #52795c;border-radius:10px;padding:9px 12px;max-width:85%;font-size:13px}
+.panel{background:linear-gradient(160deg,#143126,#0d211b);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px}
+h2{font-size:14px;letter-spacing:.1em;color:var(--lime);margin:0 0 10px}p{color:var(--muted);font-size:13px;line-height:1.45;margin:6px 0}
+button{background:#244b38;border:1px solid #66956d;color:white;border-radius:10px;padding:10px 12px;font-weight:800;cursor:pointer}button:disabled{opacity:.4}button.primary{background:#7abf42;color:#10210f;border-color:#baff83}button.active{outline:2px solid var(--gold)}
+.actions{display:flex;flex-wrap:wrap;gap:7px}.gooprow{display:flex;gap:9px;align-items:center;padding:7px 0;border-bottom:1px solid #294737}.blob{width:28px;height:28px;border-radius:50% 50% 45% 45%;box-shadow:inset -5px -5px 0 #0002;flex:none}
+#log{font-size:12px;color:#c5d8c4;max-height:115px;overflow:auto}#modal{position:fixed;inset:0;background:#000b;display:none;place-items:center;padding:16px;z-index:5}#modal.show{display:grid}.dialog{width:min(480px,100%);background:#10271f;border:1px solid #6b9c70;border-radius:18px;padding:18px;box-shadow:0 25px 90px #000b}.dialog h2{font-size:19px}
+#controls{display:none;gap:8px;justify-content:center;padding:10px}
+footer{text-align:center;color:#78927e;font-size:11px;padding:12px}
+@media(max-width:760px){main{grid-template-columns:1fr;padding:9px}.stats{gap:7px}#controls{display:flex}.panel{margin-bottom:9px}}
+</style></head>
+<body>
+<header><div class="logo">🟢 GOOPYVERSE · WILLOWMERE</div><div class="stats"><span>ESSENCE <b id="essence">0</b></span><span>GOOPDEX <b id="dex">0</b></span><span>TIME <b id="time">DAY</b></span></div></header>
+<main><section>
+<div id="stage"><canvas id="world" width="900" height="560" aria-label="Explore Willowmere"></canvas><div id="toast">Welcome to Willowmere. Explore the shore, find a Goop, or cast into the pond.</div></div>
+<div id="controls"><button data-move="left">◀</button><button data-move="up">▲</button><button data-move="down">▼</button><button data-move="right">▶</button></div>
+<div class="panel"><h2>YOUR FIELD ACTIONS</h2><div class="actions"><button id="interact">INTERACT · E</button><button id="cast" class="primary">CAST LINE · SPACE</button><button id="rest">WAIT / CHANGE TIME</button><button id="reset">RESET DEMO</button></div><p>Move with WASD / arrow keys. Walk to the dock to fish, approach wild Goops to challenge them, and discover the small grove.</p></div>
+<div class="panel"><h2>FIELD JOURNAL</h2><div id="log">Your expedition starts here.</div></div>
+</section><aside>
+<div class="panel"><h2>PARTY & COMPANION</h2><div id="party"><p>No companion yet. Catch a Goop to bring it along.</p></div></div>
+<div class="panel"><h2>GOOPDEX</h2><div id="collection"><p>No discoveries yet.</p></div></div>
+<div class="panel"><h2>WORLD DISCOVERIES</h2><div id="discoveries"><p>Willowmere · unexplored</p></div></div>
+<div class="panel"><h2>HOW THE HYBRID WORKS</h2><p><b>Fishing:</b> choose a shoreline cast, time the hook, then win a short tension fight.</p><p><b>Wild encounters:</b> challenge a land Goop, weaken it, then throw a jar.</p><p><b>Shared collection:</b> either capture method adds the same creature to your Goopdex and party.</p></div>
+</aside></main>
+<div id="modal"><div class="dialog"><h2 id="modalTitle">Encounter</h2><div id="modalBody"></div><div class="actions" id="modalActions"></div></div></div>
+<footer>Playable integration slice · Shared collection prototype · Local demo save</footer>
+<script>
+(()=>{
+const canvas=document.querySelector('#world'),ctx=canvas.getContext('2d');
+const $=id=>document.getElementById(id);
+const species={
+ gloop:{name:'Gloop',color:'#8dff66',kind:'land',hp:24,power:5},
+ murkling:{name:'Murkling',color:'#63c9ee',kind:'water',hp:27,power:6},
+ flicker:{name:'Flicker',color:'#ffe36a',kind:'land',hp:20,power:7},
+ puddlit:{name:'Puddlit',color:'#e7a4ff',kind:'water',hp:23,power:5},
+ lumen:{name:'Lumen',color:'#77f3ff',kind:'water',hp:34,power:8},
+ sploot:{name:'Sploot',color:'#d4f06c',kind:'land',hp:26,power:6}
+};
+const state={x:125,y:280,essence:0,time:0,collection:[],party:[],discovered:[],wild:[{id:'gloop',x:350,y:210},{id:'flicker',x:520,y:355},{id:'sploot',x:250,y:430}],caught:null,mode:'roam',battle:null,fish:null,seenGrove:false};
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+function say(t){$('toast').textContent=t;const p=document.createElement('div');p.textContent='› '+t;$('log').prepend(p)}
+function blob(x,y,r,color){ctx.fillStyle=color;ctx.beginPath();ctx.moveTo(x-r,y+r*.45);ctx.bezierCurveTo(x-r*1.2,y-r*.35,x-r*.45,y-r*1.25,x,y-r*.75);ctx.bezierCurveTo(x+r*.7,y-r*1.3,x+r*1.2,y-r*.25,x+r,y+r*.45);ctx.quadraticCurveTo(x+r*.65,y+r*1.2,x+r*.3,y+r*.75);ctx.quadraticCurveTo(x,y+r*1.2,x-r*.3,y+r*.75);ctx.closePath();ctx.fill();ctx.fillStyle='#14251c';ctx.beginPath();ctx.arc(x-r*.28,y-r*.12,3,0,7);ctx.arc(x+r*.25,y-r*.12,3,0,7);ctx.fill();ctx.strokeStyle='#14251c';ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y+r*.12,6,.15,Math.PI-.15);ctx.stroke()}
+function draw(){
+ const w=canvas.width,h=canvas.height;ctx.clearRect(0,0,w,h);
+ ctx.fillStyle='#315f3e';ctx.fillRect(0,0,w,h);
+ // forest canopy and ground patches
+ for(let i=0;i<38;i++){let x=(i*173)%w,y=(i*97)%h;ctx.fillStyle=i%2?'#3d7447':'#28563a';ctx.beginPath();ctx.arc(x,y,28+(i%4)*5,0,7);ctx.fill()}
+ // pond
+ ctx.fillStyle='#247c89';ctx.beginPath();ctx.ellipse(650,270,245,220,-.12,0,7);ctx.fill();ctx.strokeStyle='#8ad7c4';ctx.lineWidth=7;ctx.stroke();
+ for(let i=0;i<9;i++){ctx.strokeStyle='#8ddbd0aa';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(650,270,60+i*19,35+i*18,-.12,0,7);ctx.stroke()}
+ // shore and dock
+ ctx.fillStyle='#9b8054';ctx.fillRect(560,230,160,65);ctx.fillStyle='#c49a5e';for(let i=0;i<7;i++)ctx.fillRect(565+i*22,233,16,58);
+ ctx.fillStyle='#e5d39b';ctx.font='bold 18px system-ui';ctx.fillText('WILLOWMERE POND',540,42);
+ // path / grove
+ ctx.strokeStyle='#b69b6c';ctx.lineWidth=40;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(80,280);ctx.quadraticCurveTo(260,275,390,310);ctx.quadraticCurveTo(460,310,570,260);ctx.stroke();
+ ctx.fillStyle='#d5bc83';ctx.font='bold 14px system-ui';ctx.fillText('OLD TRAIL',90,245);ctx.fillText('FISHING DOCK',575,210);
+ ctx.fillStyle='#204c35';ctx.beginPath();ctx.arc(120,90,58,0,7);ctx.fill();ctx.fillStyle='#d8f0c7';ctx.fillText('HIDDEN GROVE',42,25);
+ if(state.seenGrove){ctx.fillStyle='#c8f58c';ctx.fillText('✦ GROVE DISCOVERED',34,55)}
+ state.wild.forEach(g=>{if(g.caught)return;blob(g.x,g.y,17,species[g.id].color);ctx.fillStyle='white';ctx.font='12px system-ui';ctx.fillText(species[g.id].name,g.x-25,g.y+32)});
+ // fish silhouettes
+ for(let i=0;i<4;i++){let x=590+i*42,y=310+Math.sin(Date.now()/650+i)*12;ctx.fillStyle=i%2?'#d6b6ff':'#9dffe1';ctx.beginPath();ctx.ellipse(x,y,11,6,0,0,7);ctx.fill();ctx.beginPath();ctx.moveTo(x-10,y);ctx.lineTo(x-18,y-7);ctx.lineTo(x-18,y+7);ctx.fill()}
+ // player
+ blob(state.x,state.y,18,'#a5ff5d');ctx.fillStyle='#11251a';ctx.font='bold 11px system-ui';ctx.fillText('YOU',state.x-13,state.y+37);
+ // companion
+ if(state.party[0]){let c=species[state.party[0]];blob(state.x-32,state.y+18,11,c.color)}
+ // interaction radius
+ const near=nearestWild();if(near){ctx.strokeStyle='#ffe17a';ctx.setLineDash([5,5]);ctx.beginPath();ctx.arc(near.x,near.y,27,0,7);ctx.stroke();ctx.setLineDash([])}
+ requestAnimationFrame(draw);
+}
+function nearestWild(){return state.wild.filter(g=>!g.caught).sort((a,b)=>dist(a,state)-dist(b,state))[0]||null}
+function move(dx,dy){if(state.mode!=='roam')return;state.x=clamp(state.x+dx,25,875);state.y=clamp(state.y+dy,30,530);if(!state.seenGrove&&state.x<175&&state.y<150){state.seenGrove=true;state.discovered.push('Hidden Grove');say('You found the Hidden Grove. Something glimmers beneath the roots.');render()}if(state.x>540&&state.y>220&&state.y<310)say('You are at the pond edge. Cast to search the water.')}
+function nearestDistance(){let n=nearestWild();return n?dist(n,state):Infinity}
+function open(title,body,buttons){$('modalTitle').textContent=title;$('modalBody').innerHTML=body;$('modalActions').innerHTML='';buttons.forEach(b=>{let el=document.createElement('button');el.textContent=b.label;el.className=b.primary?'primary':'';el.onclick=()=>{close();b.run()};$('modalActions').append(el)});$('modal').classList.add('show')}
+function close(){$('modal').classList.remove('show')}
+function add(id,method){if(!state.collection.includes(id))state.collection.push(id);if(state.party.length<3&&!state.party.includes(id))state.party.push(id);state.essence+=12;state.discovered.push(species[id].name+' · '+method);say(species[id].name+' joined your Goopdex and party. +12 Essence.');render()}
+function interact(){if(state.mode!=='roam')return;if(nearestDistance()<58){let g=nearestWild();startBattle(g);return}if(state.x>545&&state.x<735&&state.y>215&&state.y<310){say('The dock is ready. Cast into the pond.');cast();return}say('Nothing close enough to interact with. Explore the trail and shoreline.')}
+function startBattle(g){state.mode='battle';state.battle={id:g.id,hp:species[g.id].hp,turn:0};const foe=species[g.id];open('A wild '+foe.name+' appeared!',`<p>Wild ${foe.name} · ${foe.hp} Packs</p><p>Choose how to approach. Lower its Packs before throwing a Goo Jar.</p>`,[{label:'TACKLE',primary:true,run:attack},{label:'GUARD',run:guard},{label:'THROW GOO JAR',run:jar},{label:'BACK AWAY',run:()=>{state.mode='roam';state.battle=null;say('You backed away safely.')}}])}
+function battlePrompt(){let b=state.battle;if(!b)return;let f=species[b.id];open('Wild '+f.name,`<p>Enemy Packs: <b>${b.hp}/${f.hp}</b></p><p>Your Goop: <b>${state.party.length?species[state.party[0]].name:'You'} · ${state.party.length?species[state.party[0]].power:5} power</b></p>`,[{label:'ATTACK',primary:true,run:attack},{label:'GUARD',run:guard},{label:'THROW JAR',run:jar},{label:'FLEE',run:()=>{state.mode='roam';state.battle=null;say('You escaped the encounter.')}}])}
+function attack(){let b=state.battle;if(!b)return;b.hp=Math.max(1,b.hp-(state.party.length?species[state.party[0]].power:5));b.turn++;say('Your attack weakened the wild Goop.');if(b.hp<=Math.ceil(species[b.id].hp*.3)){battlePrompt();return}foeTurn();battlePrompt()}
+function foeTurn(){let b=state.battle;if(!b)return;say('The wild Goop surges at you. You hold your ground.')}
+function guard(){foeTurn();battlePrompt()}
+function jar(){let b=state.battle;if(!b)return;let f=species[b.id],chance=clamp(.18+(1-b.hp/f.hp)*.7,.18,.88);if(Math.random()<chance){let g=state.wild.find(x=>x.id===b.id&&!x.caught);if(g)g.caught=true;state.mode='roam';state.battle=null;add(b.id,'battle capture')}else{say('The jar rattles and pops open. Weaken it further.');foeTurn();battlePrompt()}}
+function cast(){if(state.mode!=='roam')return;if(!(state.x>520&&state.y>200&&state.y<340)){say('Get closer to the water before casting.');return}let choices=['murkling','puddlit','lumen'];let id=choices[(Math.random()*choices.length)|0];state.mode='fish';state.fish={id,phase:'bite',timer:0};open('A ripple beneath the surface',`<p>Your line settles into Willowmere. Watch for the bite.</p><p><b>Species signals:</b> Murkling · Puddlit · Lumen</p>`,[{label:'WAIT FOR BITE',primary:true,run:()=>{let f=state.fish;if(!f)return;open('BITE! HOOK NOW',`<p>A ${species[f.id].name} has taken the bait!</p><p>Press HOOK to set the line.</p>`,[{label:'HOOK',primary:true,run:hook},{label:'TOO SLOW',run:()=>endFish('The Goop slipped away.')}])}},{label:'CANCEL',run:()=>endFish('You reeled in without a catch.')}])}
+function hook(){let f=state.fish;if(!f)return;let id=f.id;open('FISH ON!',`<p><b>${species[id].name}</b> is pulling against your line.</p><p>Keep tension in the safe zone by choosing the right response.</p><p>Three quick decisions: steady · ease · reel.</p>`,[{label:'REEL',primary:true,run:()=>fight(id,1)},{label:'EASE',run:()=>fight(id,2)},{label:'HOLD STEADY',run:()=>fight(id,0)}])}
+function fight(id,step){let success=Math.random()>(step===1?.25:.12);if(success){state.fish=null;state.mode='roam';add(id,'fishing');}else{endFish('The line snapped. The Goop escaped.')}}function endFish(t){state.fish=null;state.mode='roam';say(t)}
+function render(){ $('essence').textContent=state.essence;$('dex').textContent=state.collection.length;$('time').textContent=state.time%2?'NIGHT':'DAY';$('party').innerHTML=state.party.length?state.party.map(id=>`<div class="gooprow"><span class="blob" style="background:${species[id].color}"></span><div><b>${species[id].name}</b><p>Companion · ${species[id].kind}</p></div></div>`).join(''):'<p>No companion yet. Catch a Goop to bring it along.</p>';$('collection').innerHTML=state.collection.length?state.collection.map(id=>`<div class="gooprow"><span class="blob" style="background:${species[id].color}"></span><b>${species[id].name}</b></div>`).join(''):'<p>No discoveries yet.</p>';$('discoveries').innerHTML=(state.discovered.length?state.discovered.map(x=>'<p>✦ '+x+'</p>').join(''):'<p>Willowmere · unexplored</p>')+(state.seenGrove?'<p>Hidden Grove · discovered</p>':'')}
+function key(e){let k=e.key.toLowerCase();if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k))e.preventDefault();if(k==='arrowup'||k==='w')move(0,-16);if(k==='arrowdown'||k==='s')move(0,16);if(k==='arrowleft'||k==='a')move(-16,0);if(k==='arrowright'||k==='d')move(16,0);if(k==='e'||k==='enter')interact();if(k===' ')cast()}
+window.addEventListener('keydown',key);$('interact').onclick=interact;$('cast').onclick=cast;$('rest').onclick=()=>{state.time++;say('Time passes. The pond ecosystem shifts with the light.');render()};$('reset').onclick=()=>{location.reload()};document.querySelectorAll('[data-move]').forEach(b=>b.onclick=()=>{let m=b.dataset.move;move(m==='left'?-18:m==='right'?18:0,m==='up'?-18:m==='down'?18:0)});canvas.addEventListener('pointerdown',e=>{let r=canvas.getBoundingClientRect(),x=(e.clientX-r.left)*canvas.width/r.width,y=(e.clientY-r.top)*canvas.height/r.height;state.x=x;state.y=y;});render();draw();
+})();
+</script></body></html>
