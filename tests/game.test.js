@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   GOOPS, SPOTS, UPGRADES, NOTES, NOTE_REWARD, weightedPick, encounterPool, makeFight, tickFight, pullForce,
   FishingGame, SaveStore, PHASES, CASTS_PER_TIME, conditionsMet, conditionText,
-  SPOT_BY, BAITS, SETS, RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, tackleMods, QUESTS, DECOR, THEMES, tankTips, shoreZone, zonePool, makeBounties, bountyMatches, comboFor, LUNGE_WARN, PERFECT_HOOK, isFullMoon,
+  SPOT_BY, BAITS, SETS, RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, tackleMods, QUESTS, DECOR, THEMES, tankTips, TANK_CAP, TANK_COSTS, DECOR_SLOTS, shoreZone, zonePool, makeBounties, bountyMatches, comboFor, LUNGE_WARN, PERFECT_HOOK, isFullMoon,
 } from '../src/game.js';
 
 function memStore(initial = null) {
@@ -704,18 +704,62 @@ test('aquarium: daily tip jar, decorations and themes', () => {
   assert.equal(g.buyDecor('coral'), false, 'owned');
   assert.equal(g.buyDecor('statue'), false, 'quest only');
   assert.equal(g.buyDecor('throne'), false, 'needs 3 Legendaries');
+  assert.deepEqual(g.state.tank.tanks[0].decor, ['coral']);
   assert.ok(g.setTheme('moon'));
-  assert.equal(g.state.tank.theme, 'moon');
+  assert.equal(g.state.tank.tanks[0].theme, 'moon');
   const left = g.state.essence;
   assert.ok(g.setTheme('pond') && g.setTheme('moon'));
   assert.equal(g.state.essence, left, 'owned themes are free to switch');
   const { store } = memStore(JSON.stringify(g.state));
   const s = store.load();
   assert.deepEqual(s.tank.decor, ['coral']);
-  assert.equal(s.tank.theme, 'moon');
+  assert.equal(s.tank.tanks[0].theme, 'moon');
   const bad = memStore(JSON.stringify({ version: 3, quest: { i: 999, have: -4 }, tank: { decor: ['coral', 'ufo'], theme: 'lava', themes: ['nope'] } })).store.load();
   assert.equal(bad.quest.i, QUESTS.length);
   assert.equal(bad.quest.have, 0);
   assert.deepEqual(bad.tank.decor, ['coral']);
-  assert.equal(bad.tank.theme, 'pond', 'theme not owned');
+  assert.equal(bad.tank.tanks[0].theme, 'pond', 'theme not owned');
+  assert.deepEqual(bad.tank.tanks[0].decor, ['coral'], 'old single-tank saves keep their decor');
+});
+
+test('multiple tanks: buy, rename, residents with a cap, decor moves between tanks', () => {
+  const g = newGame();
+  const ids = GOOPS.slice(0, TANK_CAP + 2).map((x) => x.id);
+  // catching new Goops houses them until the tank is full
+  for (const goop of GOOPS.slice(0, TANK_CAP + 1)) { g.goop = goop; g.phase = PHASES.FIGHT; g.fight = makeFight(goop); g.fight.caught = true; g.update(0); }
+  assert.equal(g.state.tank.tanks[0].fish.length, TANK_CAP);
+  assert.equal(g.lastCatch.tank, -1, 'full tanks send new Goops to storage');
+  assert.equal(g.tankOf(ids[TANK_CAP]), -1);
+  assert.equal(g.setResident(ids[TANK_CAP], 0), false, 'tank is full');
+  assert.equal(g.buyTank(), false, 'broke');
+  g.state.essence = 10000;
+  assert.equal(g.tankCost(), TANK_COSTS[1]);
+  assert.ok(g.buyTank());
+  assert.equal(g.state.tank.tanks.length, 2);
+  assert.ok(g.setResident(ids[TANK_CAP], 1));
+  assert.equal(g.tankOf(ids[TANK_CAP]), 1);
+  assert.ok(g.setResident(ids[0], 1), 'move between tanks');
+  assert.equal(g.tankOf(ids[0]), 1);
+  assert.equal(g.state.tank.tanks[0].fish.length, TANK_CAP - 1);
+  assert.ok(g.setResident(ids[0], -1), 'back to storage');
+  assert.equal(g.tankOf(ids[0]), -1);
+  assert.ok(g.renameTank(1, '  Night <Tank>  '));
+  assert.equal(g.state.tank.tanks[1].name, 'Night Tank');
+  assert.equal(g.renameTank(1, '   '), false);
+  assert.ok(g.buyDecor('coral', 1));
+  assert.deepEqual(g.state.tank.tanks[1].decor, ['coral']);
+  assert.ok(g.placeDecor('coral', 0), 'moves to the other tank');
+  assert.deepEqual(g.state.tank.tanks[1].decor, []);
+  assert.deepEqual(g.state.tank.tanks[0].decor, ['coral']);
+  assert.ok(g.placeDecor('coral', 0), 'take it out');
+  assert.deepEqual(g.state.tank.tanks[0].decor, []);
+  for (const id of ['coral', 'anchor', 'shrooms', 'crystals', 'castle', 'chest']) { if (!g.state.tank.decor.includes(id)) g.buyDecor(id, 0); else g.placeDecor(id, 0); }
+  assert.equal(g.state.tank.tanks[0].decor.length, DECOR_SLOTS);
+  assert.equal(g.buyDecor('ship', 0), false, 'no free slot');
+  while (g.buyTank());
+  assert.equal(g.state.tank.tanks.length, TANK_COSTS.length);
+  assert.equal(g.tankCost(), null);
+  const s = memStore(JSON.stringify(g.state)).store.load();
+  assert.equal(s.tank.tanks[1].name, 'Night Tank');
+  assert.equal(s.tank.tanks[1].fish.length, 1);
 });

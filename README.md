@@ -36,7 +36,9 @@ The game has three places, switched with the buttons under the logo. Each has it
   - Tap a Goop to say hi and see its card (make it your buddy from there).
   - Turn on FEED and tap the water to drop food; hungry Goops race for it.
   - Shinies sparkle and Legendaries glow.
-  - Buy decorations (coral, castle, treasure chest, glowshrooms, crystals, anchor, a model wreck, the Goop Throne) and backdrops (Sunset, Moonlit, Magma, Crystal Cave, Abyss). Completed collections appear as trophies.
+  - **Up to four tanks** (extra tanks cost 500 / 1,200 / 2,500 Essence), each with its own name, backdrop and up to 6 decorations. Each tank holds 12 Goops; new catches move into the first tank with room, the rest wait in storage, and you choose who lives where.
+  - Decorations (coral, castle, treasure chest, glowshrooms, crystals, anchor, a model wreck, the Goop Throne, the Sleeper Statue) are bought once and can be moved between tanks. Backdrops: North Pond, Sunset, Moonlit, Magma, Crystal Cave, Abyss. Completed collections appear as trophies in the first tank.
+  - Goops swim at different depths (far ones are smaller and hazier), keep their distance from each other, and only the hungry ones chase food.
   - Visitors leave tips once a day based on what's in your tank.
 
 ## Old Wiggs' story

@@ -1,6 +1,6 @@
 import {
   GOOPS, SPOTS, SPOT_BY, UPGRADES, NOTES, PHASES, BAITS, SETS, TASTES, MOON, REROLL_COST, WEATHER,
-  RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, buddyBonus, QUESTS, DECOR, THEMES,
+  RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, buddyBonus, QUESTS, DECOR, THEMES, TANK_CAP, DECOR_SLOTS,
   FishingGame, conditionText, tasteBait,
 } from './game.js';
 import { Scene, loadAssets, GOOP_ART, SPOT_X, SPOT_GAP, WORLD_MIN, WORLD_MAX, CLUE_X, toShore, fromShore } from './scene.js';
@@ -447,7 +447,11 @@ function handleEvents() {
       case 'combo': sfx.combo(d.combo); break;
       case 'catch':
         if (d.firstTime) newDex.add(d.goop);
-        lastLists = ''; pendingCatch = d; sfx.splash(true); scene?.cheer(); tank?.sync(game.state);
+        lastLists = ''; pendingCatch = d; sfx.splash(true); scene?.cheer(); tank?.sync(game.state, tankIdx);
+        if (d.firstTime) {
+          const nm = goopName(d.goop);
+          setTimeout(() => notify(d.tank >= 0 ? `🐠 ${nm} moved into ${game.state.tank.tanks[d.tank].name}.` : `🐠 Your tanks are full — ${nm} is waiting in storage at the Aquarium.`, 2600), 3800);
+        }
         break;
       case 'escaped': sfx.snap(); navigator.vibrate?.([40, 40, 80]); break;
       case 'missedBite': sfx.splash(); break;
@@ -757,7 +761,7 @@ function go(next, { scroll = true } = {}) {
   if (scroll) window.scrollTo({ top: 0, behavior: 'smooth' });
   release(); keys.left = keys.right = false; held.left = held.right = false; held.drag = 0;
   if (next === 'shack') { renderShack(); renderTackle(); requestAnimationFrame(previewLoop); markBoardSeen(); }
-  if (next === 'aquarium' && tank) { tank.sync(game.state); tank.start(); renderTank(); } else tank?.stop();
+  if (next === 'aquarium' && tank) { tank.sync(game.state, tankIdx); tank.start(); renderTank(); tankHint(); } else tank?.stop();
   if (next === 'pond') requestAnimationFrame(() => scene?.resize());
   sfx.unlock(); sfx.step();
 }
@@ -904,33 +908,59 @@ $('questChip').addEventListener('click', () => go('shack'));
 
 // ----- aquarium -----
 
+let tankIdx = 0;
+const curTank = () => game.state.tank.tanks[tankIdx] || game.state.tank.tanks[0];
+
 function renderTank() {
   const s = game.state;
-  const n = Object.keys(s.dex).length;
-  const shinies = Object.values(s.dex).filter((e) => e.shiny).length;
-  setHTML('tankCount', `${n} / ${GOOPS.length} GOOPS${shinies ? ` · <span class="sh">✦ ${shinies}</span>` : ''}`);
-  $('tankEmpty').hidden = n > 0;
+  if (!s.tank.tanks[tankIdx]) tankIdx = 0;
+  const T = curTank();
+  tank?.sync(s, tankIdx);
+  // tabs
+  const cost = game.tankCost();
+  setHTML('tankTabs', s.tank.tanks.map((t, i) => `<button data-tank="${i}" class="${i === tankIdx ? 'on' : ''}"><b>${esc(t.name)}</b><i>${t.fish.length}/${TANK_CAP}</i></button>`).join('')
+    + (cost != null ? `<button class="new" data-newtank ${s.essence < cost ? 'disabled' : ''}>＋ NEW TANK <i>${cost}</i></button>` : ''));
+  const shinies = T.fish.filter((id) => s.dex[id]?.shiny).length;
+  setHTML('tankCount', `<b>${esc(T.name)}</b> <span>${T.fish.length}/${TANK_CAP}</span>${shinies ? ` <span class="sh">✦ ${shinies}</span>` : ''} <button class="rename" data-rename title="Rename tank" aria-label="Rename tank">✎</button>`);
+  const caught = Object.keys(s.dex).length;
+  $('tankEmpty').hidden = T.fish.length > 0;
+  $('tankEmpty').innerHTML = caught ? 'This tank is empty.<br>Pick some residents below!' : 'Your tank is empty.<br>Catch some Goops at the pond and they’ll swim here!';
   const tip = game.tipJar();
   $('tipsBtn').disabled = !tip;
   $('tipsBtn').textContent = tip ? `💰 TIPS +${tip}` : '💰 TIPS ✓';
   $('tipsBtn').title = tip ? 'Visitors left tips to see your Goops' : 'Come back tomorrow for more tips';
   $('feedBtn').classList.toggle('on', !!tank?.feedMode);
+  // residents
+  const ids = GOOPS.filter((g) => s.dex[g.id]).map((g) => g.id);
+  const where = (id) => game.tankOf(id);
+  const order = (id) => (where(id) === tankIdx ? 0 : where(id) === -1 ? 1 : 2);
+  setText('residentCount', `${T.fish.length} / ${TANK_CAP} · ${ids.filter((id) => where(id) === -1).length} in storage`);
+  $('residentList').innerHTML = ids.length ? ids.sort((a, b) => order(a) - order(b)).map((id) => {
+    const g = GOOPS.find((x) => x.id === id), w = where(id);
+    const tag = w === tankIdx ? 'HERE' : w === -1 ? 'STORAGE' : esc(s.tank.tanks[w].name.toUpperCase());
+    return `<button class="res r-${g.rarity} ${w === tankIdx ? 'here' : w === -1 ? 'stored' : 'away'}" data-res="${id}" title="${w === tankIdx ? 'Move to storage' : 'Move into this tank'}">`
+      + `<img src="${GOOP_ART(id)}" alt="" class="${s.dex[id].shiny ? 'is-shiny' : ''}" loading="lazy"><b>${esc(g.name)}</b><i>${tag}</i></button>`;
+  }).join('') : '<p class="muted">Catch Goops at the pond to fill your tanks.</p>';
+  // decorations for this tank
   const legends = GOOPS.filter((g) => g.rarity === 'Legendary' && s.dex[g.id]).length;
-  setText('decorCount', `${s.tank.decor.length} / ${Object.keys(DECOR).length}`);
+  setText('decorCount', `${T.decor.length} / ${DECOR_SLOTS} SLOTS`);
   $('decorList').innerHTML = Object.entries(DECOR).map(([id, d]) => {
     const owned = s.tank.decor.includes(id);
+    const inT = s.tank.tanks.findIndex((t) => t.decor.includes(id));
     const locked = d.legends && legends < d.legends;
-    const btn = owned ? '<button class="on" disabled>IN YOUR TANK</button>'
-      : d.quest ? '<button disabled>📜 QUEST REWARD</button>'
-        : locked ? `<button disabled>🔒 ${d.legends} LEGENDARIES</button>`
-          : `<button class="buy" data-decor="${id}" ${s.essence < d.cost ? 'disabled' : ''}>BUY · ${d.cost}</button>`;
-    return `<div class="tk-card ${owned ? 'equipped' : ''}"><div class="tk-head"><b>${d.name}</b></div><small>${d.desc}</small><div class="tk-btns">${btn}</div></div>`;
+    const full = T.decor.length >= DECOR_SLOTS;
+    const btn = inT === tankIdx ? `<button class="on" data-place="${id}">✓ IN THIS TANK · REMOVE</button>`
+      : owned ? `<button class="use" data-place="${id}" ${full ? 'disabled' : ''}>${full ? 'NO FREE SLOT' : inT >= 0 ? `MOVE HERE FROM ${esc(s.tank.tanks[inT].name.toUpperCase())}` : 'PLACE HERE'}</button>`
+        : d.quest ? '<button disabled>📜 QUEST REWARD</button>'
+          : locked ? `<button disabled>🔒 ${d.legends} LEGENDARIES</button>`
+            : `<button class="buy" data-decor="${id}" ${s.essence < d.cost || full ? 'disabled' : ''}>${full ? 'NO FREE SLOT' : `BUY · ${d.cost}`}</button>`;
+    return `<div class="tk-card ${inT === tankIdx ? 'equipped' : ''}"><div class="tk-head"><b>${d.name}</b>${owned ? '<i class="cost">OWNED</i>' : ''}</div><small>${d.desc}</small><div class="tk-btns">${btn}</div></div>`;
   }).join('');
   setText('themeCount', `${s.tank.themes.length} / ${Object.keys(THEMES).length}`);
   $('themeList').innerHTML = Object.entries(THEMES).map(([id, t]) => {
-    const owned = s.tank.themes.includes(id), on = s.tank.theme === id;
+    const owned = s.tank.themes.includes(id), on = T.theme === id;
     const btn = on ? '<button class="on" disabled>SHOWING</button>' : owned ? `<button class="use" data-theme="${id}">SHOW</button>` : `<button class="buy" data-theme="${id}" ${s.essence < t.cost ? 'disabled' : ''}>BUY · ${t.cost}</button>`;
-    return `<div class="tk-card ${on ? 'equipped' : ''}"><div class="tk-head"><span class="swatch" style="background:linear-gradient(180deg,${t.top},${t.mid} 55%,${t.bot})"></span><b>${t.name}</b></div><div class="tk-btns">${btn}</div></div>`;
+    return `<div class="tk-card theme ${on ? 'equipped' : ''}"><div class="theme-sw" style="background:linear-gradient(180deg,${t.top},${t.mid} 55%,${t.bot}),${t.bot}"><i style="background:linear-gradient(180deg,${t.sand[0]},${t.sand[1]})"></i><em style="background:${t.plant[1]}"></em></div><div class="tk-head"><b>${t.name}</b></div><div class="tk-btns">${btn}</div></div>`;
   }).join('');
 }
 
@@ -940,11 +970,19 @@ function showTankCard(id) {
   const card = $('tankCard');
   card.style.setProperty('--rc', e.shiny ? '#fff27a' : `var(--r-${g.rarity.toLowerCase()})`);
   const buddy = game.state.buddy === id;
-  card.innerHTML = `<button class="close" data-tankclose aria-label="Close">✕</button><div class="tc-rarity">${e.shiny ? 'SHINY · ' : ''}${g.rarity.toUpperCase()}</div><h3>${esc(g.name)}</h3>`
-    + `<div class="tc-stats"><span>×${e.count} caught</span><span>Best ${e.best ?? '—'} cm</span>${e.shiny ? `<span>✦ ${e.shiny} shiny</span>` : ''}</div>`
-    + `<div class="tc-btns"><button data-tankbuddy="${id}" class="${buddy ? 'on' : ''}">${buddy ? '♥ YOUR BUDDY' : 'MAKE BUDDY'}</button><button data-tankdex="${id}">GOOPDEX</button></div>`;
+  card.innerHTML = `<button class="close" data-tankclose aria-label="Close">✕</button><img src="${GOOP_ART(id)}" alt="" class="${e.shiny ? 'is-shiny' : ''}"><div><div class="tc-rarity">${e.shiny ? 'SHINY · ' : ''}${g.rarity.toUpperCase()}</div><h3>${esc(g.name)}</h3>`
+    + `<div class="tc-stats"><span>×${e.count} caught</span><span>Best ${e.best ?? '—'} cm</span>${e.shiny ? `<span>✦ ${e.shiny}</span>` : ''}</div>`
+    + `<div class="tc-btns"><button data-tankbuddy="${id}" class="${buddy ? 'on' : ''}">${buddy ? '♥ BUDDY' : 'MAKE BUDDY'}</button><button data-tankdex="${id}">GOOPDEX</button><button data-res="${id}" class="ghosty">STORAGE</button></div></div>`;
   card.hidden = false;
   card.style.animation = 'none'; void card.offsetWidth; card.style.animation = '';
+}
+
+let tankTaps = 0;
+try { tankTaps = Number(localStorage.getItem('goop-tank-taps')) || 0; } catch { /* ignore */ }
+function tankHint() {
+  const h = $('tankHint');
+  h.textContent = tank?.feedMode ? 'Tap the water to drop food' : 'Tap a Goop to say hi · FEED, then tap the water';
+  h.classList.toggle('gone', !tank?.feedMode && tankTaps >= 3);
 }
 
 $('tankCanvas').addEventListener('pointerdown', (e) => {
@@ -953,16 +991,36 @@ $('tankCanvas').addEventListener('pointerdown', (e) => {
   const r = $('tankCanvas').getBoundingClientRect();
   const dpr = $('tankCanvas').width / r.width;
   const id = tank.tap((e.clientX - r.left) * dpr, (e.clientY - r.top) * dpr);
-  if (tank.feedMode) { sfx.splash(); return; }
-  if (id) { sfx.note(); showTankCard(id); }
+  tankTaps += 1; try { localStorage.setItem('goop-tank-taps', String(tankTaps)); } catch { /* ignore */ }
+  tankHint();
+  if (tank.feedMode) { sfx.drip(); return; }
+  if (id) { sfx.note(); showTankCard(id); } else $('tankCard').hidden = true;
 });
-$('feedBtn').addEventListener('click', () => { if (!tank) return; tank.feedMode = !tank.feedMode; $('feedBtn').classList.toggle('on', tank.feedMode); $('tankHint').textContent = tank.feedMode ? 'Tap the water to drop food' : 'Tap a Goop to say hi · turn on FEED and tap the water to drop food'; sfx.note(); });
-$('tipsBtn').addEventListener('click', () => { const tip = game.collectTips(); if (tip) { sfx.coin(); bumpWallet(); notify(`💰 Visitors loved your tank: +${tip} Essence`); renderTank(); } });
+$('feedBtn').addEventListener('click', () => { if (!tank) return; tank.feedMode = !tank.feedMode; $('feedBtn').classList.toggle('on', tank.feedMode); tankHint(); sfx.note(); });
+$('tipsBtn').addEventListener('click', () => { const tip = game.collectTips(); if (tip) { sfx.coin(); bumpWallet(); notify(`💰 Visitors loved your tanks: +${tip} Essence`); renderTank(); } });
 $('aquariumView').addEventListener('click', (e) => {
+  const tb = e.target.closest('[data-tank]')?.dataset.tank;
+  if (tb != null) { tankIdx = Number(tb); $('tankCard').hidden = true; sfx.step(); renderTank(); return; }
+  if (e.target.closest('[data-newtank]')) { if (game.buyTank()) { tankIdx = game.state.tank.tanks.length - 1; sfx.fanfare(); bumpWallet(); renderTank(); } return; }
+  if (e.target.closest('[data-rename]')) {
+    const name = prompt('Name this tank:', curTank().name);
+    if (name != null && game.renameTank(tankIdx, name)) renderTank();
+    return;
+  }
+  const res = e.target.closest('[data-res]')?.dataset.res;
+  if (res) {
+    const here = game.tankOf(res) === tankIdx;
+    if (here) { game.setResident(res, -1); $('tankCard').hidden = true; sfx.step(); }
+    else if (game.setResident(res, tankIdx)) sfx.splash();
+    else { notify(`${esc(curTank().name)} is full (${TANK_CAP} Goops). Move someone to storage or buy another tank.`, 2600); sfx.bump(); }
+    renderTank(); return;
+  }
   const dec = e.target.closest('[data-decor]')?.dataset.decor;
-  if (dec && game.buyDecor(dec)) { sfx.coin(); bumpWallet(); renderTank(); return; }
+  if (dec) { if (game.buyDecor(dec, tankIdx)) { sfx.coin(); bumpWallet(); } renderTank(); return; }
+  const pl = e.target.closest('[data-place]')?.dataset.place;
+  if (pl) { if (game.placeDecor(pl, tankIdx)) sfx.note(); renderTank(); return; }
   const th = e.target.closest('[data-theme]')?.dataset.theme;
-  if (th && game.setTheme(th)) { sfx.note(); renderTank(); return; }
+  if (th && game.setTheme(th, tankIdx)) { sfx.note(); renderTank(); return; }
   if (e.target.closest('[data-tankclose]')) { $('tankCard').hidden = true; return; }
   const bud = e.target.closest('[data-tankbuddy]')?.dataset.tankbuddy;
   if (bud) { game.setBuddy(game.state.buddy === bud ? null : bud); showTankCard(bud); lastLists = ''; return; }
@@ -1196,7 +1254,7 @@ async function boot() {
   };
   scene.onThunder = () => sfx.thunder();
   tank = new Tank($('tankCanvas'), assets, scene);
-  tank.sync(game.state);
+  tank.sync(game.state, 0);
   window.__goop = { game, scene, walker, tank, go };
   const start0 = location.hash.slice(1);
   if (VIEWS.includes(start0) && start0 !== 'pond') go(start0, { scroll: false });

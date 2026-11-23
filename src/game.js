@@ -233,13 +233,17 @@ export const DECOR = {
   statue: { name: 'Sleeper Statue', cost: 0, quest: true, desc: 'Awarded for waking the Sleeper of the Deep.' },
 };
 export const THEMES = {
-  pond: { name: 'North Pond', cost: 0, top: '#1a7a9a', mid: '#0e4a66', bot: '#06243a', ray: '#bff0ff', sand: ['#c8b07a', '#8a7448'] },
-  sunset: { name: 'Sunset Shallows', cost: 300, top: '#ff9a6a', mid: '#a8406a', bot: '#2a1040', ray: '#ffd0a0', sand: ['#e0a070', '#8a5040'] },
-  moon: { name: 'Moonlit', cost: 300, top: '#2a4a8a', mid: '#12224a', bot: '#050a1a', ray: '#cfe0ff', sand: ['#9aa8c8', '#4a5470'] },
-  lava: { name: 'Magma Vent', cost: 450, top: '#8a2a1a', mid: '#3a0a0a', bot: '#120202', ray: '#ffb070', sand: ['#4a2a1a', '#1a0a06'] },
-  crystal: { name: 'Crystal Cave', cost: 450, top: '#5a3aa8', mid: '#2a1a5a', bot: '#0a0420', ray: '#ffe0a0', sand: ['#8a7ab8', '#3a2a5a'] },
-  abyss: { name: 'The Abyss', cost: 700, top: '#101a4a', mid: '#05082a', bot: '#000005', ray: '#a86aff', sand: ['#2a2040', '#0a0814'] },
+  pond: { name: 'North Pond', cost: 0, top: '#1a7a9a', mid: '#0e4a66', bot: '#06243a', ray: '#bff0ff', sand: ['#c8b07a', '#8a7448'], plant: ['#14603a', '#4ac86a'], rock: '#3a5a6a' },
+  sunset: { name: 'Sunset Shallows', cost: 300, top: '#ff9a6a', mid: '#a8406a', bot: '#2a1040', ray: '#ffd0a0', sand: ['#e0a070', '#8a5040'], plant: ['#6a2a4a', '#e0708a'], rock: '#5a3a5a' },
+  moon: { name: 'Moonlit', cost: 300, top: '#2a4a8a', mid: '#12224a', bot: '#050a1a', ray: '#cfe0ff', sand: ['#9aa8c8', '#4a5470'], plant: ['#1a3a5a', '#6aa8d8'], rock: '#2a3a5a' },
+  lava: { name: 'Magma Vent', cost: 450, top: '#8a2a1a', mid: '#3a0a0a', bot: '#120202', ray: '#ffb070', sand: ['#4a2a1a', '#1a0a06'], plant: ['#4a1a0a', '#e0602a'], rock: '#2a1410' },
+  crystal: { name: 'Crystal Cave', cost: 450, top: '#5a3aa8', mid: '#2a1a5a', bot: '#0a0420', ray: '#ffe0a0', sand: ['#8a7ab8', '#3a2a5a'], plant: ['#3a2a7a', '#a88aff'], rock: '#3a2a6a' },
+  abyss: { name: 'The Abyss', cost: 700, top: '#101a4a', mid: '#05082a', bot: '#000005', ray: '#a86aff', sand: ['#2a2040', '#0a0814'], plant: ['#1a1050', '#7a5aff'], rock: '#14122a' },
 };
+export const TANK_CAP = 12;          // Goops per tank
+export const DECOR_SLOTS = 6;        // decorations per tank
+export const TANK_COSTS = [0, 500, 1200, 2500];
+const newTank = (n) => ({ name: n === 1 ? 'Main Tank' : `Tank ${n}`, theme: 'pond', decor: [], fish: [] });
 /** Daily tip jar: visitors pay to see your tank. */
 export function tankTips(dex) {
   let tip = 0;
@@ -743,7 +747,7 @@ export class SaveStore {
       bait: 'worm', baits: { sugar: 3, mud: 3 }, buddy: null, buddyLv: 0, sets: [], tips: [], finder: false,
       owned: { rods: ['twig'], skins: ['factory'], bobbers: ['classic'], lines: ['classic'], lures: {} },
       equip: { rod: 'twig', skin: 'factory', bobber: 'classic', line: 'classic', lure: 'none' },
-      quest: { i: 0, have: 0 }, tank: { decor: [], theme: 'pond', themes: ['pond'], tipDay: 0 },
+      quest: { i: 0, have: 0 }, tank: { tanks: [newTank(1)], decor: [], themes: ['pond'], tipDay: 0 },
       bounties: [], bountyDay: 0, frenzy: null, visitor: null, rumors: [],
     };
   }
@@ -848,7 +852,22 @@ export class SaveStore {
     s.quest = { i: Math.min(QUESTS.length, Math.floor(num(q.i, 0))), have: Math.floor(num(q.have, 0)) };
     const tk = p.tank && typeof p.tank === 'object' ? p.tank : {};
     const themes = [...new Set(['pond', ...(Array.isArray(tk.themes) ? tk.themes.filter((k) => THEMES[k]) : [])])];
-    s.tank = { decor: list(tk.decor, (k) => !!DECOR[k]), themes, theme: themes.includes(tk.theme) ? tk.theme : 'pond', tipDay: Math.floor(num(tk.tipDay, 0)) };
+    const owned = list(tk.decor, (k) => !!DECOR[k]);
+    let tanks = Array.isArray(tk.tanks) ? tk.tanks.filter((t) => t && typeof t === 'object').slice(0, TANK_COSTS.length) : null;
+    if (!tanks || !tanks.length) {
+      // older saves had one tank: everything in it, residents up to the cap
+      tanks = [{ name: 'Main Tank', theme: tk.theme, decor: owned.slice(0, DECOR_SLOTS), fish: Object.keys(s.dex).slice(0, TANK_CAP) }];
+    }
+    const used = new Set(), placed = new Set();
+    s.tank = {
+      decor: owned, themes, tipDay: Math.floor(num(tk.tipDay, 0)),
+      tanks: tanks.map((t, i) => ({
+        name: typeof t.name === 'string' && t.name.trim() ? t.name.trim().slice(0, 18) : (i ? `Tank ${i + 1}` : 'Main Tank'),
+        theme: themes.includes(t.theme) ? t.theme : 'pond',
+        decor: list(t.decor, (k) => owned.includes(k) && !placed.has(k)).slice(0, DECOR_SLOTS).map((k) => (placed.add(k), k)),
+        fish: list(t.fish, (id) => !!s.dex[id] && !used.has(id)).slice(0, TANK_CAP).map((id) => (used.add(id), id)),
+      })),
+    };
     // bounties
     s.bountyDay = Math.floor(num(p.bountyDay, 0));
     s.bounties = Array.isArray(p.bounties) ? p.bounties.filter((b) => b && typeof b === 'object' && BOUNTY_KINDS.includes(b.kind) && typeof b.text === 'string')
@@ -1196,6 +1215,7 @@ export class FishingGame {
     const firstTime = prev.count === 0;
     this.lastCatch = { goop: id, reward, firstTime, size, record: record && !firstTime, shiny, time, combo: this.fight.best || 1, perfect: !!this.fight.perfect };
     this.message = `${shiny ? '✦ Shiny ' : ''}${g.name} caught! +${reward} Essence`;
+    if (firstTime) this.lastCatch.tank = this.houseGoop(id);
     this.emit('catch', this.lastCatch);
     this.questTick('catch');
     if (ctx.bait && ctx.bait !== 'worm') this.questTick('bait');
@@ -1477,7 +1497,7 @@ export class FishingGame {
     if (r.baits) s.baits[r.baits[0]] = (s.baits[r.baits[0]] || 0) + r.baits[1];
     if (r.item) {
       const [kind, id] = r.item;
-      if (kind === 'decor') { if (!s.tank.decor.includes(id)) s.tank.decor.push(id); }
+      if (kind === 'decor') { if (!s.tank.decor.includes(id)) s.tank.decor.push(id); const t = s.tank.tanks.find((x) => x.decor.length < DECOR_SLOTS); if (t && !s.tank.tanks.some((x) => x.decor.includes(id))) t.decor.push(id); }
       else if (!s.owned[kind].includes(id)) s.owned[kind].push(id);
     }
     s.quest = { i: s.quest.i + 1, have: 0 };
@@ -1503,27 +1523,91 @@ export class FishingGame {
     return tip;
   }
 
-  buyDecor(id) {
+  /** Which tank (index) a Goop lives in, or -1 if it is in storage. */
+  tankOf(id) { return this.state.tank.tanks.findIndex((t) => t.fish.includes(id)); }
+
+  /** Move a Goop into a tank (or storage with ti = -1). Fails if that tank is full. */
+  setResident(id, ti) {
+    const s = this.state;
+    if (!s.dex[id]) return false;
+    const to = s.tank.tanks[ti];
+    if (ti !== -1 && (!to || (!to.fish.includes(id) && to.fish.length >= TANK_CAP))) return false;
+    for (const t of s.tank.tanks) t.fish = t.fish.filter((x) => x !== id);
+    if (to) to.fish.push(id);
+    this.emit('decor', { resident: id, tank: ti });
+    this.saveStore.save(s);
+    return true;
+  }
+
+  /** New catches move into the first tank with room. Returns the tank index or -1. */
+  houseGoop(id) {
+    const tanks = this.state.tank.tanks;
+    if (tanks.some((t) => t.fish.includes(id))) return this.tankOf(id);
+    const ti = tanks.findIndex((t) => t.fish.length < TANK_CAP);
+    if (ti >= 0) tanks[ti].fish.push(id);
+    return ti;
+  }
+
+  tankCost() { const n = this.state.tank.tanks.length; return n < TANK_COSTS.length ? TANK_COSTS[n] : null; }
+
+  buyTank() {
+    const cost = this.tankCost(), s = this.state;
+    if (cost == null || s.essence < cost) return false;
+    s.essence -= cost;
+    s.tank.tanks.push(newTank(s.tank.tanks.length + 1));
+    this.emit('decor', { tank: s.tank.tanks.length - 1, bought: true });
+    this.saveStore.save(s);
+    return true;
+  }
+
+  renameTank(ti, name) {
+    const t = this.state.tank.tanks[ti];
+    const clean = String(name ?? '').replace(/[<>]/g, '').trim().slice(0, 18);
+    if (!t || !clean) return false;
+    t.name = clean;
+    this.saveStore.save(this.state);
+    return true;
+  }
+
+  /** Buy a decoration (once) and put it in tank ti. */
+  buyDecor(id, ti = 0) {
     const d = DECOR[id], s = this.state;
-    if (!d || d.quest || s.tank.decor.includes(id) || s.essence < d.cost) return false;
+    const t = s.tank.tanks[ti];
+    if (!d || !t || d.quest || s.tank.decor.includes(id) || s.essence < d.cost || t.decor.length >= DECOR_SLOTS) return false;
     if (d.legends && GOOPS.filter((g) => g.rarity === 'Legendary' && s.dex[g.id]).length < d.legends) return false;
     s.essence -= d.cost;
     s.tank.decor.push(id);
+    t.decor.push(id);
     this.emit('decor', { id });
     this.saveStore.save(s);
     return true;
   }
 
-  /** Buy (if needed) and switch to an aquarium backdrop. */
-  setTheme(id) {
-    const t = THEMES[id], s = this.state;
-    if (!t) return false;
+  /** Put an owned decoration in tank ti (taking it out of any other tank), or take it out again. */
+  placeDecor(id, ti) {
+    const s = this.state, t = s.tank.tanks[ti];
+    if (!t || !s.tank.decor.includes(id)) return false;
+    if (t.decor.includes(id)) { t.decor = t.decor.filter((x) => x !== id); }
+    else {
+      if (t.decor.length >= DECOR_SLOTS) return false;
+      for (const x of s.tank.tanks) x.decor = x.decor.filter((k) => k !== id);
+      t.decor.push(id);
+    }
+    this.emit('decor', { id, tank: ti });
+    this.saveStore.save(s);
+    return true;
+  }
+
+  /** Buy (if needed) and show a backdrop in tank ti. */
+  setTheme(id, ti = 0) {
+    const th = THEMES[id], s = this.state, t = s.tank.tanks[ti];
+    if (!th || !t) return false;
     if (!s.tank.themes.includes(id)) {
-      if (s.essence < t.cost) return false;
-      s.essence -= t.cost;
+      if (s.essence < th.cost) return false;
+      s.essence -= th.cost;
       s.tank.themes.push(id);
     }
-    s.tank.theme = id;
+    t.theme = id;
     this.emit('decor', { theme: id });
     this.saveStore.save(s);
     return true;
