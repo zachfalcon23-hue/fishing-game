@@ -43,6 +43,7 @@ Run these against the exact candidate commit:
 - [ ] Extend browser coverage to catch resolution, reload/save behavior, keyboard-only controls, and accessibility announcements.
 - [ ] Any failed or skipped check is explained; runner-allocation failures are not counted as passing tests.
 - [ ] Session telemetry accurately captures catch, miss and escape outcomes, uses current-mainline fields, and exports no player identifiers. The browser smoke test verifies manual JSON download.
+- [ ] Primary/backup save recovery, repair, reset, and storage-failure behavior pass the regression suite and browser reload smoke test.
 
 ## Core gameplay validation
 
@@ -65,6 +66,7 @@ Run these against the exact candidate commit:
 
 - [ ] Existing player saves load without losing GoopDex, Essence, equipment, quests, or Aquarium state.
 - [ ] A refreshed page restores the expected progression and game state.
+- [ ] If the primary save is missing or malformed but the backup is valid, the game restores it, repairs both slots, and informs the player.
 - [ ] Corrupted or unavailable local storage produces safe, understandable behavior.
 - [ ] Keyboard controls work and focus remains visible.
 - [ ] Primary controls are usable on a touch screen and meet the project's target-size expectations.
