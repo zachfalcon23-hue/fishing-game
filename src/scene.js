@@ -2,6 +2,7 @@
 // The pond is one continuous shoreline. The camera walks along it; every layer scrolls at its
 // own depth so near things slide past faster than far ones.
 import { PHASES, SPOTS, NOTES, SPOT_BY, GOOPS, RODS, SKINS, LINES } from './game.js';
+import { evaluateWildlifeBehavior, wildlifeNeeds, habitatReturnOffset } from './wildlife.js';
 
 export const W = 1920;
 export const H = 1080;
@@ -342,6 +343,11 @@ export class Scene {
         x, y: HZ + low + rnd() * (high - low), movement,
         phase: rnd() * 6.28, speed: 10 + rnd() * 24,
         size: 0.55 + rnd() * 0.8, count: 2 + Math.floor(rnd() * 4),
+        // Stable individual traits echo Chase's fidelity and chronotype model.
+        fidelity: 0.18 + ((i * 37) % 65) / 100,
+        chronotype: ((i % 5) - 2) * 0.45,
+        homeSpot: nearest.id,
+        alertUntil: 0,
         color: ['#b9e6e8', '#9bd5d0', '#a8c8ff', '#c5b8ef'][i % 4],
       };
     });
@@ -944,42 +950,78 @@ export class Scene {
   drawWildlife(g, t, weather, game) {
     const d = 0.62;
     const span = WORLD_MAX - WORLD_MIN + 2200;
-    const activity = game.ecosystemStatus?.().level ?? 0;
-    const frenzy = game.event?.frenzy === game.spot?.id;
-    const feeding = clamp(activity / 3 + (frenzy ? 0.45 : 0), 0, 1);
-    const visibility = (weather === 'storm' ? 0.48 : weather === 'fog' ? 0.62 : 1) * (0.82 + feeding * 0.18);
+    const areaActivity = game.ecosystemStatus?.().level ?? 0;
+    const frenzySpot = game.event?.frenzy ?? game.state?.frenzy ?? null;
+    const areaFrenzy = frenzySpot === game.spot?.id;
+    const surfaceFeeding = clamp(areaActivity / 3 + (areaFrenzy ? 0.45 : 0), 0, 1);
+    const weatherVisibility = weather === 'storm' ? 0.48 : weather === 'fog' ? 0.62 : 1;
     for (const school of this.wildlife) {
       const movement = school.movement || 'cruise';
       const movementRate = movement === 'dart' ? 1.7 : movement === 'surge' ? 1.25 : movement === 'drift' ? 0.58 : movement === 'weave' ? 1.05 : 0.82;
-      const swimSpeed = school.speed * movementRate * (1 + feeding * 0.3);
+      const swimSpeed = school.speed * movementRate * (1 + surfaceFeeding * 0.3);
       let wx = WORLD_MIN - 1100 + (((school.x - (WORLD_MIN - 1100) + t * swimSpeed) % span) + span) % span;
-      // A moving angler briefly spooks nearby schools; when the player stops, they settle naturally.
+
+      // Habitat conditions are local: a school reacts to the patch it is actually passing.
+      const habitat = SPOTS.reduce((best, spot) =>
+        Math.abs(SPOT_X[spot.id] - wx) < Math.abs(SPOT_X[best.id] - wx) ? spot : best, SPOTS[0]);
+      const localActivity = typeof game.activityAt === 'function' ? game.activityAt(habitat.id) : areaActivity;
+      const localFrenzy = frenzySpot === habitat.id;
+
+      // Walking startles nearby schools. Their alert lingers briefly after the angler stops,
+      // then fades so the pond naturally settles instead of snapping back immediately.
       const distanceFromPlayer = wx - this.camX;
       const proximity = clamp(1 - Math.abs(distanceFromPlayer) / 720, 0, 1);
-      const disturbance = proximity * clamp(this.walk * 1.5, 0, 1);
-      if (disturbance > 0.01) {
+      const immediateDisturbance = proximity * clamp(this.walk * 1.5, 0, 1);
+      if (!Number.isFinite(school.alertUntil)) school.alertUntil = 0;
+      if (immediateDisturbance > 0.08) school.alertUntil = Math.max(school.alertUntil, t + 2.4);
+      const lingeringAlert = clamp((school.alertUntil - t) / 2.4, 0, 1);
+      const disturbance = Math.max(immediateDisturbance, lingeringAlert * 0.58);
+
+      const needs = wildlifeNeeds(school, t);
+      const behavior = evaluateWildlifeBehavior({
+        ...needs,
+        activity: localActivity,
+        frenzy: localFrenzy,
+        disturbance,
+        fidelity: school.fidelity,
+        time: game.timeOfDay,
+      });
+      if (behavior.state === 'fleeing') {
         wx += Math.sign(distanceFromPlayer || 1) * disturbance * 115;
+      } else {
+        const homeX = SPOT_X[school.homeSpot] ?? wx;
+        wx += habitatReturnOffset({
+          worldX: wx,
+          homeX,
+          hunger: needs.hunger,
+          fidelity: school.fidelity,
+          disturbance,
+          activity: localActivity,
+          frenzy: localFrenzy,
+        });
       }
       const x = this.layerX(wx, d);
       if (x < -180 || x > W + 180) continue;
-      const swaySize = movement === 'weave' ? 15 : movement === 'drift' ? 5 : 9;
-      const sway = Math.sin(t * (movementRate + feeding * 0.55 + disturbance * 1.4) + school.phase) * (swaySize - feeding * 2 + disturbance * 5);
+      const swaySize = (movement === 'weave' ? 15 : movement === 'drift' ? 5 : 9) * behavior.sway;
+      const sway = Math.sin(t * (movementRate * behavior.motionRate + behavior.feeding * 0.55 + disturbance * 1.4) + school.phase)
+        * (swaySize - behavior.feeding * 2 + disturbance * 5);
       const y = school.y + sway;
       const depth = clamp((y - HZ) / (H - HZ), 0, 1);
       const scale = school.size * (0.58 + depth * 0.62);
-      const dir = disturbance > 0.08
+      const dir = behavior.state === 'fleeing'
         ? (distanceFromPlayer >= 0 ? 1 : -1)
-        : (Math.sin(t * (0.16 + feeding * 0.12) + school.phase) > 0.72 ? -1 : 1);
+        : (Math.sin(t * (0.16 + behavior.feeding * 0.12) + school.phase) > 0.72 ? -1 : 1);
+      const visibility = weatherVisibility * (0.82 + behavior.feeding * 0.18);
       g.save();
       g.translate(x, y);
       g.scale(dir * scale, scale);
-      g.globalAlpha = visibility * (0.16 + depth * 0.17 + feeding * 0.035);
+      g.globalAlpha = visibility * (0.16 + depth * 0.17 + behavior.feeding * 0.035);
       g.fillStyle = school.color;
       for (let i = 0; i < school.count; i++) {
-        // Feeding schools compress their spacing and turn more actively.
-        const spacing = 22 - feeding * 6;
-        const fx = -i * spacing - Math.sin(t * (1.3 + feeding) + i + school.phase) * (5 + feeding * 2);
-        const fy = Math.sin(t * (1.7 + feeding * 0.8) + i * 1.8 + school.phase) * (5 - feeding * 1.5);
+        // Feeding schools tighten together; fleeing schools spread apart.
+        const spacing = 22 * behavior.spacing - behavior.feeding * 6;
+        const fx = -i * spacing - Math.sin(t * (1.3 + behavior.feeding) + i + school.phase) * (5 + behavior.feeding * 2);
+        const fy = Math.sin(t * (1.7 + behavior.feeding * 0.8) + i * 1.8 + school.phase) * (5 - behavior.feeding * 1.5);
         g.beginPath();
         g.moveTo(fx + 11, fy);
         g.quadraticCurveTo(fx - 1, fy - 9, fx - 15, fy);
@@ -989,23 +1031,23 @@ export class Scene {
         g.lineTo(fx + 19, fy + 6);
         g.closePath();
         g.fill();
-        g.globalAlpha = visibility * (0.2 + depth * 0.18 + feeding * 0.04);
+        g.globalAlpha = visibility * (0.2 + depth * 0.18 + behavior.feeding * 0.04);
         g.fillStyle = '#e8fbff';
         g.beginPath(); g.arc(fx + 5, fy - 1, 1.15, 0, 6.29); g.fill();
         g.fillStyle = school.color;
-        g.globalAlpha = visibility * (0.16 + depth * 0.17 + feeding * 0.035);
+        g.globalAlpha = visibility * (0.16 + depth * 0.17 + behavior.feeding * 0.035);
       }
       g.restore();
     }
-    // Feeding activity creates more frequent surface dimples; storms suppress them.
-    const dimpleChance = (weather === 'storm' ? 0.35 : 0.7) + feeding * 0.25;
-    if (Math.sin(t * (0.7 + feeding * 0.8) + game.state.day) > 0.15 - feeding * 0.25 && Math.sin(t * 0.31) > -0.3) {
+    // Surface signs continue to reflect the angler's current fishing area.
+    const dimpleChance = (weather === 'storm' ? 0.35 : 0.7) + surfaceFeeding * 0.25;
+    if (Math.sin(t * (0.7 + surfaceFeeding * 0.8) + game.state.day) > 0.15 - surfaceFeeding * 0.25 && Math.sin(t * 0.31) > -0.3) {
       g.globalAlpha = 0.18 * dimpleChance;
       g.strokeStyle = '#d8f8ff';
       g.lineWidth = 2;
-      for (let i = 0; i < 3 + Math.round(feeding * 2); i++) {
-        const x = ((i * 613 + t * (18 + i * 5 + feeding * 12)) % (W + 100)) - 50;
-        const y = HZ + 28 + ((i * 137 + t * (8 + feeding * 3)) % 70);
+      for (let i = 0; i < 3 + Math.round(surfaceFeeding * 2); i++) {
+        const x = ((i * 613 + t * (18 + i * 5 + surfaceFeeding * 12)) % (W + 100)) - 50;
+        const y = HZ + 28 + ((i * 137 + t * (8 + surfaceFeeding * 3)) % 70);
         g.beginPath(); g.ellipse(x, y, 10 + i * 3, 2.5, 0, 0, Math.PI * 2); g.stroke();
       }
       g.globalAlpha = 1;
