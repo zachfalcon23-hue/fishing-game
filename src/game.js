@@ -641,8 +641,8 @@ export function makeFight(goop, gear = {}, env = {}) {
   const numericSize = Number(requestedSize);
   const size = Math.round(Math.max(minSize, Math.min(maxSize, Number.isFinite(numericSize) ? numericSize : (minSize + maxSize) / 2)) * 10) / 10;
   const sizeRatio = maxSize > minSize ? Math.max(0, Math.min(1, (size - minSize) / (maxSize - minSize))) : 0.5;
-  const sizeFactor = 0.9 + sizeRatio * 0.2;
-  const sizeForce = 0.95 + sizeRatio * 0.1;
+  const sizeFactor = 0.9 + sizeRatio * 0.2; // ±10% stamina and inverse reel pace across the size range
+  const sizeForce = 0.95 + sizeRatio * 0.1; // ±5% pull force across the size range
   const maxStamina = goop.stamina * sizeFactor;
   return {
     goop, size, sizeRatio, sizeFactor, sizeClass: sizeRatio <= 0.25 ? 'LIGHT' : sizeRatio >= 0.75 ? 'HEAVY' : 'AVERAGE',
