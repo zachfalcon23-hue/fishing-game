@@ -892,24 +892,30 @@ export class Scene {
   drawWildlife(g, t, weather, game) {
     const d = 0.62;
     const span = WORLD_MAX - WORLD_MIN + 2200;
-    const visibility = weather === 'storm' ? 0.48 : weather === 'fog' ? 0.62 : 1;
+    const activity = game.ecosystemStatus?.().level ?? 0;
+    const frenzy = game.event?.frenzy === game.spot?.id;
+    const feeding = clamp(activity / 3 + (frenzy ? 0.45 : 0), 0, 1);
+    const visibility = (weather === 'storm' ? 0.48 : weather === 'fog' ? 0.62 : 1) * (0.82 + feeding * 0.18);
     for (const school of this.wildlife) {
-      const wx = WORLD_MIN - 1100 + (((school.x - (WORLD_MIN - 1100) + t * school.speed) % span) + span) % span;
+      const swimSpeed = school.speed * (1 + feeding * 0.38);
+      const wx = WORLD_MIN - 1100 + (((school.x - (WORLD_MIN - 1100) + t * swimSpeed) % span) + span) % span;
       const x = this.layerX(wx, d);
       if (x < -180 || x > W + 180) continue;
-      const sway = Math.sin(t * 0.9 + school.phase) * 9;
+      const sway = Math.sin(t * (0.9 + feeding * 0.7) + school.phase) * (9 - feeding * 3);
       const y = school.y + sway;
       const depth = clamp((y - HZ) / (H - HZ), 0, 1);
       const scale = school.size * (0.58 + depth * 0.62);
-      const dir = Math.sin(t * 0.16 + school.phase) > 0.72 ? -1 : 1;
+      const dir = Math.sin(t * (0.16 + feeding * 0.12) + school.phase) > 0.72 ? -1 : 1;
       g.save();
       g.translate(x, y);
       g.scale(dir * scale, scale);
-      g.globalAlpha = visibility * (0.16 + depth * 0.17);
+      g.globalAlpha = visibility * (0.16 + depth * 0.17 + feeding * 0.035);
       g.fillStyle = school.color;
       for (let i = 0; i < school.count; i++) {
-        const fx = -i * 22 - Math.sin(t * 1.3 + i + school.phase) * 5;
-        const fy = Math.sin(t * 1.7 + i * 1.8 + school.phase) * 5;
+        // Feeding schools compress their spacing and turn more actively.
+        const spacing = 22 - feeding * 6;
+        const fx = -i * spacing - Math.sin(t * (1.3 + feeding) + i + school.phase) * (5 + feeding * 2);
+        const fy = Math.sin(t * (1.7 + feeding * 0.8) + i * 1.8 + school.phase) * (5 - feeding * 1.5);
         g.beginPath();
         g.moveTo(fx + 11, fy);
         g.quadraticCurveTo(fx - 1, fy - 9, fx - 15, fy);
@@ -919,23 +925,23 @@ export class Scene {
         g.lineTo(fx + 19, fy + 6);
         g.closePath();
         g.fill();
-        g.globalAlpha = visibility * (0.2 + depth * 0.18);
+        g.globalAlpha = visibility * (0.2 + depth * 0.18 + feeding * 0.04);
         g.fillStyle = '#e8fbff';
         g.beginPath(); g.arc(fx + 5, fy - 1, 1.15, 0, 6.29); g.fill();
         g.fillStyle = school.color;
-        g.globalAlpha = visibility * (0.16 + depth * 0.17);
+        g.globalAlpha = visibility * (0.16 + depth * 0.17 + feeding * 0.035);
       }
       g.restore();
     }
-    // Occasional surface dimples suggest movement just below the waterline.
-    const dimpleChance = weather === 'storm' ? 0.35 : 0.7;
-    if (Math.sin(t * 0.7 + game.state.day) > 0.15 && Math.sin(t * 0.31) > -0.3) {
+    // Feeding activity creates more frequent surface dimples; storms suppress them.
+    const dimpleChance = (weather === 'storm' ? 0.35 : 0.7) + feeding * 0.25;
+    if (Math.sin(t * (0.7 + feeding * 0.8) + game.state.day) > 0.15 - feeding * 0.25 && Math.sin(t * 0.31) > -0.3) {
       g.globalAlpha = 0.18 * dimpleChance;
       g.strokeStyle = '#d8f8ff';
       g.lineWidth = 2;
-      for (let i = 0; i < 3; i++) {
-        const x = ((i * 613 + t * (18 + i * 5)) % (W + 100)) - 50;
-        const y = HZ + 28 + ((i * 137 + t * 8) % 70);
+      for (let i = 0; i < 3 + Math.round(feeding * 2); i++) {
+        const x = ((i * 613 + t * (18 + i * 5 + feeding * 12)) % (W + 100)) - 50;
+        const y = HZ + 28 + ((i * 137 + t * (8 + feeding * 3)) % 70);
         g.beginPath(); g.ellipse(x, y, 10 + i * 3, 2.5, 0, 0, Math.PI * 2); g.stroke();
       }
       g.globalAlpha = 1;
