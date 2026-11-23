@@ -81,7 +81,8 @@ const ease = (t) => t * t * (3 - 2 * t);
 export function fightReactionPose(reaction, now, x, y, bobberX) {
   if (!reaction || !['win', 'fail'].includes(reaction.type)
     || !Number.isFinite(reaction.at) || !Number.isFinite(reaction.duration)
-    || reaction.duration <= 0 || !Number.isFinite(now)) return null;
+    || reaction.duration <= 0 || !Number.isFinite(now)
+    || !Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(bobberX)) return null;
   const age = Math.max(0, (now - reaction.at) / 1000);
   const progress = age / reaction.duration;
   if (progress >= 1) return null;
