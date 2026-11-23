@@ -2,7 +2,7 @@
 // The pond is one continuous shoreline. The camera walks along it; every layer scrolls at its
 // own depth so near things slide past faster than far ones.
 import { PHASES, SPOTS, NOTES, SPOT_BY, GOOPS, RODS, SKINS, LINES } from './game.js';
-import { evaluateWildlifeBehavior, wildlifeNeeds } from './wildlife.js';
+import { evaluateWildlifeBehavior, wildlifeNeeds, habitatReturnOffset } from './wildlife.js';
 
 export const W = 1920;
 export const H = 1080;
@@ -346,6 +346,7 @@ export class Scene {
         // Stable individual traits echo Chase's fidelity and chronotype model.
         fidelity: 0.18 + ((i * 37) % 65) / 100,
         chronotype: ((i % 5) - 2) * 0.45,
+        homeSpot: nearest.id,
         alertUntil: 0,
         color: ['#b9e6e8', '#9bd5d0', '#a8c8ff', '#c5b8ef'][i % 4],
       };
@@ -987,6 +988,17 @@ export class Scene {
       });
       if (behavior.state === 'fleeing') {
         wx += Math.sign(distanceFromPlayer || 1) * disturbance * 115;
+      } else {
+        const homeX = SPOT_X[school.homeSpot] ?? wx;
+        wx += habitatReturnOffset({
+          worldX: wx,
+          homeX,
+          hunger: needs.hunger,
+          fidelity: school.fidelity,
+          disturbance,
+          activity: localActivity,
+          frenzy: localFrenzy,
+        });
       }
       const x = this.layerX(wx, d);
       if (x < -180 || x > W + 180) continue;
