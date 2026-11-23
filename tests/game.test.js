@@ -669,7 +669,7 @@ test('fishing lines provide distinct tactical bonuses and trade-offs', () => {
   assert.ok(gold.shiny > 1 && gold.essence > 1, 'gold line improves rewards');
   assert.ok(rainbow.zone > 0 && rainbow.reel > 1, 'rainbow line is a balanced option');
   const goop = GOOPS.find((g) => g.rarity === 'Rare');
-  const fight = makeFight(goop, {}, { snapGuard: slime.snapGuard ?? 1 });
+  const fight = makeFight(goop, {}, { snapGuard: mono.snapGuard });
   assert.ok(fight.snapGuard > makeFight(goop).snapGuard, 'line shock protection reaches fight simulation');
 });
 
