@@ -451,6 +451,8 @@ function render(dt) {
   const prog = game.spotProgress(near.id);
   setText('spotProg', `${prog.found}/${prog.total}`);
   // event chip: frenzy nearby / full moon / visitor
+  const ecology = game.ecosystemStatus();
+  evs.push(`<span class="ev activity" title="${ecology.description}">◉ ${ecology.label}</span>`);
   const s = game.state;
   const evs = [];
   if (s.frenzy && z.mix.some(([sp, k]) => sp.id === s.frenzy && k >= 0.5)) evs.push('<span class="ev frenzy">✦ FRENZY HERE</span>');
