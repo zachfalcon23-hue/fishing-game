@@ -486,6 +486,7 @@ function showCatchCard(c) {
   $('ccTime').textContent = `${c.time.toFixed(1)}s`;
   const extras = [];
   if (c.perfect) extras.push('PERFECT HOOK');
+  else if (c.hookGrade === 'clean') extras.push('CLEAN HOOK');
   if (c.combo > 1) extras.push(`BEST STREAK ×${c.combo.toFixed(2).replace(/0$/, '')}`);
   if (c.skillBonus > 0) extras.push(`SKILL BONUS +${Math.round(c.skillBonus * 100)}%`);
   $('ccExtra').textContent = extras.join(' · ');

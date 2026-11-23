@@ -12,7 +12,7 @@ The game is published with GitHub Pages (Settings → Pages → Deploy from a br
 ## How to play
 1. **Roam the shore.** Hold `◀ ▶`, `A / D` or the arrow keys (or drag the scene) to walk; let go and you stop right there. A quick tap or flick hops to the next stop (a spot, or a clue). Tap a pin on the minimap or open the full map (`M`, or the map button) to walk somewhere.
 2. **Cast anywhere** (`C`, the button, or tap the scene). Standing at a spot gives you its full bonuses; between spots you fish a blend of both neighbours' Goops for a little less Essence.
-3. **Hook** with a fresh press of **Reel** (`Space`, or the button). Hooking within 0.4 s of the `!` is a **perfect hook** and gives you a head start.
+3. **Hook** with a fresh press of **Reel** (`Space`, or the button). Hook within 0.4 s of the `!` for a **perfect hook** (+12% fight progress), within 1.2 s for a **clean hook** (+6%), or later for a normal start.
 4. **Fight:** hold Reel to wind tension up and release to let it fall. Keep the needle inside the green zone to gain progress.
    - Staying in the zone while reeling builds a **streak** (up to ×1.6 catch speed).
    - Rare-or-better Goops **lunge**: a red `!!` appears, then they surge. Let go of the reel when it hits to dodge it (and gain a little progress); fighting it head-on costs progress.
