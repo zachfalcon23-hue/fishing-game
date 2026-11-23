@@ -161,6 +161,31 @@ try {
     assert.equal(await page.locator('#pondView').isVisible(), true);
     assert.equal(await page.locator('#aquariumView').isVisible(), false);
 
+    // Verify the backup recovery path in a real browser reload.
+    await page.evaluate(() => {
+      const backup = window.__goop.game.saveStore.fresh();
+      backup.essence = 321;
+      localStorage.setItem('goop-fishing-save-backup', JSON.stringify(backup));
+      localStorage.setItem('goop-fishing-save', '{damaged-primary');
+      location.reload();
+    });
+    await page.waitForFunction(
+      () => document.querySelector('#loader')?.classList.contains('gone') === true
+        && window.__goop?.game?.saveStore?.lastLoadRecovered === true,
+      undefined,
+      { timeout: 20000 },
+    );
+    const recovery = await page.evaluate(() => ({
+      essence: window.__goop.game.state.essence,
+      recovered: window.__goop.game.saveStore.lastLoadRecovered,
+      primary: JSON.parse(localStorage.getItem('goop-fishing-save')),
+      backup: JSON.parse(localStorage.getItem('goop-fishing-save-backup')),
+    }));
+    assert.equal(recovery.essence, 321);
+    assert.equal(recovery.recovered, true);
+    assert.equal(recovery.primary.essence, 321);
+    assert.equal(recovery.backup.essence, 321);
+
     assert.deepEqual(pageErrors, [], `${viewport.name}: uncaught browser errors`);
     assert.deepEqual(failedRequests, [], `${viewport.name}: missing local assets`);
     assert.deepEqual(consoleErrors, [], `${viewport.name}: console errors`);
