@@ -633,6 +633,27 @@ test('rods: dex-gated purchases, equip, and real effects on the fight and the po
   for (const r of Object.values(RODS)) assert.ok(r.name && r.style && r.desc);
 });
 
+test('rod handling identities affect actual fight tolerance', () => {
+  const get = (rod) => tackleMods({ rod }, {});
+  const bamboo = get('bamboo');
+  const glass = get('glass');
+  const carbon = get('carbon');
+  const oak = get('oak');
+  const coral = get('coral');
+  const crystal = get('crystal');
+  const abyss = get('abyss');
+  assert.ok(bamboo.snapGuard > 1 && bamboo.zone > 0, 'bamboo absorbs shock and is forgiving');
+  assert.ok(glass.bite < 1 && glass.snapGuard < 1, 'glass attracts bites but is delicate');
+  assert.ok(carbon.reel > 1 && carbon.snapGuard < 1 && carbon.zone < 0, 'carbon is fast but punishes mistakes');
+  assert.ok(oak.force < 1 && oak.lunge < 1 && oak.snapGuard > 1, 'ironwood controls powerful surges');
+  assert.ok(coral.taste.sweet > 1, 'coral remains a sweet-Goop specialist');
+  assert.ok(crystal.shiny > 1 && crystal.snapGuard < 1, 'crystal prioritizes trophy odds over heavy-fight control');
+  assert.ok(abyss.legend > 1 && abyss.lunge < 1, 'abyssal reach specializes in deep rare encounters');
+  const goop = GOOPS.find((g) => g.rarity === 'Rare');
+  const fight = makeFight(goop, {}, { snapGuard: oak.snapGuard });
+  assert.ok(fight.snapGuard > makeFight(goop).snapGuard, 'rod shock absorption reaches the fight simulation');
+});
+
 test('skins, bobbers and lines are bought once and equipped', () => {
   const g = newGame();
   g.state.essence = 10000;
