@@ -162,3 +162,35 @@ test('locked and undiscovered habitats never reveal a recognizable species', () 
   const unlocked = resolveWildlifeSighting(candidates, 'falls-day', true);
   assert.ok(candidates.some((goop) => goop.id === unlocked?.id));
 });
+
+test('species selector never returns a Goop outside its live condition-gated encounter pool', () => {
+  const weathers = ['clear', 'rain', 'fog', 'storm'];
+  const times = ['Dawn', 'Day', 'Dusk', 'Night'];
+  for (const spot of SPOTS) {
+    for (const weather of weathers) {
+      for (const time of times) {
+        const pool = encounterPool({ spot, weather, time });
+        const eligibleIds = new Set(pool.map((goop) => goop.id));
+        for (let seed = 0; seed < 5; seed += 1) {
+          const sighting = selectWildlifeSpecies(pool, `${spot.id}|${weather}|${time}|${seed}`);
+          if (pool.length) assert.ok(eligibleIds.has(sighting?.id));
+          else assert.equal(sighting, null);
+        }
+      }
+    }
+  }
+});
+
+test('all catalogued Goops receive finite, bounded visual profiles', () => {
+  const shapes = new Set();
+  for (const goop of GOOPS) {
+    const profile = wildlifeDisplayProfile(goop);
+    for (const value of Object.values(profile)) {
+      assert.ok(Number.isFinite(value));
+      assert.ok(value >= 0 && value <= 2);
+    }
+    shapes.add([profile.bodyLength, profile.bodyHeight, profile.tailSpan,
+      profile.dorsalFin, profile.lowerFin].join(':'));
+  }
+  assert.ok(shapes.size >= GOOPS.length - 2, 'most species should have a visibly distinct stable silhouette');
+});
