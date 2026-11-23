@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - feature/species-aware-wildlife
+      - feature/mainline-session-telemetry
   pull_request:
     branches:
       - main
