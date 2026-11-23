@@ -455,6 +455,11 @@ function render(dt) {
   const evs = [];
   const ecology = game.ecosystemStatus();
   evs.push(`<span class="ev activity" title="${ecology.description}">◉ ${ecology.label}</span>`);
+  const sighting = view === 'pond' ? scene?.currentSighting : null;
+  if (sighting) {
+    const hint = `Observed in ${sighting.habitatName}. Current habitat, weather and time rules permit this Goop to bite; a sighting is not a guaranteed catch.`;
+    evs.push(`<span class="ev sighting" title="${esc(hint)}">👁 ${esc(sighting.name.toUpperCase())} · ${esc(sighting.rarity.toUpperCase())} SEEN</span>`);
+  }
   if (s.frenzy && z.mix.some(([sp, k]) => sp.id === s.frenzy && k >= 0.5)) evs.push('<span class="ev frenzy">✦ FRENZY HERE</span>');
   else if (s.frenzy) evs.push(`<span class="ev">✦ FRENZY · ${spotName(s.frenzy).replace(/^The /, '').toUpperCase()}</span>`);
   if (game.fullMoon && game.timeOfDay === 'Night') evs.push('<span class="ev moon">🌕 FULL MOON</span>');

@@ -3,6 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "scripts": { "test": "node --test", "start": "npx serve ." },
-  "engines": { "node": ">=20" }
+  "scripts": {
+    "check": "node --check src/game.js && node --check src/main.js && node --check src/scene.js && node --check src/audio.js && node --check src/aquarium.js && node --check src/wildlife.js && node --check tests/game.test.js && node --check tests/wildlife.test.js && node --check tests/browser-smoke.mjs",
+    "test": "node --test",
+    "start": "npx serve .",
+    "test:browser": "node tests/browser-smoke.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
 }

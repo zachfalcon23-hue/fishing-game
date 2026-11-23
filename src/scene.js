@@ -1,8 +1,8 @@
 // Goop Fishing — North Pond renderer (presentation only; reads game state, never changes it).
 // The pond is one continuous shoreline. The camera walks along it; every layer scrolls at its
 // own depth so near things slide past faster than far ones.
-import { PHASES, SPOTS, NOTES, SPOT_BY, GOOPS, RODS, SKINS, LINES } from './game.js';
-import { evaluateWildlifeBehavior, wildlifeNeeds, habitatReturnOffset } from './wildlife.js';
+import { PHASES, SPOTS, NOTES, SPOT_BY, GOOPS, RODS, SKINS, LINES, BAITS, encounterPool } from './game.js';
+import { evaluateWildlifeBehavior, wildlifeNeeds, habitatReturnOffset, resolveWildlifeSighting, wildlifeDisplayProfile } from './wildlife.js';
 
 export const W = 1920;
 export const H = 1080;
@@ -340,7 +340,9 @@ export class Scene {
       const nearest = SPOTS.reduce((best, spot) => Math.abs(SPOT_X[spot.id] - x) < Math.abs(SPOT_X[best.id] - x) ? spot : best, SPOTS[0]);
       const [low, high, movement] = habitatBands[nearest.id] || [150, 300, 'cruise'];
       return {
+        id: i,
         x, y: HZ + low + rnd() * (high - low), movement,
+        sightingKey: '', sighting: null,
         phase: rnd() * 6.28, speed: 10 + rnd() * 24,
         size: 0.55 + rnd() * 0.8, count: 2 + Math.floor(rnd() * 4),
         // Stable individual traits echo Chase's fidelity and chronotype model.
@@ -946,26 +948,72 @@ export class Scene {
     void spotOff;
   }
 
-  /** Small schools of wild pond life. These are ambient sightings, not catchable targets. */
+  /**
+   * Ambient schools now reveal species that are genuinely eligible in the habitat they occupy.
+   * Sightings are visual clues only: the existing encounter pool remains the sole eligibility
+   * authority, and this renderer never consumes game RNG or modifies catch state.
+   */
   drawWildlife(g, t, weather, game) {
     const d = 0.62;
     const span = WORLD_MAX - WORLD_MIN + 2200;
     const areaActivity = game.ecosystemStatus?.().level ?? 0;
-    const frenzySpot = game.event?.frenzy ?? game.state?.frenzy ?? null;
+    const gameEvent = game.event || {};
+    const state = game.state || {};
+    const timeOfDay = game.timeOfDay || 'Day';
+    const day = Number.isFinite(state.day) ? state.day : 0;
+    const sightingBait = BAITS[state.bait] && (state.bait === 'worm' || state.baits?.[state.bait] > 0)
+      ? state.bait : 'worm';
+    const sightingLure = Number.isFinite(state.gear?.lure) ? state.gear.lure : 0;
+    const sightingMods = typeof game.mods === 'function' ? game.mods() : null;
+    const sightingWeightKey = JSON.stringify({ bait: sightingBait, lure: sightingLure,
+      mods: sightingMods, trackedGoop: state.trackedGoop || null });
+    const frenzySpot = gameEvent.frenzy ?? state.frenzy ?? null;
     const areaFrenzy = frenzySpot === game.spot?.id;
     const surfaceFeeding = clamp(areaActivity / 3 + (areaFrenzy ? 0.45 : 0), 0, 1);
     const weatherVisibility = weather === 'storm' ? 0.48 : weather === 'fog' ? 0.62 : 1;
+    this.currentSighting = null;
+    let nearestSightingDistance = Infinity;
+
     for (const school of this.wildlife) {
       const movement = school.movement || 'cruise';
-      const movementRate = movement === 'dart' ? 1.7 : movement === 'surge' ? 1.25 : movement === 'drift' ? 0.58 : movement === 'weave' ? 1.05 : 0.82;
-      const swimSpeed = school.speed * movementRate * (1 + surfaceFeeding * 0.3);
-      let wx = WORLD_MIN - 1100 + (((school.x - (WORLD_MIN - 1100) + t * swimSpeed) % span) + span) % span;
+      const habitatMovement = movement === 'dart' ? 1.7 : movement === 'surge' ? 1.25
+        : movement === 'drift' ? 0.58 : movement === 'weave' ? 1.05 : 0.82;
+      // Keep each school's world-space trajectory independent of changing species sightings;
+      // species motion changes its local swim rhythm, not its absolute position.
+      const initialSpeed = school.speed * habitatMovement * (1 + surfaceFeeding * 0.3);
+      let wx = WORLD_MIN - 1100 + (((school.x - (WORLD_MIN - 1100) + t * initialSpeed) % span) + span) % span;
 
-      // Habitat conditions are local: a school reacts to the patch it is actually passing.
+      // Resolve the nearest habitat before selecting a species, so the sighting stays local.
       const habitat = SPOTS.reduce((best, spot) =>
         Math.abs(SPOT_X[spot.id] - wx) < Math.abs(SPOT_X[best.id] - wx) ? spot : best, SPOTS[0]);
       const localActivity = typeof game.activityAt === 'function' ? game.activityAt(habitat.id) : areaActivity;
       const localFrenzy = frenzySpot === habitat.id;
+      const visitorId = gameEvent.visitor?.spot === habitat.id ? gameEvent.visitor.goop : '';
+      const habitatUnlocked = typeof game.spotUnlocked !== 'function' || game.spotUnlocked(habitat.id);
+      const sightingKey = [
+        habitat.id, habitatUnlocked ? 1 : 0, weather, timeOfDay, localActivity, localFrenzy ? 1 : 0,
+        visitorId, gameEvent.fullMoon ? 1 : 0, gameEvent.sleeper ? 1 : 0, day, sightingWeightKey,
+      ].join('|');
+
+      // Locked and undiscovered habitats remain anonymous. For open habitats, use the exact
+      // same candidate rules as fishing, including weather/time gates, visitors and quest state.
+      if (school.sightingKey !== sightingKey) {
+        const candidates = habitatUnlocked ? encounterPool({
+          spot: habitat,
+          weather,
+          time: timeOfDay,
+          bait: sightingBait,
+          lure: sightingLure,
+          event: { ...gameEvent, activity: state.activity || {} },
+          mods: sightingMods,
+          trackedGoop: state.trackedGoop || null,
+        }) : [];
+        school.sighting = resolveWildlifeSighting(candidates, `school:${school.id ?? 0}|${sightingKey}`, habitatUnlocked);
+        school.sightingKey = sightingKey;
+      }
+
+      const species = school.sighting;
+      const profile = species ? wildlifeDisplayProfile(species) : null;
 
       // Walking startles nearby schools. Their alert lingers briefly after the angler stops,
       // then fades so the pond naturally settles instead of snapping back immediately.
@@ -984,13 +1032,13 @@ export class Scene {
         frenzy: localFrenzy,
         disturbance,
         fidelity: school.fidelity,
-        time: game.timeOfDay,
+        time: timeOfDay,
       });
       if (behavior.state === 'fleeing') {
         wx += Math.sign(distanceFromPlayer || 1) * disturbance * 115;
       } else {
         const homeX = SPOT_X[school.homeSpot] ?? wx;
-        wx += habitatReturnOffset({
+        const returnedX = wx + habitatReturnOffset({
           worldX: wx,
           homeX,
           hunger: needs.hunger,
@@ -999,56 +1047,143 @@ export class Scene {
           activity: localActivity,
           frenzy: localFrenzy,
         });
+        // Keep the species attached to the habitat whose encounter pool identified it.
+        // A school may leave its home patch naturally, but a home-seeking correction must
+        // not push it across a neighbouring habitat boundary while retaining the old identity.
+        const returnedHabitat = SPOTS.reduce((best, spot) =>
+          Math.abs(SPOT_X[spot.id] - returnedX) < Math.abs(SPOT_X[best.id] - returnedX) ? spot : best, SPOTS[0]);
+        if (returnedHabitat.id === habitat.id) wx = returnedX;
       }
+
       const x = this.layerX(wx, d);
       if (x < -180 || x > W + 180) continue;
-      const swaySize = (movement === 'weave' ? 15 : movement === 'drift' ? 5 : 9) * behavior.sway;
-      const sway = Math.sin(t * (movementRate * behavior.motionRate + behavior.feeding * 0.55 + disturbance * 1.4) + school.phase)
+      const playerDistance = Math.abs(wx - this.camX);
+      if (species && behavior.state !== 'fleeing' && playerDistance <= 640
+        && playerDistance < nearestSightingDistance) {
+        nearestSightingDistance = playerDistance;
+        this.currentSighting = {
+          id: species.id, name: species.name, rarity: species.rarity,
+          color: species.color, habitatName: habitat.name, behavior: behavior.state,
+        };
+      }
+      const swaySize = (movement === 'weave' ? 15 : movement === 'drift' ? 5 : 9)
+        * behavior.sway * (profile?.sway ?? 1);
+      const sway = Math.sin(t * (habitatMovement * behavior.motionRate * (profile?.speed ?? 1)
+        + behavior.feeding * 0.55 + disturbance * 1.4) + school.phase)
         * (swaySize - behavior.feeding * 2 + disturbance * 5);
-      const y = school.y + sway;
+      const verticalStyle = profile?.vertical ?? 1;
+      const y = school.y + sway * verticalStyle - behavior.feeding * (profile ? 5 : 2);
       const depth = clamp((y - HZ) / (H - HZ), 0, 1);
       const scale = school.size * (0.58 + depth * 0.62);
       const dir = behavior.state === 'fleeing'
         ? (distanceFromPlayer >= 0 ? 1 : -1)
         : (Math.sin(t * (0.16 + behavior.feeding * 0.12) + school.phase) > 0.72 ? -1 : 1);
       const visibility = weatherVisibility * (0.82 + behavior.feeding * 0.18);
+      const fishColor = species?.color || school.color;
+      const bodyLength = 28 * (profile?.bodyLength ?? 1);
+      const bodyHeight = 14 * (profile?.bodyHeight ?? 1);
+      const tailSpan = profile?.tailSpan ?? 1;
       g.save();
       g.translate(x, y);
       g.scale(dir * scale, scale);
-      g.globalAlpha = visibility * (0.16 + depth * 0.17 + behavior.feeding * 0.035);
-      g.fillStyle = school.color;
+
       for (let i = 0; i < school.count; i++) {
         // Feeding schools tighten together; fleeing schools spread apart.
         const spacing = 22 * behavior.spacing - behavior.feeding * 6;
-        const fx = -i * spacing - Math.sin(t * (1.3 + behavior.feeding) + i + school.phase) * (5 + behavior.feeding * 2);
-        const fy = Math.sin(t * (1.7 + behavior.feeding * 0.8) + i * 1.8 + school.phase) * (5 - behavior.feeding * 1.5);
+        const fx = -i * spacing - Math.sin(t * (1.3 + behavior.feeding) + i + school.phase)
+          * (5 + behavior.feeding * 2);
+        const fy = Math.sin(t * (1.7 + behavior.feeding * 0.8) + i * 1.8 + school.phase)
+          * (5 - behavior.feeding * 1.5);
+        g.save();
+        g.translate(fx, fy);
+        g.fillStyle = fishColor;
+        g.globalAlpha = visibility * (0.16 + depth * 0.17 + behavior.feeding * 0.035);
+
+        // Tail, body and fins form a repeatable silhouette unique to the selected species.
         g.beginPath();
-        g.moveTo(fx + 11, fy);
-        g.quadraticCurveTo(fx - 1, fy - 9, fx - 15, fy);
-        g.quadraticCurveTo(fx - 1, fy + 9, fx + 11, fy);
-        g.lineTo(fx + 19, fy - 6);
-        g.lineTo(fx + 17, fy);
-        g.lineTo(fx + 19, fy + 6);
+        g.moveTo(bodyLength * 0.28, 0);
+        const tailBeat = Math.sin(t * (2.1 + (profile?.speed ?? 1) * 1.3) + i + school.phase) * bodyHeight * 0.055;
+        g.lineTo(bodyLength * (0.42 + tailSpan * 0.18), -bodyHeight * tailSpan * 0.58 + tailBeat);
+        g.quadraticCurveTo(bodyLength * 0.48, 0,
+          bodyLength * (0.42 + tailSpan * 0.18), bodyHeight * tailSpan * 0.58 + tailBeat);
         g.closePath();
         g.fill();
+
+        g.beginPath();
+        g.moveTo(-bodyLength * 0.48, 0);
+        g.quadraticCurveTo(-bodyLength * 0.34, -bodyHeight * 0.78, bodyLength * 0.08, -bodyHeight * 0.52);
+        g.quadraticCurveTo(bodyLength * 0.36, -bodyHeight * 0.24, bodyLength * 0.34, 0);
+        g.quadraticCurveTo(bodyLength * 0.36, bodyHeight * 0.24, bodyLength * 0.08, bodyHeight * 0.52);
+        g.quadraticCurveTo(-bodyLength * 0.34, bodyHeight * 0.78, -bodyLength * 0.48, 0);
+        g.closePath();
+        g.fill();
+
+        const dorsal = profile?.dorsalFin ?? 0.5;
+        g.beginPath();
+        g.moveTo(-bodyLength * 0.08, -bodyHeight * 0.43);
+        g.quadraticCurveTo(bodyLength * 0.02, -bodyHeight * (0.58 + dorsal * 0.42),
+          bodyLength * 0.18, -bodyHeight * 0.35);
+        g.closePath();
+        g.fill();
+
+        const lowerFin = profile?.lowerFin ?? 0.3;
+        g.beginPath();
+        g.moveTo(-bodyLength * 0.02, bodyHeight * 0.42);
+        g.quadraticCurveTo(bodyLength * 0.08, bodyHeight * (0.52 + lowerFin * 0.32),
+          bodyLength * 0.2, bodyHeight * 0.34);
+        g.closePath();
+        g.fill();
+
         g.globalAlpha = visibility * (0.2 + depth * 0.18 + behavior.feeding * 0.04);
         g.fillStyle = '#e8fbff';
-        g.beginPath(); g.arc(fx + 5, fy - 1, 1.15, 0, 6.29); g.fill();
-        g.fillStyle = school.color;
-        g.globalAlpha = visibility * (0.16 + depth * 0.17 + behavior.feeding * 0.035);
+        g.beginPath();
+        g.arc(-bodyLength * 0.3, -bodyHeight * 0.12, Math.max(0.75, 1.05 * (profile?.bodyHeight ?? 1)), 0, 6.29);
+        g.fill();
+
+        if (profile?.glow) {
+          g.globalAlpha = visibility * profile.glow;
+          g.strokeStyle = fishColor;
+          g.lineWidth = 1.15;
+          g.beginPath();
+          g.ellipse(-bodyLength * 0.04, 0, bodyLength * 0.38, bodyHeight * 0.56, 0, 0, Math.PI * 2);
+          g.stroke();
+        }
+        g.restore();
       }
       g.restore();
+
+      // A subtle surface ring links visible feeding schools to a useful fishing clue.
+      // It appears only for a species currently eligible in this open habitat.
+      if (species && behavior.state === 'feeding' && behavior.feeding > 0.62
+        && depth < 0.48 && (school.id ?? 0) % 3 === 0) {
+        const surfaceY = HZ + (y - HZ) * 0.18;
+        g.save();
+        g.globalAlpha = visibility * 0.16;
+        g.strokeStyle = fishColor;
+        g.lineWidth = 1.5;
+        g.beginPath();
+        g.ellipse(x, surfaceY, 9 + behavior.feeding * 5, 2.2, 0, 0, Math.PI * 2);
+        g.stroke();
+        g.beginPath();
+        g.ellipse(x + 7, surfaceY + 2, 4, 1.2, 0, 0, Math.PI * 2);
+        g.stroke();
+        g.restore();
+      }
     }
+
     // Surface signs continue to reflect the angler's current fishing area.
     const dimpleChance = (weather === 'storm' ? 0.35 : 0.7) + surfaceFeeding * 0.25;
-    if (Math.sin(t * (0.7 + surfaceFeeding * 0.8) + game.state.day) > 0.15 - surfaceFeeding * 0.25 && Math.sin(t * 0.31) > -0.3) {
+    if (Math.sin(t * (0.7 + surfaceFeeding * 0.8) + day) > 0.15 - surfaceFeeding * 0.25
+      && Math.sin(t * 0.31) > -0.3) {
       g.globalAlpha = 0.18 * dimpleChance;
       g.strokeStyle = '#d8f8ff';
       g.lineWidth = 2;
       for (let i = 0; i < 3 + Math.round(surfaceFeeding * 2); i++) {
         const x = ((i * 613 + t * (18 + i * 5 + surfaceFeeding * 12)) % (W + 100)) - 50;
         const y = HZ + 28 + ((i * 137 + t * (8 + surfaceFeeding * 3)) % 70);
-        g.beginPath(); g.ellipse(x, y, 10 + i * 3, 2.5, 0, 0, Math.PI * 2); g.stroke();
+        g.beginPath();
+        g.ellipse(x, y, 10 + i * 3, 2.5, 0, 0, Math.PI * 2);
+        g.stroke();
       }
       g.globalAlpha = 1;
     }
