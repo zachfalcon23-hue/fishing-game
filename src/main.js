@@ -483,6 +483,7 @@ function showCatchCard(c) {
   const extras = [];
   if (c.perfect) extras.push('PERFECT HOOK');
   if (c.combo > 1) extras.push(`BEST STREAK ×${c.combo.toFixed(2).replace(/0$/, '')}`);
+  if (c.skillBonus > 0) extras.push(`SKILL BONUS +${Math.round(c.skillBonus * 100)}%`);
   $('ccExtra').textContent = extras.join(' · ');
   const badge = $('ccNew');
   badge.hidden = !(c.firstTime || c.record || c.shiny);
