@@ -1,10 +1,12 @@
 # Goop Fishing
 
-A small, dependency-free browser fishing game for Goopamon: cast, wait for a bite, hook it, and win a skill-based fight to catch Goops.
+A dependency-free browser fishing and Goop-collection game for Goopamon, with a walkable pond, multiple habitats, creature-specific fights, progression, and an Aquarium.
 
 ## Run
 - Open `index.html` in a modern browser, or serve the folder (`npm start`). ES modules need `http://`, so a static server is the safest option.
-- `npm test` runs the Node test suite (Node 20+).
+- `npm run check` checks JavaScript syntax across the engine, renderer, interface, audio, Aquarium, wildlife, and test modules.
+- `npm test` runs the Node regression suite (Node 20+).
+- See [`RELEASE_CHECKLIST.md`](RELEASE_CHECKLIST.md) for the current mainline verification and release gates.
 
 ## Play online
 The game is published with GitHub Pages (Settings → Pages → Deploy from a branch → `main` / root): https://zachfalcon23-hue.github.io/fishing-game/
