@@ -60,3 +60,27 @@ export function evaluateWildlifeBehavior({
     sway: state === 'fleeing' ? 1.42 : state === 'resting' ? 0.28 : state === 'feeding' ? 0.68 : 1,
   };
 }
+
+/**
+ * Bounded visual return toward a school's familiar habitat.
+ * Hunger and site fidelity strengthen the pull; disturbance suppresses it.
+ * This changes only the school's rendered position, never encounter eligibility.
+ */
+export function habitatReturnOffset({
+  worldX = 0,
+  homeX = 0,
+  hunger = 0.5,
+  fidelity = 0.5,
+  disturbance = 0,
+  activity = 0,
+  frenzy = false,
+} = {}) {
+  const x = Number.isFinite(worldX) ? worldX : 0;
+  const home = Number.isFinite(homeX) ? homeX : x;
+  const h = clamp(Number.isFinite(hunger) ? hunger : 0.5, 0, 1);
+  const f = clamp(Number.isFinite(fidelity) ? fidelity : 0.5, 0, 1);
+  const alert = clamp(Number.isFinite(disturbance) ? disturbance : 0, 0, 1);
+  const food = clamp((Number.isFinite(activity) ? activity : 0) / 3 + (frenzy ? 0.45 : 0), 0, 1);
+  const pull = (0.12 + h * 0.28 + food * 0.2) * f * (1 - alert * 0.9);
+  return clamp((home - x) * pull, -180, 180);
+}
