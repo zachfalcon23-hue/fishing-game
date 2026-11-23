@@ -991,7 +991,7 @@ export class Scene {
       const x = this.layerX(wx, d);
       if (x < -180 || x > W + 180) continue;
       const swaySize = (movement === 'weave' ? 15 : movement === 'drift' ? 5 : 9) * behavior.sway;
-      const sway = Math.sin(t * (movementRate + behavior.feeding * 0.55 + disturbance * 1.4) + school.phase)
+      const sway = Math.sin(t * (movementRate * behavior.motionRate + behavior.feeding * 0.55 + disturbance * 1.4) + school.phase)
         * (swaySize - behavior.feeding * 2 + disturbance * 5);
       const y = school.y + sway;
       const depth = clamp((y - HZ) / (H - HZ), 0, 1);
