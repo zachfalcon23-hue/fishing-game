@@ -30,6 +30,7 @@ test('low energy makes wildlife rest more readily at night', () => {
   assert.equal(day.state, 'roaming');
   assert.equal(night.state, 'resting');
   assert.ok(night.sway < day.sway);
+  assert.ok(night.motionRate < day.motionRate);
 });
 
 test('player disturbance overrides feeding and causes a flee response', () => {
@@ -39,6 +40,7 @@ test('player disturbance overrides feeding and causes a flee response', () => {
   assert.equal(behavior.state, 'fleeing');
   assert.equal(behavior.feeding, 0);
   assert.ok(behavior.spacing > 1);
+  assert.ok(behavior.motionRate > 1);
 });
 
 test('behavior outputs remain finite and bounded for malformed inputs', () => {
