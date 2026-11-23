@@ -86,6 +86,10 @@ try {
     assert.equal(await page.locator('#gameCanvas').isVisible(), true);
     assert.equal(await page.locator('#phaseTag').innerText(), 'READY');
     assert.match(await page.locator('.dexpill strong').innerText(), /0\/86/);
+    assert.equal(await page.locator('#sessionPanel').isVisible(), true);
+    await page.locator('#sessionPanel summary').click();
+    assert.equal(await page.locator('#sessionRounds').innerText(), '0');
+    assert.equal(await page.locator('#exportSessionBtn').isDisabled(), true);
 
     const canvasSize = await page.locator('#gameCanvas').evaluate(canvas => ({
       width: canvas.width,
@@ -128,6 +132,17 @@ try {
     // Verify the actual cast -> bite -> hook -> fight transition using player controls.
     await page.locator('#castBtn').click();
     await page.waitForFunction(() => window.__goop?.game.phase === 'cast', undefined, { timeout: 3000 });
+    await page.waitForFunction(
+      () => document.querySelector('#exportSessionBtn')?.disabled === false,
+      undefined,
+      { timeout: 2500 },
+    );
+    const [sessionDownload] = await Promise.all([
+      page.waitForEvent('download'),
+      page.locator('#exportSessionBtn').click(),
+    ]);
+    assert.match(sessionDownload.suggestedFilename(), /^goop-fishing-session-.*\\.json$/);
+    assert.equal(await sessionDownload.failure(), null);
     await page.waitForFunction(() => window.__goop?.game.phase === 'bite', undefined, { timeout: 15000 });
     await page.locator('#reelBtn').click();
     await page.waitForFunction(() => window.__goop?.game.phase === 'fight', undefined, { timeout: 3000 });
