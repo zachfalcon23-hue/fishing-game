@@ -453,6 +453,8 @@ function render(dt) {
   // event chip: frenzy nearby / full moon / visitor
   const s = game.state;
   const evs = [];
+  const ecology = game.ecosystemStatus();
+  evs.push(`<span class="ev activity" title="${ecology.description}">◉ ${ecology.label}</span>`);
   if (s.frenzy && z.mix.some(([sp, k]) => sp.id === s.frenzy && k >= 0.5)) evs.push('<span class="ev frenzy">✦ FRENZY HERE</span>');
   else if (s.frenzy) evs.push(`<span class="ev">✦ FRENZY · ${spotName(s.frenzy).replace(/^The /, '').toUpperCase()}</span>`);
   if (game.fullMoon && game.timeOfDay === 'Night') evs.push('<span class="ev moon">🌕 FULL MOON</span>');
