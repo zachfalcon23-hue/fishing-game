@@ -121,6 +121,23 @@ test('field tracking requires known species, persists, and can be cleared', () =
   assert.equal(game.setTrackedGoop(null), false, 'clearing an empty hunt is a no-op');
 });
 
+
+test('named apex Goops use distinctive signature moves without changing their pull temperament', () => {
+  const cases = [
+    ['kinggloop', 'tug'], ['stormray', 'swerve'], ['prismadrake', 'rhythm'],
+    ['ghostshark', 'thrash'], ['drownedking', 'current'], ['sleeper', 'fakeout'],
+  ];
+  for (const [id, expected] of cases) {
+    const goop = GOOPS.find((g) => g.id === id);
+    const fight = makeFight(goop, {}, { rng: () => 0.25 });
+    assert.equal(goop.signature, expected, id);
+    assert.equal(startMove(fight).type, expected, id);
+    assert.equal(goop.pattern, GOOPS.find((g) => g.id === id).pattern, 'the underlying pull pattern remains intact');
+  }
+  const ordinary = makeFight(GOOPS.find((g) => g.id === 'gloop'), {}, { rng: () => 0.25 });
+  assert.equal(startMove(ordinary).type, SIGNATURE.gloop.pattern || 'tug');
+});
+
 test('fight tension remains clamped and every pattern produces a finite pull', () => {
   const f = makeFight(GOOPS[0]);
   for (let i = 0; i < 500; i++) tickFight(f, { reel: i % 2 === 0 }, 0.05);
