@@ -1904,6 +1904,14 @@ export class Scene {
     }
   }
 
+  /** A rod standing upright (for the rack in the Bait Shack). */
+  drawRodIcon(ctx, x, baseY, h, look) {
+    const saveLook = this.look, saveReel = this.reeling;
+    this.look = look; this.reeling = false;
+    this.drawRod(ctx, { bx: x, by: baseY, tipX: x + h * 0.06, tipY: baseY - h, cx: x + h * 0.01, cy: baseY - h * 0.5, tension: 0 });
+    this.look = saveLook; this.reeling = saveReel;
+  }
+
   /** Small live preview of a loadout for the tackle box (draws into its own canvas). */
   drawPreview(ctx, look, dt) {
     const c = ctx.canvas, w = c.width, h = c.height;

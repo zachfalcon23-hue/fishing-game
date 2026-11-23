@@ -53,6 +53,7 @@ function sp(id, name, rarity, spots, color, pattern, o = {}) {
     hint: o.hint ?? PATTERN_HINT[pattern],
     ...(o.likes ? { likes: o.likes } : {}),
     ...(o.needs ? { needs: o.needs } : {}),
+    ...(o.quest ? { quest: o.quest } : {}),
   };
 }
 
@@ -163,12 +164,93 @@ export const GOOPS = [
   sp('barnaclebass', 'Barnacle Bass', 'Rare', ['wreck'], '#3fd4c0', 'steady', { likes: { weather: ['storm'] } }),
   sp('ghostshark', 'Ghostshark', 'Epic', ['wreck'], '#9ff0ea', 'dart', { likes: { weather: ['fog'] }, hint: 'You can see right through it. Its lunges are real, though.' }),
   sp('drownedking', 'Drowned King', 'Legendary', ['wreck'], '#5fe0c8', 'wild', { needs: { weather: ['storm', 'fog'] }, hint: 'The old king of the wreck. It surfaces when the weather turns.' }),
+
+  // The Sleeper: only rises for Old Wiggs' last quest, then on full-moon nights
+  sp('sleeper', 'The Sleeper', 'Legendary', ['deep'], '#4a6aff', 'wild', { needs: { time: ['Night'] }, weight: 3, stamina: 1.6, force: 1.28, essence: 300, size: [140, 260], taste: 'glow', quest: 'sleeper', hint: 'Ancient, enormous and very, very awake.' }),
 ];
 // A few residents wander into the secret spots too.
 for (const [id, spot] of [['stardrift', 'sandbar'], ['crystalfin', 'cave'], ['lumen', 'cave'], ['goopshark', 'wreck'], ['oilspill', 'wreck']]) {
   GOOPS.find((g) => g.id === id).spots.push(spot);
 }
 export const RANK = { Common: 0, Uncommon: 1, Rare: 2, Epic: 3, Legendary: 4 };
+// ---------- Old Wiggs' story quests ----------
+
+/** The quest chain. Goals: catch (any n), bait (n on special bait), discover (spot), notes (total),
+ *  dodge (n lunges), secret (spot), dex (entries), frenzy (n catches in a frenzy), set (any collection),
+ *  legendary (n Legendary catches), goop (catch a specific Goop). Rewards: essence and an optional item. */
+export const QUESTS = [
+  { id: 'q1', title: 'A Line in the Water', goal: { type: 'catch', n: 3 }, reward: { essence: 50, item: ['bobbers', 'slime'] },
+    story: 'Well hey there, kid! Name’s Wiggs. Been fishing North Pond since before the Goops got glowy. Let’s see your form — catch me three Goops, any kind.',
+    done: 'Not bad! Here, take this Slime Blob bobber. The Goops think it’s one of them.' },
+  { id: 'q2', title: 'Feeling Peckish', goal: { type: 'bait', n: 1 }, reward: { essence: 40, baits: ['sugar', 4] },
+    story: 'Every Goop has a favourite snack. Pick a bait from my shelves and land a Goop with it. Works wonders.',
+    done: 'See? They come running. Have a few Sugar Drops on the house.' },
+  { id: 'q3', title: 'Stretch Your Legs', goal: { type: 'discover', spot: 'reeds' }, reward: { essence: 80 },
+    story: 'The pond’s bigger than this dock. Fill your GoopDex a little and the path to Cattail Reeds will clear. Go take a look.',
+    done: 'Smells like a swamp, doesn’t it? Lovely. The muck Goops live out there.' },
+  { id: 'q4', title: 'Bottle Post', goal: { type: 'notes', n: 2 }, reward: { essence: 80, item: ['rods', 'bamboo'] },
+    story: 'Folks have been dropping notes in bottles round this pond for years. Find two of ’em. They’ll tell you where the rare ones hide.',
+    done: 'Good eye. You’ve earned a proper rod — my old Bamboo Classic. Treat her well.' },
+  { id: 'q5', title: 'Hook, Line & Lunge', goal: { type: 'dodge', n: 3 }, reward: { essence: 120 },
+    story: 'The big ones fight dirty. When you see that red flash, let off the reel and let ’em tire themselves out. Dodge three lunges for me.',
+    done: 'Now you’re fishing! Most folks fight the lunge and snap their line.' },
+  { id: 'q6', title: 'Under the Moon', goal: { type: 'secret', spot: 'sandbar' }, reward: { essence: 150, item: ['skins', 'midnight'] },
+    story: 'Here’s a secret. When the moon’s up, the tide runs way out past the dock. Walk west after dark and see what turns up.',
+    done: 'The Moonlit Sandbar! Haven’t been out there in years. Take this Midnight paint for your rod.' },
+  { id: 'q7', title: 'The Collector', goal: { type: 'dex', n: 20 }, reward: { essence: 200, item: ['decor', 'castle'] },
+    story: 'A real angler keeps a record. Get twenty different Goops in that GoopDex of yours.',
+    done: 'Twenty! Your aquarium’s looking lonely, though — here’s a little castle for the tank.' },
+  { id: 'q8', title: 'Frenzy!', goal: { type: 'frenzy', n: 3 }, reward: { essence: 150 },
+    story: 'Sometimes the water boils with Goops jumping everywhere — a feeding frenzy. Catch three Goops in one before it settles.',
+    done: 'Ha! Wild, isn’t it? The Essence flows when they’re hungry.' },
+  { id: 'q9', title: 'Behind the Curtain', goal: { type: 'secret', spot: 'cave' }, reward: { essence: 200, item: ['bobbers', 'crystal'] },
+    story: 'Past the waterfall, sunlight hits the cliff just right in the daytime. There’s a gap back there, I’d bet my boots on it.',
+    done: 'A crystal cave! I knew it. Here — a float made from one of those crystals.' },
+  { id: 'q10', title: 'Trophy Hunter', goal: { type: 'set', n: 1 }, reward: { essence: 250, item: ['decor', 'chest'] },
+    story: 'Goops come in families. Catch every one in a collection and you’ll have a trophy worth bragging about.',
+    done: 'Look at that trophy shine. Put this treasure chest in your tank to keep it company.' },
+  { id: 'q11', title: 'Ghost Ship', goal: { type: 'secret', spot: 'wreck' }, reward: { essence: 300 },
+    story: 'My old boat, the Gloopy Gale, went down past the Deep Drop. On stormy or foggy days the mast still shows…',
+    done: 'You found her. Thank you, kid. The Goops have made her a fine home.' },
+  { id: 'q12', title: 'Legends Stir', goal: { type: 'legendary', n: 2 }, reward: { essence: 400, item: ['skins', 'gold'] },
+    story: 'There are Goops on this pond nobody believes in. Kings, drakes, things from the dark. Catch two Legendaries and they’ll believe you.',
+    done: 'Two Legendaries! Paint your rod gold — you’ve earned it.' },
+  { id: 'q13', title: 'The Sleeper of the Deep', goal: { type: 'goop', id: 'sleeper' }, reward: { essence: 1000, item: ['decor', 'statue'] },
+    story: 'One last thing. Something ancient sleeps at the bottom of the Deep Drop. I’ve seen its eye once, at night. It took my boat. Go to the Deep Drop after dark and bring it up.',
+    done: 'The Sleeper… you actually did it. Every angler on this pond will know your name. This statue is yours — and it still wakes on full-moon nights, if you want a rematch.' },
+];
+
+/** Aquarium decorations and backdrops, bought with Essence (some are quest rewards). */
+export const DECOR = {
+  coral: { name: 'Pink Coral', cost: 150, desc: 'A branching coral the Goops love to weave through.' },
+  anchor: { name: 'Old Anchor', cost: 150, desc: 'Rusty, heavy and full of character.' },
+  shrooms: { name: 'Glowshrooms', cost: 220, desc: 'A cluster of mushrooms that glow in the dark.' },
+  crystals: { name: 'Crystal Cluster', cost: 350, desc: 'Sparkling crystals from the hidden cave.' },
+  castle: { name: 'Sandcastle Keep', cost: 300, desc: 'Every tank needs a castle.' },
+  chest: { name: 'Treasure Chest', cost: 400, desc: 'It pops open and burps bubbles now and then.' },
+  ship: { name: 'Little Wreck', cost: 600, desc: 'A tiny model of the Gloopy Gale.' },
+  throne: { name: 'Goop Throne', cost: 900, legends: 3, desc: 'A golden throne. Only for keepers of three Legendaries.' },
+  statue: { name: 'Sleeper Statue', cost: 0, quest: true, desc: 'Awarded for waking the Sleeper of the Deep.' },
+};
+export const THEMES = {
+  pond: { name: 'North Pond', cost: 0, top: '#1a7a9a', mid: '#0e4a66', bot: '#06243a', ray: '#bff0ff', sand: ['#c8b07a', '#8a7448'] },
+  sunset: { name: 'Sunset Shallows', cost: 300, top: '#ff9a6a', mid: '#a8406a', bot: '#2a1040', ray: '#ffd0a0', sand: ['#e0a070', '#8a5040'] },
+  moon: { name: 'Moonlit', cost: 300, top: '#2a4a8a', mid: '#12224a', bot: '#050a1a', ray: '#cfe0ff', sand: ['#9aa8c8', '#4a5470'] },
+  lava: { name: 'Magma Vent', cost: 450, top: '#8a2a1a', mid: '#3a0a0a', bot: '#120202', ray: '#ffb070', sand: ['#4a2a1a', '#1a0a06'] },
+  crystal: { name: 'Crystal Cave', cost: 450, top: '#5a3aa8', mid: '#2a1a5a', bot: '#0a0420', ray: '#ffe0a0', sand: ['#8a7ab8', '#3a2a5a'] },
+  abyss: { name: 'The Abyss', cost: 700, top: '#101a4a', mid: '#05082a', bot: '#000005', ray: '#a86aff', sand: ['#2a2040', '#0a0814'] },
+};
+/** Daily tip jar: visitors pay to see your tank. */
+export function tankTips(dex) {
+  let tip = 0;
+  for (const [id, e] of Object.entries(dex)) {
+    const g = GOOPS.find((x) => x.id === id);
+    if (!g) continue;
+    tip += 3 + RANK[g.rarity] * 2 + (e.shiny ? 15 : 0);
+  }
+  return Math.round(tip);
+}
+
 
 
 // ---------- the shore ----------
@@ -424,7 +506,7 @@ export function encounterPool({ spot = SPOT_BY.dock, weather = 'clear', time = '
   const b = BAITS[bait] || BAITS.worm;
   const ids = new Set(spot.goops);
   if (event.visitor && event.visitor.spot === spot.id) ids.add(event.visitor.goop);
-  return GOOPS.filter((g) => ids.has(g.id) && conditionsMet(g, weather, time)).map((g) => {
+  return GOOPS.filter((g) => ids.has(g.id) && conditionsMet(g, weather, time) && (!g.quest || event.sleeper)).map((g) => {
     let weight = g.weight;
     if (g.likes?.weather?.includes(weather)) weight *= 4;
     if (g.likes?.time?.includes(time)) weight *= 3;
@@ -661,6 +743,7 @@ export class SaveStore {
       bait: 'worm', baits: { sugar: 3, mud: 3 }, buddy: null, buddyLv: 0, sets: [], tips: [], finder: false,
       owned: { rods: ['twig'], skins: ['factory'], bobbers: ['classic'], lines: ['classic'], lures: {} },
       equip: { rod: 'twig', skin: 'factory', bobber: 'classic', line: 'classic', lure: 'none' },
+      quest: { i: 0, have: 0 }, tank: { decor: [], theme: 'pond', themes: ['pond'], tipDay: 0 },
       bounties: [], bountyDay: 0, frenzy: null, visitor: null, rumors: [],
     };
   }
@@ -761,6 +844,11 @@ export class SaveStore {
     s.finder = p.finder === true;
     s.buddyLv = Math.min(BUDDY_TRAIN.length, Math.floor(num(p.buddyLv, 0)));
     s.tips = list(p.tips, (id) => ids.has(id));
+    const q = p.quest && typeof p.quest === 'object' ? p.quest : {};
+    s.quest = { i: Math.min(QUESTS.length, Math.floor(num(q.i, 0))), have: Math.floor(num(q.have, 0)) };
+    const tk = p.tank && typeof p.tank === 'object' ? p.tank : {};
+    const themes = [...new Set(['pond', ...(Array.isArray(tk.themes) ? tk.themes.filter((k) => THEMES[k]) : [])])];
+    s.tank = { decor: list(tk.decor, (k) => !!DECOR[k]), themes, theme: themes.includes(tk.theme) ? tk.theme : 'pond', tipDay: Math.floor(num(tk.tipDay, 0)) };
     // bounties
     s.bountyDay = Math.floor(num(p.bountyDay, 0));
     s.bounties = Array.isArray(p.bounties) ? p.bounties.filter((b) => b && typeof b === 'object' && BOUNTY_KINDS.includes(b.kind) && typeof b.text === 'string')
@@ -800,6 +888,7 @@ export class FishingGame {
     this.castCtx = null;
     this.resetRound('Cast your line to begin.');
     this.ensureDaily();
+    this.questCheck();
   }
 
   resetRound(message) {
@@ -825,7 +914,11 @@ export class FishingGame {
   get dexCount() { return Object.keys(this.state.dex).length; }
   get fullMoon() { return isFullMoon(this.state.day); }
   get moon() { return moonPhase(this.state.day); }
-  get event() { return { frenzy: this.state.frenzy, visitor: this.state.visitor, fullMoon: this.fullMoon }; }
+  get event() {
+    const questing = this.quest?.goal.type === 'goop' && this.quest.goal.id === 'sleeper';
+    const woken = this.state.quest.i > QUESTS.findIndex((q) => q.goal.id === 'sleeper');
+    return { frenzy: this.state.frenzy, visitor: this.state.visitor, fullMoon: this.fullMoon, sleeper: questing || (woken && this.fullMoon) };
+  }
 
   spotUnlocked(id) {
     const s = SPOT_BY[id];
@@ -877,6 +970,7 @@ export class FishingGame {
       const reward = 15 + spot.unlockAt * 2;
       this.state.essence += reward;
       this.emit('discover', { spot: spotId, reward });
+      this.questCheck();
       this.message = `Discovered ${spot.name}! +${reward} Essence`;
     } else if (this.freshSecret === spotId) {
       this.freshSecret = null; // keep the "secret found" message up
@@ -917,6 +1011,7 @@ export class FishingGame {
     this.message = `Secret found: ${s.name}! +${SECRET_REWARD} Essence`;
     this.freshSecret = id;
     this.emit('secret', { spot: id, reward: SECRET_REWARD });
+    this.questCheck();
     this.saveStore.save(this.state);
     return true;
   }
@@ -1048,7 +1143,7 @@ export class FishingGame {
     } else if (this.phase === PHASES.FIGHT) {
       tickFight(this.fight, { reel }, step);
       for (const e of this.fight.log.splice(0)) {
-        if (e === 'dodge') { this.state.stats.dodges += 1; this.message = 'Dodged the lunge! Nice.'; }
+        if (e === 'dodge') { this.state.stats.dodges += 1; this.message = 'Dodged the lunge! Nice.'; this.questTick('dodge'); }
         else if (e === 'lunge') this.message = 'It lunged! Ease off when you see the warning.';
         this.emit(e, { combo: this.fight.combo });
       }
@@ -1102,6 +1197,11 @@ export class FishingGame {
     this.lastCatch = { goop: id, reward, firstTime, size, record: record && !firstTime, shiny, time, combo: this.fight.best || 1, perfect: !!this.fight.perfect };
     this.message = `${shiny ? '✦ Shiny ' : ''}${g.name} caught! +${reward} Essence`;
     this.emit('catch', this.lastCatch);
+    this.questTick('catch');
+    if (ctx.bait && ctx.bait !== 'worm') this.questTick('bait');
+    if (ctx.frenzy) this.questTick('frenzy');
+    if (g.rarity === 'Legendary') this.questTick('legendary');
+    this.questTick('goop', id);
 
     // A full set at a spot pays a bonus once.
     for (const sp of SPOTS) {
@@ -1120,6 +1220,7 @@ export class FishingGame {
       s.sets.push(set.id);
       s.essence += set.reward;
       this.emit('set', { set: set.id, reward: set.reward });
+      this.questTick('set');
     }
     // Bounties
     const info = { ...ctx, rarity: g.rarity, size, firstTime };
@@ -1149,6 +1250,7 @@ export class FishingGame {
     const g = GOOPS.find((x) => x.id === note.reveals);
     this.message = `Field note found: ${g.name} — ${conditionText(g)}`;
     this.emit('note', { note: noteId, goop: g.id, reward: NOTE_REWARD });
+    this.questCheck();
     this.saveStore.save(this.state);
     return true;
   }
@@ -1331,6 +1433,99 @@ export class FishingGame {
     this.message = `${UPGRADES[kind].name} upgraded to level ${this.state.gear[kind]}!`;
     this.emit('upgrade', { kind, level: this.state.gear[kind] });
     this.saveStore.save(this.state);
+    return true;
+  }
+
+  // ----- quests -----
+
+  get quest() { return QUESTS[this.state.quest.i] || null; }
+
+  /** Progress toward the current quest: { have, need, ready }. */
+  questProgress() {
+    const q = this.quest;
+    if (!q) return { have: 0, need: 0, ready: false };
+    const s = this.state, goal = q.goal;
+    let have = s.quest.have, need = goal.n || 1;
+    if (goal.type === 'discover' || goal.type === 'secret') have = s.discovered.includes(goal.spot) ? 1 : 0;
+    else if (goal.type === 'notes') have = s.notes.length;
+    else if (goal.type === 'dex') have = this.dexCount;
+    else if (goal.type === 'set') have = s.sets.length ? 1 : have;
+    return { have: Math.min(have, need), need, ready: have >= need };
+  }
+
+  /** Count an event toward the current quest. */
+  questTick(type, id) {
+    const q = this.quest;
+    if (!q || q.goal.type !== type) return;
+    if (type === 'goop' && q.goal.id !== id) return;
+    this.state.quest.have += 1;
+    this.questCheck();
+  }
+
+  questCheck() {
+    const q = this.quest;
+    if (!q || this.questReadyFor === q.id) return;
+    if (this.questProgress().ready) { this.questReadyFor = q.id; this.emit('questReady', { id: q.id, title: q.title }); }
+  }
+
+  /** Turn in a finished quest at Old Wiggs' shack and collect the reward. */
+  claimQuest() {
+    const q = this.quest;
+    if (!q || !this.questProgress().ready) return false;
+    const s = this.state, r = q.reward;
+    s.essence += r.essence || 0;
+    if (r.baits) s.baits[r.baits[0]] = (s.baits[r.baits[0]] || 0) + r.baits[1];
+    if (r.item) {
+      const [kind, id] = r.item;
+      if (kind === 'decor') { if (!s.tank.decor.includes(id)) s.tank.decor.push(id); }
+      else if (!s.owned[kind].includes(id)) s.owned[kind].push(id);
+    }
+    s.quest = { i: s.quest.i + 1, have: 0 };
+    this.questReadyFor = null;
+    this.emit('questClaim', { id: q.id, reward: r });
+    this.questCheck();
+    this.saveStore.save(s);
+    return true;
+  }
+
+  // ----- aquarium -----
+
+  /** Essence waiting in the tip jar today (0 once collected). */
+  tipJar() { return this.state.tank.tipDay === this.state.day ? 0 : tankTips(this.state.dex); }
+
+  collectTips() {
+    const tip = this.tipJar();
+    if (!tip) return 0;
+    this.state.essence += tip;
+    this.state.tank.tipDay = this.state.day;
+    this.emit('tips', { tip });
+    this.saveStore.save(this.state);
+    return tip;
+  }
+
+  buyDecor(id) {
+    const d = DECOR[id], s = this.state;
+    if (!d || d.quest || s.tank.decor.includes(id) || s.essence < d.cost) return false;
+    if (d.legends && GOOPS.filter((g) => g.rarity === 'Legendary' && s.dex[g.id]).length < d.legends) return false;
+    s.essence -= d.cost;
+    s.tank.decor.push(id);
+    this.emit('decor', { id });
+    this.saveStore.save(s);
+    return true;
+  }
+
+  /** Buy (if needed) and switch to an aquarium backdrop. */
+  setTheme(id) {
+    const t = THEMES[id], s = this.state;
+    if (!t) return false;
+    if (!s.tank.themes.includes(id)) {
+      if (s.essence < t.cost) return false;
+      s.essence -= t.cost;
+      s.tank.themes.push(id);
+    }
+    s.tank.theme = id;
+    this.emit('decor', { theme: id });
+    this.saveStore.save(s);
     return true;
   }
 
