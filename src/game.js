@@ -233,13 +233,17 @@ export const DECOR = {
   statue: { name: 'Sleeper Statue', cost: 0, quest: true, desc: 'Awarded for waking the Sleeper of the Deep.' },
 };
 export const THEMES = {
-  pond: { name: 'North Pond', cost: 0, top: '#1a7a9a', mid: '#0e4a66', bot: '#06243a', ray: '#bff0ff', sand: ['#c8b07a', '#8a7448'] },
-  sunset: { name: 'Sunset Shallows', cost: 300, top: '#ff9a6a', mid: '#a8406a', bot: '#2a1040', ray: '#ffd0a0', sand: ['#e0a070', '#8a5040'] },
-  moon: { name: 'Moonlit', cost: 300, top: '#2a4a8a', mid: '#12224a', bot: '#050a1a', ray: '#cfe0ff', sand: ['#9aa8c8', '#4a5470'] },
-  lava: { name: 'Magma Vent', cost: 450, top: '#8a2a1a', mid: '#3a0a0a', bot: '#120202', ray: '#ffb070', sand: ['#4a2a1a', '#1a0a06'] },
-  crystal: { name: 'Crystal Cave', cost: 450, top: '#5a3aa8', mid: '#2a1a5a', bot: '#0a0420', ray: '#ffe0a0', sand: ['#8a7ab8', '#3a2a5a'] },
-  abyss: { name: 'The Abyss', cost: 700, top: '#101a4a', mid: '#05082a', bot: '#000005', ray: '#a86aff', sand: ['#2a2040', '#0a0814'] },
+  pond: { name: 'North Pond', cost: 0, top: '#1a7a9a', mid: '#0e4a66', bot: '#06243a', ray: '#bff0ff', sand: ['#c8b07a', '#8a7448'], plant: ['#14603a', '#4ac86a'], rock: '#3a5a6a' },
+  sunset: { name: 'Sunset Shallows', cost: 300, top: '#ff9a6a', mid: '#a8406a', bot: '#2a1040', ray: '#ffd0a0', sand: ['#e0a070', '#8a5040'], plant: ['#6a2a4a', '#e0708a'], rock: '#5a3a5a' },
+  moon: { name: 'Moonlit', cost: 300, top: '#2a4a8a', mid: '#12224a', bot: '#050a1a', ray: '#cfe0ff', sand: ['#9aa8c8', '#4a5470'], plant: ['#1a3a5a', '#6aa8d8'], rock: '#2a3a5a' },
+  lava: { name: 'Magma Vent', cost: 450, top: '#8a2a1a', mid: '#3a0a0a', bot: '#120202', ray: '#ffb070', sand: ['#4a2a1a', '#1a0a06'], plant: ['#4a1a0a', '#e0602a'], rock: '#2a1410' },
+  crystal: { name: 'Crystal Cave', cost: 450, top: '#5a3aa8', mid: '#2a1a5a', bot: '#0a0420', ray: '#ffe0a0', sand: ['#8a7ab8', '#3a2a5a'], plant: ['#3a2a7a', '#a88aff'], rock: '#3a2a6a' },
+  abyss: { name: 'The Abyss', cost: 700, top: '#101a4a', mid: '#05082a', bot: '#000005', ray: '#a86aff', sand: ['#2a2040', '#0a0814'], plant: ['#1a1050', '#7a5aff'], rock: '#14122a' },
 };
+export const TANK_CAP = 12;          // Goops per tank
+export const DECOR_SLOTS = 6;        // decorations per tank
+export const TANK_COSTS = [0, 500, 1200, 2500];
+const newTank = (n) => ({ name: n === 1 ? 'Main Tank' : `Tank ${n}`, theme: 'pond', decor: [], fish: [] });
 /** Daily tip jar: visitors pay to see your tank. */
 export function tankTips(dex) {
   let tip = 0;
@@ -591,24 +595,181 @@ export function gearStats(gear = {}) {
 }
 
 export const LUNGE_WARN = 0.8; // seconds of warning before a lunge
-/** Rare-or-better Goops (and darting/wild ones) lunge: a telegraphed surge you dodge by easing off. */
+/** Rare-or-better Goops (and wild ones) lunge: a telegraphed surge you dodge by easing off. */
 export const lunges = (goop) => RANK[goop.rarity] >= 2 || goop.pattern === 'wild';
+
+/**
+ * Signature moves: every fighting style has its own mid-fight challenge.
+ *  swerve  (dart)   — it bolts left or right: steer the same way before the timer runs out.
+ *  tug     (steady) — tug of war: tap REEL fast to drag the rope to your side.
+ *  fakeout (sleepy) — it goes still: hands off the reel, then reel the instant it wakes.
+ *  rhythm  (pulse)  — it tugs in beats: tap REEL on each beat.
+ *  current (drift)  — the safe zone drifts: keep the needle inside it.
+ *  thrash  (wild)   — a quick string of steers and taps: follow every one.
+ */
+export const SIGNATURE = { dart: 'swerve', steady: 'tug', sleepy: 'fakeout', pulse: 'rhythm', drift: 'current', wild: 'thrash' };
+export const MOVE_INFO = {
+  swerve: { name: 'Swerve', how: 'Steer the way it darts' },
+  tug: { name: 'Tug of War', how: 'Tap REEL as fast as you can' },
+  fakeout: { name: 'Fake-out', how: 'Let go… reel the moment it wakes' },
+  rhythm: { name: 'Rhythm', how: 'Tap REEL on every beat' },
+  current: { name: 'Current', how: 'Keep the needle in the moving zone' },
+  thrash: { name: 'Thrash', how: 'Follow every arrow and tap' },
+};
+/** Epics fight in two stages and Legendaries in three, with a breather between. */
+export const stagesFor = (goop) => (goop.rarity === 'Legendary' ? 3 : goop.rarity === 'Epic' ? 2 : 1);
+const MOVE_GAP = [7, 6, 5, 4.4, 3.8]; // seconds between moves by rarity
+export const BREAK_TIME = 1.8;
+const PACE = [1, 0.95, 0.85, 0.7, 0.58]; // big Goops take longer to reel in
 
 export function makeFight(goop, gear = {}, env = {}) {
   const g = gearStats(gear);
   const rng = env.rng || Math.random;
+  const rank = RANK[goop.rarity];
   return {
     goop, progress: 0, stamina: goop.stamina, tension: 0.5, phase: 0, elapsed: 0, caught: false, escaped: false,
-    safeLo: g.safeLo - (env.zone ?? 0), safeHi: g.safeHi + (env.zone ?? 0), reelRate: g.reelRate * (env.reel ?? 1), snapGuard: g.snapGuard,
+    safeLo: g.safeLo - (env.zone ?? 0), safeHi: g.safeHi + (env.zone ?? 0), reelRate: g.reelRate * (env.reel ?? 1) * PACE[rank], snapGuard: g.snapGuard,
     forceMul: (env.forceMul ?? 1) * (goop.force ?? 1),
     streak: 0, combo: 1, best: 1,
-    rng, nextLunge: lunges(goop) ? 2.4 + rng() * 2.2 : null, warn: false,
-    lungePower: (0.3 + 0.05 * RANK[goop.rarity]) * (env.lunge ?? 1), log: [],
+    rng, nextLunge: lunges(goop) ? 3.2 + rng() * 2.4 : null, warn: false,
+    lungePower: (0.3 + 0.05 * rank) * (env.lunge ?? 1), log: [],
+    rank, move: null, nextMove: (env.moves === false ? Infinity : 2.2 + rng() * 1.4), moveCount: 0, movesWon: 0,
+    stages: stagesFor(goop), stage: 1, breakT: 0, zoneShift: 0,
   };
 }
 
+const MOVE_WIN = {
+  swerve: 'Nice steer! You cut it off.', tug: 'You won the tug of war!', fakeout: 'Caught it waking up!',
+  rhythm: 'Right on the beat!', current: 'You rode the current!', thrash: 'You matched every thrash!',
+};
+const MOVE_FAIL = {
+  wrong: 'Wrong way! It got some line back.', slow: 'Too slow — it pulled away.', pulled: 'It out-pulled you!', time: 'It held on through the tug.',
+  eager: 'Too eager! You yanked it awake.', beats: 'Off the beat — it slipped some line.', drift: 'You lost the current.',
+};
 export const comboFor = (streak) => 1 + Math.min(4, Math.floor(streak / 1.2)) * 0.15;
 
+const clamp01 = (v) => Math.max(0, Math.min(1, v));
+
+/** Begin a signature move. `type` defaults to the Goop's own; final stages mix in a second one. */
+export function startMove(fight, type) {
+  const rng = fight.rng || Math.random, rank = fight.rank;
+  let t = type || SIGNATURE[fight.goop.pattern] || 'swerve';
+  if (!type && fight.stages > 1 && fight.stage === fight.stages && fight.moveCount % 2 === 1) {
+    const others = Object.values(SIGNATURE).filter((m) => m !== t);
+    t = others[Math.floor(rng() * others.length) % others.length];
+  }
+  const m = { type: t, t: 0 };
+  if (t === 'swerve') { m.dir = rng() < 0.5 ? -1 : 1; m.window = Math.max(0.75, 1.25 - 0.1 * rank); }
+  else if (t === 'tug') { m.pos = 0; m.dur = 3.6; m.pull = (0.28 + 0.06 * rank) * Math.min(1.3, fight.forceMul ?? 1); m.push = 0.14; }
+  else if (t === 'fakeout') { m.still = 1 + rng() * 1.3; m.tell = 0.4; m.window = Math.max(0.42, 0.62 - 0.04 * rank); m.state = 'still'; }
+  else if (t === 'rhythm') { m.n = 4 + Math.min(2, Math.floor(rank / 2)); m.gap = Math.max(0.5, 0.66 - 0.03 * rank); m.lead = 0.9; m.judged = []; m.hits = 0; m.win = 0.17; }
+  else if (t === 'current') { m.dur = 3.6; m.inZone = 0; m.speed = 1.5 + 0.2 * rank; m.amp = 0.16 + 0.02 * rank; }
+  else if (t === 'thrash') {
+    const n = 3 + Math.min(2, Math.floor(rank / 2));
+    m.steps = Array.from({ length: n }, () => ['L', 'R', 'T'][Math.floor(rng() * 3) % 3]);
+    m.idx = 0; m.stepT = 0; m.window = Math.max(0.7, 1.05 - 0.07 * rank);
+  }
+  fight.move = m;
+  fight.warn = false;
+  fight.log.push({ type: 'moveStart', move: t, dir: m.dir });
+  return m;
+}
+
+function endMove(fight, won, extra = {}) {
+  const m = fight.move;
+  const scale = 1 + fight.rank * 0.1;
+  const gain = { swerve: 0.06, tug: 0.12, fakeout: 0.1, rhythm: 0.04, current: 0.08, thrash: 0.12 }[m.type] * (extra.mul ?? 1);
+  if (won) {
+    fight.progress = Math.min(fight.stageCap ?? 1, fight.progress + gain);
+    fight.tension = 0.55;
+    fight.stamina = Math.max(0.05, fight.stamina - 0.04 * scale);
+    fight.movesWon += 1;
+  } else {
+    fight.progress = Math.max(0, fight.progress - 0.06);
+    fight.tension = clamp01(fight.tension + 0.25);
+    fight.streak = 0;
+    fight.stamina += 0.04 * scale;
+  }
+  fight.log.push({ type: won ? 'moveWin' : 'moveFail', move: m.type, why: extra.why });
+  fight.move = null;
+  fight.moveCount += 1;
+  fight.zoneShift = 0;
+  const rng = fight.rng || Math.random;
+  fight.nextMove = MOVE_GAP[fight.rank] * (fight.stage === fight.stages && fight.stages > 1 ? 0.75 : 1) + rng() * 2;
+}
+
+/** Run the active move for one step. Returns true when the core tension game is paused. */
+function tickMove(fight, input, d) {
+  const m = fight.move;
+  m.t += d;
+  const tap = !!input.tap, steer = input.steer || 0, reeling = !!input.reel;
+  switch (m.type) {
+    case 'swerve':
+      if (steer === m.dir) endMove(fight, true);
+      else if (steer === -m.dir) endMove(fight, false, { why: 'wrong' });
+      else if (m.t > m.window) endMove(fight, false, { why: 'slow' });
+      return false;
+    case 'tug':
+      if (tap) m.pos += m.push;
+      m.pos -= m.pull * d;
+      fight.tension = 0.62 + Math.sin(m.t * 18) * 0.04;
+      if (m.pos >= 1) endMove(fight, true);
+      else if (m.pos <= -1) endMove(fight, false, { why: 'pulled' });
+      else if (m.t > m.dur) endMove(fight, m.pos > 0, { why: 'time' });
+      return true;
+    case 'fakeout':
+      if (m.state === 'still') {
+        fight.tell = m.t >= m.still - m.tell;
+        // reeling into a sleeping Goop yanks the hook: hands off until it wakes
+        if (m.t > 0.35 && (tap || reeling)) { fight.tell = false; endMove(fight, false, { why: 'eager' }); return false; }
+        if (m.t >= m.still) { m.state = 'surge'; m.surgeT = 0; fight.tell = false; fight.tension = clamp01(fight.tension + 0.18 * (fight.forceMul ?? 1)); fight.log.push({ type: 'surge' }); }
+        return false;
+      }
+      m.surgeT += d;
+      if (tap || reeling) endMove(fight, true);
+      else if (m.surgeT > m.window) endMove(fight, false, { why: 'slow' });
+      return false;
+    case 'rhythm': {
+      const beatAt = (i) => m.lead + i * m.gap;
+      fight.tension = 0.55 + Math.sin(m.t * 6) * 0.03;
+      for (let i = 0; i < m.n; i++) {
+        if (m.judged[i] == null && m.t >= beatAt(i) && !m['cue' + i]) { m['cue' + i] = true; fight.log.push({ type: 'beat', i }); }
+      }
+      if (tap) {
+        let best = -1, bd = Infinity;
+        for (let i = 0; i < m.n; i++) if (m.judged[i] == null) { const dd = Math.abs(m.t - beatAt(i)); if (dd < bd) { bd = dd; best = i; } }
+        if (best >= 0 && bd <= m.win) { m.judged[best] = true; m.hits += 1; fight.log.push({ type: 'beatHit', i: best }); }
+        else { m.extra = (m.extra || 0) + 1; fight.log.push({ type: 'beatMiss', i: -1 }); } // mashing doesn't work
+      }
+      for (let i = 0; i < m.n; i++) if (m.judged[i] == null && m.t > beatAt(i) + m.win) { m.judged[i] = false; fight.log.push({ type: 'beatMiss', i }); }
+      if (m.t > beatAt(m.n - 1) + m.win + 0.05) endMove(fight, m.hits - (m.extra || 0) >= Math.ceil(m.n * 0.75), { why: 'beats', mul: m.hits / m.n + 0.25 });
+      return true;
+    }
+    case 'current': {
+      fight.zoneShift = Math.sin(m.t * m.speed) * m.amp;
+      const lo = (fight.safeLo ?? 0.38) + fight.zoneShift, hi = (fight.safeHi ?? 0.78) + fight.zoneShift;
+      if (fight.tension >= lo && fight.tension <= hi) m.inZone += d;
+      if (m.t >= m.dur) endMove(fight, m.inZone / m.dur >= 0.6, { why: 'drift' });
+      return false;
+    }
+    case 'thrash': {
+      m.stepT += d;
+      fight.tension = 0.6 + Math.sin(m.t * 14) * 0.05;
+      const want = m.steps[m.idx];
+      const ok = (want === 'T' && tap) || (want === 'L' && steer === -1) || (want === 'R' && steer === 1);
+      const wrong = (want === 'L' && steer === 1) || (want === 'R' && steer === -1);
+      if (ok) { m.idx += 1; m.stepT = 0; fight.log.push({ type: 'step', i: m.idx - 1 }); if (m.idx >= m.steps.length) endMove(fight, true); }
+      else if (wrong) endMove(fight, false, { why: 'wrong' });
+      else if (m.stepT > m.window) endMove(fight, false, { why: 'slow' });
+      return true;
+    }
+    default: fight.move = null; return false;
+  }
+}
+
+/**
+ * One step of a fight. input: { reel: held, tap: fresh press this step, steer: -1 | 0 | 1 (fresh steer this step) }.
+ */
 export function tickFight(fight, input, dt) {
   if (!fight || fight.caught || fight.escaped) return fight;
   const d = Math.max(0, Math.min(dt, 0.08));
@@ -616,50 +777,90 @@ export function tickFight(fight, input, dt) {
   fight.phase += d;
   const reeling = !!input.reel;
 
-  // Reeling winds tension up, releasing lets it fall; the Goop pulls against you.
-  const pull = pullForce(fight.goop.pattern, fight.phase) * (fight.forceMul ?? 1);
-  fight.tension += (reeling ? 0.62 : -0.55) * d + pull * d;
+  // between stages the Goop breaks away and catches its breath — so do you
+  if (fight.breakT > 0) {
+    fight.breakT -= d;
+    fight.tension += (0.5 - fight.tension) * Math.min(1, d * 3);
+    if (fight.breakT <= 0) {
+      fight.stage += 1;
+      fight.forceMul = (fight.forceMul ?? 1) * 1.06;
+      fight.stamina = Math.min(fight.goop.stamina, fight.stamina + fight.goop.stamina * 0.2);
+      fight.stageCap = fight.stage < fight.stages ? fight.stage / fight.stages : 1;
+      fight.nextMove = 1.2;
+      fight.log.push({ type: 'stage', stage: fight.stage, of: fight.stages });
+    }
+    return fight;
+  }
+  if (fight.stageCap == null) fight.stageCap = fight.stages > 1 ? 1 / fight.stages : 1;
 
-  // Lunges: a warning, then a surge. Easing off when it hits dodges most of it.
-  if (fight.nextLunge != null) {
-    fight.nextLunge -= d;
-    fight.warn = fight.nextLunge > 0 && fight.nextLunge <= LUNGE_WARN;
-    if (fight.nextLunge <= 0) {
-      const dodged = !reeling;
-      fight.tension += fight.lungePower * (dodged ? 0.25 : 1) * (fight.forceMul ?? 1);
-      if (dodged) fight.progress = Math.min(1, fight.progress + 0.04);
-      else { fight.progress = Math.max(0, fight.progress - 0.05); fight.streak = 0; }
-      fight.log.push(dodged ? 'dodge' : 'lunge');
-      fight.nextLunge = 2.6 + (fight.rng || Math.random)() * 2.6;
-      fight.warn = false;
+  // signature moves
+  let paused = false;
+  if (fight.move) paused = tickMove(fight, input, d);
+  else {
+    fight.nextMove -= d;
+    if (fight.nextMove <= 0 && !(fight.nextLunge != null && fight.nextLunge < LUNGE_WARN + 0.4)) { startMove(fight); paused = tickMove(fight, input, 0); }
+  }
+  if (fight.move && fight.move.type === 'swerve') fight.swing = fight.move.dir;
+  else fight.swing = 0;
+
+  if (!paused) {
+    // Reeling winds tension up, releasing lets it fall; the Goop pulls against you (but not while it plays dead).
+    const still = fight.move?.type === 'fakeout' && fight.move.state === 'still';
+    const pull = still ? -0.1 : pullForce(fight.goop.pattern, fight.phase) * (fight.forceMul ?? 1);
+    fight.tension += (reeling ? 0.62 : -0.55) * d + pull * d;
+
+    // Lunges: a warning, then a surge. Easing off when it hits dodges most of it.
+    if (fight.nextLunge != null && !fight.move) {
+      fight.nextLunge -= d;
+      fight.warn = fight.nextLunge > 0 && fight.nextLunge <= LUNGE_WARN;
+      if (fight.nextLunge <= 0) {
+        const dodged = !reeling;
+        fight.tension += fight.lungePower * (dodged ? 0.25 : 1) * (fight.forceMul ?? 1);
+        if (dodged) fight.progress = Math.min(fight.stageCap, fight.progress + 0.04);
+        else { fight.progress = Math.max(0, fight.progress - 0.05); fight.streak = 0; }
+        fight.log.push(dodged ? 'dodge' : 'lunge');
+        fight.nextLunge = 3.4 + (fight.rng || Math.random)() * 2.8;
+        fight.warn = false;
+      }
+    } else if (fight.move) fight.warn = false;
+    fight.tension = clamp01(fight.tension);
+
+    const lo = (fight.safeLo ?? 0.38) + (fight.zoneShift || 0), hi = (fight.safeHi ?? 0.78) + (fight.zoneShift || 0);
+    const safe = fight.tension >= lo && fight.tension <= hi;
+    const rate = fight.reelRate ?? 1, guard = fight.snapGuard ?? 1;
+
+    // Staying in the zone while reeling builds a streak that speeds up the catch.
+    if (safe && reeling) fight.streak = (fight.streak || 0) + d;
+    else if (!safe && !still) fight.streak = 0;
+    const combo = comboFor(fight.streak || 0);
+    if (combo > (fight.combo || 1)) fight.log.push('combo');
+    fight.combo = combo;
+    fight.best = Math.max(fight.best || 1, combo);
+
+    if (!still) {
+      if (safe && reeling) fight.progress += d * 0.3 * rate * combo;
+      else if (fight.tension > 0.88 || fight.tension < 0.15) fight.progress = Math.max(0, fight.progress - d * 0.1);
+      else if (!reeling) fight.progress = Math.max(0, fight.progress - d * 0.02);
+
+      // The Goop tires when you work it in the zone; snapping tension or slack lets it recover/flee.
+      const tire = PACE[fight.rank ?? 0]; // long fights tire the Goop out more slowly too
+      if (fight.tension > 0.95) fight.stamina -= d * 0.6 * guard * (0.5 + 0.5 * tire);
+      else if (safe) fight.stamina -= d * (reeling ? 0.07 : 0.04) * tire;
+      else fight.stamina -= d * 0.08 * tire;
     }
   }
-  fight.tension = Math.max(0, Math.min(1, fight.tension));
 
-  const lo = fight.safeLo ?? 0.38, hi = fight.safeHi ?? 0.78;
-  const safe = fight.tension >= lo && fight.tension <= hi;
-  const rate = fight.reelRate ?? 1, guard = fight.snapGuard ?? 1;
-
-  // Staying in the zone while reeling builds a streak that speeds up the catch.
-  if (safe && reeling) fight.streak = (fight.streak || 0) + d;
-  else if (!safe) fight.streak = 0;
-  const combo = comboFor(fight.streak || 0);
-  if (combo > (fight.combo || 1)) fight.log.push('combo');
-  fight.combo = combo;
-  fight.best = Math.max(fight.best || 1, combo);
-
-  if (safe && reeling) fight.progress += d * 0.3 * rate * combo;
-  else if (fight.tension > 0.88 || fight.tension < 0.15) fight.progress = Math.max(0, fight.progress - d * 0.1);
-  else if (!reeling) fight.progress = Math.max(0, fight.progress - d * 0.02);
-
-  // The Goop tires when you work it in the zone; snapping tension or slack lets it recover/flee.
-  if (fight.tension > 0.95) fight.stamina -= d * 0.6 * guard;
-  else if (safe) fight.stamina -= d * (reeling ? 0.07 : 0.04);
-  else fight.stamina -= d * 0.08;
-
-  fight.progress = Math.min(1, fight.progress);
+  fight.progress = Math.min(fight.stageCap, fight.progress);
+  // reaching the end of a stage starts the break (the last stage lands the Goop)
+  if (fight.progress >= fight.stageCap && fight.stage < fight.stages) {
+    fight.move = null; fight.zoneShift = 0; fight.warn = false;
+    fight.breakT = BREAK_TIME;
+    fight.log.push({ type: 'breakaway', stage: fight.stage + 1, of: fight.stages });
+    return fight;
+  }
   if (fight.progress >= 1) fight.caught = true;
   else if (fight.stamina <= 0) fight.escaped = true;
+  if (fight.caught || fight.escaped) { fight.move = null; fight.zoneShift = 0; fight.warn = false; }
   return fight;
 }
 
@@ -739,11 +940,11 @@ export class SaveStore {
     return {
       version: SAVE_VERSION, essence: 0, dex: {}, seen: [], notes: [], day: 1, weather: 'clear', caughtToday: 0,
       timeIndex: 1, casts: 0, spot: 'dock', shore: 0, discovered: ['dock'], completed: [],
-      gear: { rod: 0, line: 0, lure: 0 }, stats: { caught: 0, escaped: 0, missed: 0, shiny: 0, perfect: 0, dodges: 0, bounties: 0 },
+      gear: { rod: 0, line: 0, lure: 0 }, stats: { caught: 0, escaped: 0, missed: 0, shiny: 0, perfect: 0, dodges: 0, bounties: 0, moves: 0 },
       bait: 'worm', baits: { sugar: 3, mud: 3 }, buddy: null, buddyLv: 0, sets: [], tips: [], finder: false,
       owned: { rods: ['twig'], skins: ['factory'], bobbers: ['classic'], lines: ['classic'], lures: {} },
       equip: { rod: 'twig', skin: 'factory', bobber: 'classic', line: 'classic', lure: 'none' },
-      quest: { i: 0, have: 0 }, tank: { decor: [], theme: 'pond', themes: ['pond'], tipDay: 0 },
+      quest: { i: 0, have: 0 }, tank: { tanks: [newTank(1)], decor: [], themes: ['pond'], tipDay: 0 },
       bounties: [], bountyDay: 0, frenzy: null, visitor: null, rumors: [],
     };
   }
@@ -848,7 +1049,22 @@ export class SaveStore {
     s.quest = { i: Math.min(QUESTS.length, Math.floor(num(q.i, 0))), have: Math.floor(num(q.have, 0)) };
     const tk = p.tank && typeof p.tank === 'object' ? p.tank : {};
     const themes = [...new Set(['pond', ...(Array.isArray(tk.themes) ? tk.themes.filter((k) => THEMES[k]) : [])])];
-    s.tank = { decor: list(tk.decor, (k) => !!DECOR[k]), themes, theme: themes.includes(tk.theme) ? tk.theme : 'pond', tipDay: Math.floor(num(tk.tipDay, 0)) };
+    const owned = list(tk.decor, (k) => !!DECOR[k]);
+    let tanks = Array.isArray(tk.tanks) ? tk.tanks.filter((t) => t && typeof t === 'object').slice(0, TANK_COSTS.length) : null;
+    if (!tanks || !tanks.length) {
+      // older saves had one tank: everything in it, residents up to the cap
+      tanks = [{ name: 'Main Tank', theme: tk.theme, decor: owned.slice(0, DECOR_SLOTS), fish: Object.keys(s.dex).slice(0, TANK_CAP) }];
+    }
+    const used = new Set(), placed = new Set();
+    s.tank = {
+      decor: owned, themes, tipDay: Math.floor(num(tk.tipDay, 0)),
+      tanks: tanks.map((t, i) => ({
+        name: typeof t.name === 'string' && t.name.trim() ? t.name.trim().slice(0, 18) : (i ? `Tank ${i + 1}` : 'Main Tank'),
+        theme: themes.includes(t.theme) ? t.theme : 'pond',
+        decor: list(t.decor, (k) => owned.includes(k) && !placed.has(k)).slice(0, DECOR_SLOTS).map((k) => (placed.add(k), k)),
+        fish: list(t.fish, (id) => !!s.dex[id] && !used.has(id)).slice(0, TANK_CAP).map((id) => (used.add(id), id)),
+      })),
+    };
     // bounties
     s.bountyDay = Math.floor(num(p.bountyDay, 0));
     s.bounties = Array.isArray(p.bounties) ? p.bounties.filter((b) => b && typeof b === 'object' && BOUNTY_KINDS.includes(b.kind) && typeof b.text === 'string')
@@ -1141,8 +1357,17 @@ export class FishingGame {
         this.saveStore.save(this.state);
       }
     } else if (this.phase === PHASES.FIGHT) {
-      tickFight(this.fight, { reel }, step);
+      tickFight(this.fight, { reel, tap: pressed, steer: input.steer || 0 }, step);
       for (const e of this.fight.log.splice(0)) {
+        if (typeof e === 'object') {
+          if (e.type === 'moveStart') this.message = ''; // the move prompt says it all
+          else if (e.type === 'moveWin') { this.message = MOVE_WIN[e.move]; this.state.stats.moves = (this.state.stats.moves || 0) + 1; }
+          else if (e.type === 'moveFail') this.message = MOVE_FAIL[e.why] || 'It got the better of you that time.';
+          else if (e.type === 'breakaway') this.message = `It breaks away! Stage ${e.stage} of ${e.of} coming…`;
+          else if (e.type === 'stage') this.message = `Stage ${e.stage}: ${this.goop.name} fights harder!`;
+          this.emit(e.type, { ...e, combo: this.fight.combo });
+          continue;
+        }
         if (e === 'dodge') { this.state.stats.dodges += 1; this.message = 'Dodged the lunge! Nice.'; this.questTick('dodge'); }
         else if (e === 'lunge') this.message = 'It lunged! Ease off when you see the warning.';
         this.emit(e, { combo: this.fight.combo });
@@ -1196,6 +1421,7 @@ export class FishingGame {
     const firstTime = prev.count === 0;
     this.lastCatch = { goop: id, reward, firstTime, size, record: record && !firstTime, shiny, time, combo: this.fight.best || 1, perfect: !!this.fight.perfect };
     this.message = `${shiny ? '✦ Shiny ' : ''}${g.name} caught! +${reward} Essence`;
+    if (firstTime) this.lastCatch.tank = this.houseGoop(id);
     this.emit('catch', this.lastCatch);
     this.questTick('catch');
     if (ctx.bait && ctx.bait !== 'worm') this.questTick('bait');
@@ -1477,7 +1703,7 @@ export class FishingGame {
     if (r.baits) s.baits[r.baits[0]] = (s.baits[r.baits[0]] || 0) + r.baits[1];
     if (r.item) {
       const [kind, id] = r.item;
-      if (kind === 'decor') { if (!s.tank.decor.includes(id)) s.tank.decor.push(id); }
+      if (kind === 'decor') { if (!s.tank.decor.includes(id)) s.tank.decor.push(id); const t = s.tank.tanks.find((x) => x.decor.length < DECOR_SLOTS); if (t && !s.tank.tanks.some((x) => x.decor.includes(id))) t.decor.push(id); }
       else if (!s.owned[kind].includes(id)) s.owned[kind].push(id);
     }
     s.quest = { i: s.quest.i + 1, have: 0 };
@@ -1503,27 +1729,91 @@ export class FishingGame {
     return tip;
   }
 
-  buyDecor(id) {
+  /** Which tank (index) a Goop lives in, or -1 if it is in storage. */
+  tankOf(id) { return this.state.tank.tanks.findIndex((t) => t.fish.includes(id)); }
+
+  /** Move a Goop into a tank (or storage with ti = -1). Fails if that tank is full. */
+  setResident(id, ti) {
+    const s = this.state;
+    if (!s.dex[id]) return false;
+    const to = s.tank.tanks[ti];
+    if (ti !== -1 && (!to || (!to.fish.includes(id) && to.fish.length >= TANK_CAP))) return false;
+    for (const t of s.tank.tanks) t.fish = t.fish.filter((x) => x !== id);
+    if (to) to.fish.push(id);
+    this.emit('decor', { resident: id, tank: ti });
+    this.saveStore.save(s);
+    return true;
+  }
+
+  /** New catches move into the first tank with room. Returns the tank index or -1. */
+  houseGoop(id) {
+    const tanks = this.state.tank.tanks;
+    if (tanks.some((t) => t.fish.includes(id))) return this.tankOf(id);
+    const ti = tanks.findIndex((t) => t.fish.length < TANK_CAP);
+    if (ti >= 0) tanks[ti].fish.push(id);
+    return ti;
+  }
+
+  tankCost() { const n = this.state.tank.tanks.length; return n < TANK_COSTS.length ? TANK_COSTS[n] : null; }
+
+  buyTank() {
+    const cost = this.tankCost(), s = this.state;
+    if (cost == null || s.essence < cost) return false;
+    s.essence -= cost;
+    s.tank.tanks.push(newTank(s.tank.tanks.length + 1));
+    this.emit('decor', { tank: s.tank.tanks.length - 1, bought: true });
+    this.saveStore.save(s);
+    return true;
+  }
+
+  renameTank(ti, name) {
+    const t = this.state.tank.tanks[ti];
+    const clean = String(name ?? '').replace(/[<>]/g, '').trim().slice(0, 18);
+    if (!t || !clean) return false;
+    t.name = clean;
+    this.saveStore.save(this.state);
+    return true;
+  }
+
+  /** Buy a decoration (once) and put it in tank ti. */
+  buyDecor(id, ti = 0) {
     const d = DECOR[id], s = this.state;
-    if (!d || d.quest || s.tank.decor.includes(id) || s.essence < d.cost) return false;
+    const t = s.tank.tanks[ti];
+    if (!d || !t || d.quest || s.tank.decor.includes(id) || s.essence < d.cost || t.decor.length >= DECOR_SLOTS) return false;
     if (d.legends && GOOPS.filter((g) => g.rarity === 'Legendary' && s.dex[g.id]).length < d.legends) return false;
     s.essence -= d.cost;
     s.tank.decor.push(id);
+    t.decor.push(id);
     this.emit('decor', { id });
     this.saveStore.save(s);
     return true;
   }
 
-  /** Buy (if needed) and switch to an aquarium backdrop. */
-  setTheme(id) {
-    const t = THEMES[id], s = this.state;
-    if (!t) return false;
+  /** Put an owned decoration in tank ti (taking it out of any other tank), or take it out again. */
+  placeDecor(id, ti) {
+    const s = this.state, t = s.tank.tanks[ti];
+    if (!t || !s.tank.decor.includes(id)) return false;
+    if (t.decor.includes(id)) { t.decor = t.decor.filter((x) => x !== id); }
+    else {
+      if (t.decor.length >= DECOR_SLOTS) return false;
+      for (const x of s.tank.tanks) x.decor = x.decor.filter((k) => k !== id);
+      t.decor.push(id);
+    }
+    this.emit('decor', { id, tank: ti });
+    this.saveStore.save(s);
+    return true;
+  }
+
+  /** Buy (if needed) and show a backdrop in tank ti. */
+  setTheme(id, ti = 0) {
+    const th = THEMES[id], s = this.state, t = s.tank.tanks[ti];
+    if (!th || !t) return false;
     if (!s.tank.themes.includes(id)) {
-      if (s.essence < t.cost) return false;
-      s.essence -= t.cost;
+      if (s.essence < th.cost) return false;
+      s.essence -= th.cost;
       s.tank.themes.push(id);
     }
-    s.tank.theme = id;
+    t.theme = id;
     this.emit('decor', { theme: id });
     this.saveStore.save(s);
     return true;

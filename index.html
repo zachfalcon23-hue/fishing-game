@@ -9,7 +9,7 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='34' r='26' fill='%2359e04a'/%3E%3Ccircle cx='24' cy='28' r='7' fill='%23fff'/%3E%3Ccircle cx='25' cy='29' r='3.5' fill='%23062a10'/%3E%3Cpath d='M14 46q4 12 6 0M38 50q3 10 5 0' fill='%2359e04a'/%3E%3C/svg%3E">
   <link rel="preload" as="font" type="font/woff2" href="assets/fonts/lilita-one.woff2" crossorigin>
   <link rel="preload" as="image" href="assets/ui/title.webp">
-  <link rel="stylesheet" href="src/style.css?v=0.7">
+  <link rel="stylesheet" href="src/style.css?v=0.9">
 </head>
 <body>
 <div class="loader" id="loader">
@@ -60,6 +60,7 @@
       <div class="toast" id="message" role="status" aria-live="polite">Cast your line to begin.</div>
       <div class="walk-hint" id="walkHint">HOLD ◀ ▶ TO ROAM · CAST ANYWHERE</div>
 
+      <div class="move-prompt" id="movePrompt" aria-live="assertive"></div>
       <div class="fight-hud dim" id="fightUi" aria-hidden="true">
         <div class="combo" id="combo"></div>
         <div class="tension-row">
@@ -68,7 +69,7 @@
           <span class="val" id="tensionText">50%</span>
         </div>
         <div class="mini-row">
-          <div><div class="bar-label"><span>CATCH</span><span id="progressText">0%</span></div><div class="meter progress"><div id="progressBar" class="progress-fill"></div></div></div>
+          <div><div class="bar-label"><span>CATCH <span class="stage-pips" id="stagePips"></span></span><span id="progressText">0%</span></div><div class="meter progress"><div id="progressBar" class="progress-fill"></div><div class="stage-marks" id="stageMarks"></div></div></div>
           <div><div class="bar-label"><span>GOOP STAMINA</span><span id="staminaText">100%</span></div><div class="meter stamina"><div id="staminaBar" class="stamina-fill"></div></div></div>
         </div>
       </div>
@@ -89,7 +90,7 @@
       <button id="reelBtn" class="slime-btn reel" aria-pressed="false">REEL / HOOK <kbd>SPACE</kbd></button>
       <button id="rightBtn" class="slime-btn walk" aria-label="Walk right">▶</button>
     </div>
-    <p id="tip" class="tip"><b>Hold ◀ ▶</b> (or swipe, or <b>A / D</b>) to roam the shore; a quick tap hops to the next stop. Cast anywhere. Hook the instant you see <b>!</b> for a perfect hook, keep the needle in the green to build a streak, and ease off when a Goop flashes <b>!!</b>. Visit Old Wiggs at the Bait Shack for quests, rods, skins and lures, and see your catches swim in the Aquarium. Some places only show up at the right time or weather.</p>
+    <p id="tip" class="tip"><b>Hold ◀ ▶</b> (or swipe, or <b>A / D</b>) to roam the shore; a quick tap hops to the next stop. Cast anywhere. Hook the instant you see <b>!</b> for a perfect hook, keep the needle in the green to build a streak, and ease off when a Goop flashes <b>!!</b>. Every Goop also has a signature move mid-fight — follow the prompt: steer with <b>◀ ▶</b> (or swipe), tap <b>REEL</b> fast, or wait for the right moment. Visit Old Wiggs at the Bait Shack for quests, rods, skins and lures, and see your catches swim in the Aquarium. Some places only show up at the right time or weather.</p>
   </section>
 
   <section class="lower-grid">
@@ -213,33 +214,39 @@
   </section>
 
   <section class="view aquarium-view" id="aquariumView" hidden>
+    <div class="tank-tabs" id="tankTabs" role="tablist"></div>
     <div class="tank-frame" id="tankFrame">
       <canvas id="tankCanvas" aria-label="Your Goop aquarium"></canvas>
       <div class="tank-hud">
-        <div class="tank-count" id="tankCount">0 GOOPS</div>
+        <div class="tank-count" id="tankCount"></div>
         <div class="tank-btns">
           <button id="feedBtn" class="tank-btn">🍤 FEED</button>
           <button id="tipsBtn" class="tank-btn gold">💰 TIPS</button>
         </div>
       </div>
-      <div class="tank-empty" id="tankEmpty" hidden>Your tank is empty.<br>Catch some Goops at the pond and they’ll swim here!</div>
+      <div class="tank-empty" id="tankEmpty" hidden></div>
       <div class="tank-card" id="tankCard" hidden></div>
-      <div class="tank-hint" id="tankHint">Tap a Goop to say hi · turn on FEED and tap the water to drop food</div>
+      <div class="tank-hint" id="tankHint"></div>
     </div>
     <div class="tank-grid">
+      <article class="card residents-card">
+        <div class="card-head"><h2>RESIDENTS</h2><span id="residentCount"></span></div>
+        <p class="card-sub">Each tank holds 12 Goops. Tap a Goop to move it into this tank, or tap one that lives here to send it to storage.</p>
+        <div id="residentList" class="resident-list"></div>
+      </article>
       <article class="card">
-        <div class="card-head"><h2>DECORATIONS</h2><span id="decorCount">0 / 9</span></div>
-        <p class="card-sub">Make your tank a home. Some pieces come from Old Wiggs' quests; finished collections show up as trophies.</p>
+        <div class="card-head"><h2>DECORATIONS</h2><span id="decorCount"></span></div>
+        <p class="card-sub">Each tank has 6 slots. Buy a piece once and move it to any tank. Finished collections show up as trophies in your first tank.</p>
         <div id="decorList" class="tackle-grid"></div>
       </article>
       <article class="card">
-        <div class="card-head"><h2>BACKDROPS</h2><span id="themeCount">1 / 6</span></div>
-        <div id="themeList" class="tackle-grid"></div>
+        <div class="card-head"><h2>BACKDROPS</h2><span id="themeCount"></span></div>
+        <div id="themeList" class="tackle-grid theme-grid"></div>
       </article>
     </div>
   </section>
 
-  <footer><span>GOOP FISHING · BUILD 0.7 · BAIT SHACK &amp; AQUARIUM</span><button id="resetBtn" class="ghost">RESET SAVE</button></footer>
+  <footer><span>GOOP FISHING · BUILD 0.9 · SIGNATURE FIGHTS</span><button id="resetBtn" class="ghost">RESET SAVE</button></footer>
 </main>
 
 <dialog id="dexDetail" class="dex-detail">
@@ -273,6 +280,6 @@
   <div class="card-foot"><small>Bounties pay out the moment you finish them. New ones every morning.</small><button id="rerollBtn2" class="mini-btn">NEW BOUNTIES</button></div>
 </dialog>
 
-<script type="module" src="src/main.js?v=0.7"></script>
+<script type="module" src="src/main.js?v=0.9"></script>
 </body>
 </html>

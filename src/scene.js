@@ -431,6 +431,33 @@ export class Scene {
       this.snap = { t: 0, x: this.bobber.x, y: this.bobber.y };
       this.splash(this.bobber.x, this.bobber.y, 18, '#ffffff', 1);
       this.cam.shake = 16;
+    } else if (e.type === 'moveStart') {
+      this.cam.shake = Math.max(this.cam.shake, e.detail.move === 'thrash' ? 12 : 6);
+      this.splash(this.bobber.x, this.bobber.y, 12, '#e8fdff', 0.8);
+      this.ring(this.bobber.x, this.bobber.y, 1.3);
+    } else if (e.type === 'moveWin') {
+      this.sparkle(this.bobber.x, this.bobber.y - 30, 22, '#8df28a');
+    } else if (e.type === 'moveFail') {
+      this.cam.shake = Math.max(this.cam.shake, 14);
+      this.splash(this.bobber.x, this.bobber.y, 18, '#ffffff', 1);
+    } else if (e.type === 'beat' || e.type === 'step') {
+      this.bobber.dip = 16;
+      this.ring(this.bobber.x, this.bobber.y, 0.9);
+      this.splash(this.bobber.x, this.bobber.y, 5, '#e8fdff', 0.5);
+    } else if (e.type === 'beatHit') {
+      this.sparkle(this.bobber.x, this.bobber.y - 40, 6, '#fff27a');
+    } else if (e.type === 'surge') {
+      this.cam.shake = 16;
+      this.splash(this.bobber.x, this.bobber.y, 30, '#ffffff', 1.3);
+      this.ring(this.bobber.x, this.bobber.y, 1.8);
+    } else if (e.type === 'breakaway') {
+      this.cam.shake = 20; this.flash = Math.max(this.flash, 0.35);
+      const b = this.bobber;
+      this.jump = { t: 0, dur: 1.1, x: b.x, y: b.y + 10, dir: Math.random() < 0.5 ? -1 : 1, big: true };
+      this.splash(b.x, b.y, 40, '#ffffff', 1.4);
+    } else if (e.type === 'stage') {
+      this.cam.shake = 12;
+      this.sparkle(this.bobber.x, this.bobber.y - 20, 30, '#ffd23a');
     } else if (e.type === 'lunge') {
       this.cam.shake = 18;
       this.splash(this.bobber.x, this.bobber.y, 20, '#ffffff', 1.1);
@@ -1570,13 +1597,17 @@ export class Scene {
       if (fight) {
         if (this.castX == null) { this.castX = b.x; this.castY = b.y; }
         const pull = Math.sin(t * 2.1) * 60 + Math.sin(t * 5.3) * 18 * fight.tension;
-        const tx = lerp(this.castX, rod.bx + 120, fight.progress * 0.55) + pull;
+        this.swingX = lerp(this.swingX || 0, (fight.swing || 0) * 260, 1 - Math.exp(-dt * 7));
+        const still = fight.move?.type === 'fakeout' && fight.move.state === 'still';
+        const tx = lerp(this.castX, rod.bx + 120, fight.progress * 0.55) + (still ? pull * 0.1 : pull) + this.swingX;
+        if (fight.swing && Math.random() < dt * 20) this.splash(b.x, b.y, 2, '#e8fdff', 0.5);
+        if (fight.tell && Math.random() < dt * 14) this.particles.push({ kind: 'drop', x: b.x + (Math.random() - 0.5) * 40, y: b.y + 30, vx: 0, vy: -160 - Math.random() * 80, life: 0, max: 0.5, size: 3 + Math.random() * 3, color: '#cfefff', floor: 3000 });
         const ty = lerp(this.castY, H - 260, fight.progress * 0.5);
         b.x = lerp(b.x, tx, 1 - Math.exp(-dt * 3));
         b.y = lerp(b.y, ty, 1 - Math.exp(-dt * 3));
-        if (Math.random() < dt * (0.6 + fight.tension * 2.2)) this.ring(b.x, b.y, 0.6 + fight.tension * 0.6);
+        if (!still && Math.random() < dt * (0.6 + fight.tension * 2.2)) this.ring(b.x, b.y, 0.6 + fight.tension * 0.6);
         if (Math.random() < dt * 4 * fight.tension) this.splash(b.x, b.y, 3, '#e8fdff', 0.4);
-        if (!this.jump && fight.tension > 0.72 && Math.random() < dt * 0.5) {
+        if (!this.jump && !fight.move && !fight.breakT && fight.tension > 0.72 && Math.random() < dt * 0.5) {
           this.jump = { t: 0, dur: 0.85, x: b.x + (Math.random() - 0.5) * 120, y: b.y + 10, dir: Math.random() < 0.5 ? -1 : 1 };
           this.splash(this.jump.x, this.jump.y, 18, '#ffffff', 0.9);
         }
@@ -1994,8 +2025,8 @@ export class Scene {
     j.t += dt;
     const p = j.t / j.dur;
     if (p >= 1) { this.splash(j.x + j.dir * 160, j.y, 20, '#ffffff', 0.8); this.ring(j.x + j.dir * 160, j.y, 1.3); this.jump = null; return; }
-    const x = j.x + j.dir * 160 * p, y = j.y - Math.sin(p * Math.PI) * 190;
-    const sc = 0.5 * (0.6 + (j.y - HZ) / (H - HZ) * 0.8);
+    const x = j.x + j.dir * (j.big ? 240 : 160) * p, y = j.y - Math.sin(p * Math.PI) * (j.big ? 300 : 190);
+    const sc = (j.big ? 0.75 : 0.5) * (0.6 + (j.y - HZ) / (H - HZ) * 0.8);
     g.save(); g.translate(x, y); g.rotate(j.dir * (p - 0.5) * 1.4); g.scale(-j.dir, 1);
     g.drawImage(art, -art.width * sc / 2, -art.height * sc / 2, art.width * sc, art.height * sc);
     g.restore();

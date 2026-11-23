@@ -83,6 +83,15 @@ export class Sfx {
     const f = 2400 + Math.random() * 1600, n = 2 + Math.floor(Math.random() * 3);
     for (let i = 0; i < n; i++) this.tone({ f0: f, f1: f * (1.25 + Math.random() * 0.3), dur: 0.07, type: 'sine', gain: 0.035, delay: i * 0.11 });
   }
+  moveStart(type) {
+    const f = { swerve: [660, 990], tug: [220, 330], fakeout: [440, 300], rhythm: [523, 784], current: [392, 587], thrash: [330, 660] }[type] || [440, 660];
+    this.tone({ f0: f[0], f1: f[1], dur: 0.16, type: 'triangle', gain: 0.18 }); this.tone({ f0: f[1], dur: 0.12, type: 'sine', gain: 0.1, delay: 0.12 });
+  }
+  moveWin() { [784, 988, 1319].forEach((f, i) => this.tone({ f0: f, dur: 0.18, type: 'triangle', gain: 0.15, delay: i * 0.06 })); }
+  moveFail() { this.tone({ f0: 220, f1: 110, dur: 0.3, type: 'sawtooth', gain: 0.1 }); this.noiseBurst({ dur: 0.2, f0: 800, f1: 200, gain: 0.25 }); }
+  beat() { this.tone({ f0: 1200, f1: 900, dur: 0.05, type: 'square', gain: 0.07 }); this.noiseBurst({ dur: 0.06, type: 'bandpass', f0: 2500, f1: 1800, q: 4, gain: 0.12 }); }
+  beatHit() { this.tone({ f0: 1568, dur: 0.1, type: 'sine', gain: 0.14 }); }
+  gong() { this.tone({ f0: 110, f1: 98, dur: 1.4, type: 'sine', gain: 0.25 }); this.tone({ f0: 220, f1: 196, dur: 1, type: 'triangle', gain: 0.08 }); this.tone({ f0: 330, dur: 0.6, type: 'sine', gain: 0.05 }); }
   wave() { this.noiseBurst({ dur: 1.6, type: 'lowpass', f0: 600, f1: 1400, gain: 0.08, attack: 0.6 }); }
 
   /** Steady roar of the waterfall, louder the closer you are (0..1). */
