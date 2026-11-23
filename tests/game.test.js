@@ -47,6 +47,32 @@ test('weather and time boost matching Goops in the encounter pool', () => {
   assert.ok(weightOf(night, 'lumen') > weightOf(clear, 'lumen'));
 });
 
+test('pond activity rises where the player fishes, changes rare encounter weights, and decays with the clock', () => {
+  const g = newGame();
+  const spot = SPOTS.find((s) => s.id === 'dock');
+  const baseline = encounterPool({ spot, weather: 'clear', time: 'Day' });
+  const active = encounterPool({ spot, weather: 'clear', time: 'Day', event: { activity: { dock: 3 } } });
+  const rareId = spot.goops.find((id) => GOOPS.find((x) => x.id === id).rarity !== 'Common');
+  const commonId = spot.goops.find((id) => GOOPS.find((x) => x.id === id).rarity === 'Common');
+  assert.equal(active.find((x) => x.id === rareId).weight / baseline.find((x) => x.id === rareId).weight, 1.18);
+  assert.equal(active.find((x) => x.id === commonId).weight, baseline.find((x) => x.id === commonId).weight);
+  assert.equal(g.ecosystemStatus().label, 'QUIET WATER');
+  g.stirWater(g.zone());
+  assert.equal(g.activityAt('dock'), 1);
+  assert.equal(g.ecosystemStatus().label, 'RIPPLES GATHERING');
+  g.state.activity.dock = 3;
+  g.state.casts = CASTS_PER_TIME - 1;
+  g.advanceClock();
+  assert.equal(g.activityAt('dock'), 2, 'activity fades one step when the water moves into a new time period');
+  assert.equal(g.ecosystemStatus().label, 'FEEDING ACTIVITY');
+});
+
+test('pond activity save data is bounded and ignores unknown habitats', () => {
+  const { store } = memStore(JSON.stringify({ version: 3, activity: { dock: 9, nowhere: 2, lily: -4 } }));
+  const state = store.load();
+  assert.deepEqual(state.activity, { dock: 3 });
+});
+
 test('field tracking multiplies only the selected Goop after its real habitat and conditions qualify', () => {
   const spot = SPOTS.find((s) => s.id === 'deep');
   const base = encounterPool({ spot, weather: 'storm', time: 'Night' });
