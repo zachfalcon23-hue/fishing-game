@@ -105,14 +105,18 @@ test('specimen size is decided before the fight and changes its difficulty', () 
   assert.equal(rollGoopSize(goop, () => 1, 2), goop.size[1]);
   assert.ok(rollGoopSize(goop, () => 0.5, 2) < rollGoopSize(goop, () => 0.5, 1), 'size exponent keeps large specimens rare');
 
-  const game = newGame();
+  const game = newGame({ rng: () => 0.5 });
   game.cast();
-  game.phase = PHASES.FIGHT;
   game.goop = goop;
-  game.fight = makeFight(goop, {}, { size: goop.size[1] });
+  game.phase = PHASES.BITE;
+  game.timer = 0;
+  game.prevReel = false;
+  game.update(1 / 60, { reel: true });
+  const foughtSize = rollGoopSize(goop, () => 0.5, game.mods().sizeExp);
+  assert.equal(game.fight.size, foughtSize, 'the hook creates the specimen before the fight');
   game.fight.caught = true;
-  game.update(0);
-  assert.equal(game.lastCatch.size, game.fight.size, 'the GoopDex records the exact specimen fought');
+  game.update(0, { reel: true });
+  assert.equal(game.lastCatch.size, foughtSize, 'the GoopDex records the exact specimen fought');
 });
 
 test('catch awards Essence and records Dex entry', () => {
