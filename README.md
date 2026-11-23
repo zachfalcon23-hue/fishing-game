@@ -92,6 +92,7 @@ The game has three places, switched with the buttons under the logo. Each has it
   - The reflection on the water is a mirrored copy of the far layers in their current scrolled position.
   - The sky is drawn in code for each time of day (stars and moon, sun, drifting clouds). The painted layers are colour-graded to match the sky, and the scene cross-fades when the spot, time or weather changes.
   - Animated water: wobbling strips, a mirrored reflection of the far shore, a moon/sun glitter path and caustics.
+  - Ambient aquatic life: small schools drift beneath the surface along the continuous shoreline, with subtle surface dimples; visibility responds to storm and fog. These are environmental wildlife cues, separate from catchable Goops and the fishing encounter system.
   - Weather: rain with splash rings, fog banks, storms with lightning bolts and flashes. Also fireflies, lantern and mushroom glows, and an animated waterfall.
   - Gameplay visuals: rod that bends with tension, cast arc, bobber, the Goop's shadow underwater, Goops leaping mid-fight, lunge warnings, a catch reveal with god-rays, and a line-snap recoil.
   - Tackle looks: every rod style is drawn in code (bamboo joints, carbon weave, glass, magma seams, storm sparks, crystal glints, abyssal runes), recoloured by skins; bobbers, lines and lures each have their own drawings. The tackle box preview reuses the same drawing code.
