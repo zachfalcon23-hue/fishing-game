@@ -317,6 +317,13 @@ export const TIMES = ['Dawn', 'Day', 'Dusk', 'Night'];
 export const CASTS_PER_TIME = 3;
 export const SHINY_ODDS = 1 / 48;
 export const PERFECT_HOOK = 0.4; // seconds after the bite for a perfect hook
+export const CLEAN_HOOK = 1.2; // clean hooks still earn a smaller head start
+export function hookTiming(delay) {
+  const elapsed = Number.isFinite(delay) ? Math.max(0, delay) : Infinity;
+  if (elapsed <= PERFECT_HOOK) return { grade: 'perfect', progress: 0.12 };
+  if (elapsed <= CLEAN_HOOK) return { grade: 'clean', progress: 0.06 };
+  return { grade: 'late', progress: 0 };
+}
 export const MOON = ['New moon', 'Crescent moon', 'Half moon', 'Full moon', 'Waning moon'];
 export const moonPhase = (day) => ((day % 5) + 5) % 5;
 export const isFullMoon = (day) => moonPhase(day) === 3;
@@ -1367,13 +1374,21 @@ export class FishingGame {
         const m = this.castCtx?.fightMods || this.mods();
         const specimenSize = rollGoopSize(this.goop, this.rng, m.sizeExp);
         this.fight = makeFight(this.goop, this.state.gear, { forceMul: m.forceMul ?? this.weather.forceMul * m.force, rng: this.rng, reel: m.reel, zone: m.zone, lunge: m.lunge, size: specimenSize });
-        const perfect = this.timer <= PERFECT_HOOK;
+        const timing = hookTiming(this.timer);
+        const perfect = timing.grade === 'perfect';
         this.fight.perfect = perfect;
-        if (perfect) { this.fight.progress = 0.12; this.state.stats.perfect += 1; }
+        this.fight.hookGrade = timing.grade;
+        this.fight.hookBonus = timing.progress;
+        this.fight.progress = timing.progress;
+        if (perfect) this.state.stats.perfect += 1;
         this.timer = 0;
-        this.message = perfect ? `Perfect hook! ${this.goop.hint}` : this.goop.hint;
+        this.message = timing.grade === 'perfect'
+          ? `Perfect hook! +12% head start. ${this.goop.hint}`
+          : timing.grade === 'clean'
+            ? `Clean hook! +6% head start. ${this.goop.hint}`
+            : this.goop.hint;
         if (!this.state.seen.includes(this.goop.id)) this.state.seen.push(this.goop.id);
-        this.emit('hooked', { goop: this.goop.id, perfect });
+        this.emit('hooked', { goop: this.goop.id, perfect, grade: timing.grade, bonus: timing.progress });
       } else if (this.timer >= this.biteDuration) {
         this.phase = PHASES.ESCAPED;
         this.state.stats.missed += 1;
@@ -1446,7 +1461,7 @@ export class FishingGame {
     s.stats.caught += 1;
     if (shiny) s.stats.shiny += 1;
     const firstTime = prev.count === 0;
-    this.lastCatch = { goop: id, reward, firstTime, size, record: record && !firstTime, shiny, time, combo: this.fight.best || 1, perfect: !!this.fight.perfect, skillBonus };
+    this.lastCatch = { goop: id, reward, firstTime, size, record: record && !firstTime, shiny, time, combo: this.fight.best || 1, perfect: !!this.fight.perfect, hookGrade: this.fight.hookGrade || 'late', skillBonus };
     this.message = `${shiny ? '✦ Shiny ' : ''}${g.name} caught! +${reward} Essence`;
     if (firstTime) this.lastCatch.tank = this.houseGoop(id);
     this.emit('catch', this.lastCatch);
