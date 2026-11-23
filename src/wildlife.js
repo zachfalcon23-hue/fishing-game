@@ -147,3 +147,8 @@ export function wildlifeDisplayProfile(goop) {
     glow: rarityRank >= 3 ? 0.24 + rarityRank * 0.07 : 0,
   };
 }
+
+/** Suppress recognizable species in locked or undiscovered habitats. */
+export function resolveWildlifeSighting(pool, seed = 'wildlife', unlocked = true) {
+  return unlocked ? selectWildlifeSpecies(pool, seed) : null;
+}
