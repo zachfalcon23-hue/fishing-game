@@ -1,5 +1,5 @@
 import {
-  GOOPS, SPOTS, SPOT_BY, UPGRADES, NOTES, PHASES, BAITS, SETS, TASTES, MOON, REROLL_COST, WEATHER,
+  MOVE_INFO, GOOPS, SPOTS, SPOT_BY, UPGRADES, NOTES, PHASES, BAITS, SETS, TASTES, MOON, REROLL_COST, WEATHER,
   RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, buddyBonus, QUESTS, DECOR, THEMES, TANK_CAP, DECOR_SLOTS,
   FishingGame, conditionText, tasteBait,
 } from './game.js';
@@ -17,6 +17,8 @@ let scene = null;
 let reelHeld = false;
 let drag = null;
 let tapLatch = false;
+let steerLatch = 0; // a fresh steer (◀ / ▶) for signature moves
+let fightSwipe = null;
 const pointer = { px: 0, py: 0 };
 const newDex = new Set();
 const keys = { left: false, right: false };
@@ -313,25 +315,90 @@ function renderFight() {
   const active = game.phase === PHASES.FIGHT && fight;
   const hud = $('fightUi');
   hud.classList.toggle('dim', !active);
+  renderMove(active ? fight : null);
   if (!active) return;
   const pct = (v) => Math.round(Math.max(0, Math.min(1, v)) * 100);
-  hud.classList.toggle('in-zone', fight.tension >= fight.safeLo && fight.tension <= fight.safeHi);
-  hud.classList.toggle('danger', fight.tension > 0.88 || fight.tension < 0.15);
+  const shift = fight.zoneShift || 0;
+  const lo = fight.safeLo + shift, hi = fight.safeHi + shift;
+  const m = fight.move;
+  const paused = fight.breakT > 0 || (m && ['tug', 'rhythm', 'thrash'].includes(m.type));
+  hud.classList.toggle('paused', !!paused);
+  hud.classList.toggle('in-zone', fight.tension >= lo && fight.tension <= hi);
+  hud.classList.toggle('danger', !paused && (fight.tension > 0.88 || fight.tension < 0.15));
   hud.classList.toggle('warn', !!fight.warn);
+  hud.classList.toggle('drifting', m?.type === 'current');
   $('tensionBar').style.width = `${fight.tension * 100}%`;
   $('needle').style.left = `${fight.tension * 100}%`;
-  $('safeZone').style.left = `${fight.safeLo * 100}%`;
-  $('safeZone').style.width = `${(fight.safeHi - fight.safeLo) * 100}%`;
+  $('safeZone').style.left = `${lo * 100}%`;
+  $('safeZone').style.width = `${(hi - lo) * 100}%`;
   $('progressBar').style.width = `${fight.progress * 100}%`;
   $('staminaBar').style.width = `${pct(fight.stamina / game.goop.stamina)}%`;
   setText('tensionText', `${pct(fight.tension)}%`);
   setText('progressText', `${pct(fight.progress)}%`);
   setText('staminaText', `${pct(fight.stamina / game.goop.stamina)}%`);
-  setText('tensionLbl', fight.warn ? 'EASE OFF!' : 'TENSION');
+  setText('tensionLbl', fight.warn ? 'EASE OFF!' : paused ? 'HOLD ON' : m?.type === 'current' ? 'FOLLOW' : 'TENSION');
   const c = fight.combo || 1;
   const combo = $('combo');
-  combo.classList.toggle('show', c > 1);
+  combo.classList.toggle('show', c > 1 && !paused);
   setText('combo', c > 1 ? `STREAK ×${c.toFixed(2).replace(/0$/, '')}` : '');
+  // stage pips and markers on the catch bar
+  setHTML('stagePips', fight.stages > 1 ? Array.from({ length: fight.stages }, (_, i) => `<i class="${i + 1 < fight.stage ? 'done' : i + 1 === fight.stage ? 'now' : ''}"></i>`).join('') : '');
+  setHTML('stageMarks', fight.stages > 1 ? Array.from({ length: fight.stages - 1 }, (_, i) => `<i style="left:${((i + 1) / fight.stages) * 100}%"></i>`).join('') : '');
+  // steer buttons light up during steering moves
+  const steerDir = m?.type === 'swerve' ? m.dir : m?.type === 'thrash' ? { L: -1, R: 1 }[m.steps[m.idx]] || 0 : 0;
+  $('leftBtn').classList.toggle('steer', steerDir === -1);
+  $('rightBtn').classList.toggle('steer', steerDir === 1);
+  $('reelBtn').classList.toggle('mash', m?.type === 'tug' || m?.type === 'rhythm' || (m?.type === 'thrash' && m.steps[m.idx] === 'T') || (m?.type === 'fakeout' && m.state === 'surge'));
+  $('reelBtn').classList.toggle('hands-off', m?.type === 'fakeout' && m.state === 'still');
+}
+
+/** The big prompt in the middle of the scene for each signature move. */
+let moveKey = '';
+function renderMove(fight) {
+  const el = $('movePrompt');
+  const m = fight?.move;
+  const brk = fight && fight.breakT > 0;
+  if (!m && !brk) { if (moveKey) { el.className = 'move-prompt'; el.innerHTML = ''; moveKey = ''; } return; }
+  if (brk) {
+    const k = `break${fight.stage}`;
+    if (moveKey !== k) { moveKey = k; el.className = 'move-prompt show break'; el.innerHTML = `<div class="mp-title">IT BREAKS AWAY!</div><div class="mp-big">STAGE ${fight.stage + 1} <small>/ ${fight.stages}</small></div><div class="mp-how">Catch your breath — it’s coming back angrier</div>`; }
+    return;
+  }
+  const info = MOVE_INFO[m.type];
+  const k = `${m.type}${fight.moveCount}`;
+  if (moveKey !== k) {
+    moveKey = k;
+    el.className = `move-prompt show mv-${m.type}`;
+    let body = '';
+    if (m.type === 'swerve') body = `<div class="mp-arrow ${m.dir < 0 ? 'l' : 'r'}"><span>${m.dir < 0 ? '◀' : '▶'}</span><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" class="ring" id="mpRing"/></svg></div>`;
+    else if (m.type === 'tug') body = `<div class="tug"><span class="side goop">${esc(game.goop.name)}</span><div class="rope"><i class="mid"></i><b id="tugKnot"></b></div><span class="side you">YOU</span></div>`;
+    else if (m.type === 'fakeout') body = '<div class="sleep" id="sleepFace"><span>😴</span><b>HANDS OFF…</b></div>';
+    else if (m.type === 'rhythm') body = `<div class="lane" id="lane"><i class="target"></i>${Array.from({ length: m.n }, (_, i) => `<b class="note" data-i="${i}"></b>`).join('')}</div>`;
+    else if (m.type === 'current') body = '<div class="cur"><div class="cur-bar"><i id="curFill"></i><em style="left:60%"></em></div><small>stay in the zone 60% of the time</small></div>';
+    else if (m.type === 'thrash') body = `<div class="steps">${m.steps.map((s, i) => `<b data-i="${i}">${s === 'L' ? '◀' : s === 'R' ? '▶' : '●'}</b>`).join('')}</div><div class="step-time"><i id="stepTime"></i></div>`;
+    el.innerHTML = `<div class="mp-title">${info.name.toUpperCase()}!</div>${body}<div class="mp-how">${info.how}${m.type === 'swerve' || m.type === 'thrash' ? ' <span class="keys">(◀ ▶ buttons, swipe, or arrow keys)</span>' : ''}</div>`;
+  }
+  // live parts
+  if (m.type === 'swerve') { const r = $('mpRing'); if (r) r.style.strokeDashoffset = String(276 * Math.min(1, m.t / m.window)); }
+  else if (m.type === 'tug') { const kn = $('tugKnot'); if (kn) kn.style.left = `${50 + m.pos * 50}%`; }
+  else if (m.type === 'fakeout') {
+    const f = $('sleepFace');
+    if (f) {
+      const state = m.state === 'surge' ? 'now' : fight.tell ? 'tell' : 'still';
+      if (f.dataset.s !== state) { f.dataset.s = state; f.innerHTML = state === 'now' ? '<span>😠</span><b>NOW! REEL!</b>' : state === 'tell' ? '<span>👀</span><b>…</b>' : '<span>😴</span><b>HANDS OFF…</b>'; el.classList.toggle('now', state === 'now'); }
+    }
+  } else if (m.type === 'rhythm') {
+    const lane = $('lane');
+    if (lane) for (const n of lane.querySelectorAll('.note')) {
+      const i = Number(n.dataset.i), dtb = m.lead + i * m.gap - m.t;
+      n.style.left = `${12 + Math.max(-0.2, dtb) / 1.6 * 88}%`;
+      n.className = `note ${m.judged[i] === true ? 'hit' : m.judged[i] === false ? 'miss' : ''}`;
+    }
+  } else if (m.type === 'current') { const cf = $('curFill'); if (cf) cf.style.width = `${Math.min(100, (m.inZone / m.dur) * 100)}%`; }
+  else if (m.type === 'thrash') {
+    el.querySelectorAll('.steps b').forEach((b) => { const i = Number(b.dataset.i); b.className = i < m.idx ? 'done' : i === m.idx ? 'now' : ''; });
+    const st = $('stepTime'); if (st) st.style.width = `${Math.max(0, 1 - m.stepT / m.window) * 100}%`;
+  }
 }
 
 let shownEssence = null;
@@ -382,7 +449,9 @@ function render(dt) {
   $('castBtn').disabled = game.busy || walking;
   setHTML('castBtn', game.here ? 'CAST LINE <kbd>C</kbd>' : 'CAST HERE <kbd>C</kbd>');
   const free = !game.busy;
-  $('leftBtn').disabled = !free; $('rightBtn').disabled = !free;
+  const steering = game.phase === PHASES.FIGHT;
+  $('leftBtn').disabled = !free && !steering; $('rightBtn').disabled = !free && !steering;
+  $('leftBtn').classList.toggle('steer-mode', steering); $('rightBtn').classList.toggle('steer-mode', steering);
   $('walkHint').classList.toggle('show', free && !walking && game.state.stats.caught < 3 && game.state.discovered.length < 3 && p === PHASES.IDLE);
   const reel = $('reelBtn');
   reel.classList.toggle('active', reelHeld);
@@ -443,6 +512,16 @@ function handleEvents() {
       case 'bite': sfx.bite(); navigator.vibrate?.(60); break;
       case 'hooked': sfx.hook(); if (d.perfect) sfx.perfect(); navigator.vibrate?.(30); lastLists = ''; break;
       case 'lunge': sfx.snap(); navigator.vibrate?.([60, 30, 60]); break;
+      case 'moveStart': sfx.moveStart(d.move); navigator.vibrate?.(25); break;
+      case 'moveWin': sfx.moveWin(); navigator.vibrate?.([20, 40, 20]); break;
+      case 'moveFail': sfx.moveFail(); navigator.vibrate?.(90); break;
+      case 'beat': sfx.beat(); navigator.vibrate?.(12); break;
+      case 'beatHit': sfx.beatHit(); break;
+      case 'beatMiss': sfx.bump(); break;
+      case 'step': sfx.beatHit(); break;
+      case 'surge': sfx.splash(true); navigator.vibrate?.(60); break;
+      case 'breakaway': sfx.splash(true); sfx.gong(); navigator.vibrate?.([80, 60, 120]); break;
+      case 'stage': sfx.gong(); break;
       case 'dodge': sfx.dodge(); break;
       case 'combo': sfx.combo(d.combo); break;
       case 'catch':
@@ -1037,8 +1116,8 @@ function loop(ts) {
   const dt = last == null ? 0 : Math.min(0.08, (ts - last) / 1000);
   last = ts;
   updateWalk(dt);
-  game.update(dt, { reel: reelHeld || tapLatch });
-  tapLatch = false;
+  game.update(dt, { reel: reelHeld || tapLatch, steer: steerLatch });
+  tapLatch = false; steerLatch = 0;
   handleEvents();
   if (scene) {
     scene.reeling = reelHeld && game.phase === PHASES.FIGHT;
@@ -1084,7 +1163,7 @@ const reelBtn = $('reelBtn');
 reelBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); press(); });
 for (const [id, side, dir] of [['leftBtn', 'left', -1], ['rightBtn', 'right', 1]]) {
   const b = $(id);
-  b.addEventListener('pointerdown', (e) => { e.preventDefault(); sfx.unlock(); held[side] = true; pressAt[side] = performance.now(); });
+  b.addEventListener('pointerdown', (e) => { e.preventDefault(); sfx.unlock(); if (game.phase === PHASES.FIGHT) { steerLatch = dir; return; } held[side] = true; pressAt[side] = performance.now(); });
   const up = () => {
     if (!held[side]) return;
     held[side] = false;
@@ -1094,7 +1173,7 @@ for (const [id, side, dir] of [['leftBtn', 'left', -1], ['rightBtn', 'right', 1]
   b.addEventListener('pointerleave', () => { held[side] = false; });
   b.addEventListener('contextmenu', (e) => e.preventDefault());
 }
-window.addEventListener('pointerup', () => { release(); held.left = false; held.right = false; held.drag = 0; drag = null; });
+window.addEventListener('pointerup', () => { release(); held.left = false; held.right = false; held.drag = 0; drag = null; fightSwipe = null; });
 window.addEventListener('pointercancel', () => { release(); held.left = false; held.right = false; held.drag = 0; });
 window.addEventListener('blur', () => { release(); keys.left = keys.right = false; held.left = held.right = false; held.drag = 0; });
 reelBtn.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -1112,7 +1191,7 @@ function canvasPoint(e) {
 sceneEl.addEventListener('pointerdown', (e) => {
   if (e.target.closest('.minimap, .side-btns')) return;
   if (e.pointerType === 'mouse' && e.button !== 0) return;
-  if (game.busy) { e.preventDefault(); press(); return; }
+  if (game.busy) { e.preventDefault(); press(); if (game.phase === PHASES.FIGHT) fightSwipe = { x: e.clientX, done: false }; return; }
   drag = { x: e.clientX, y: e.clientY, moved: false, at: performance.now() };
 });
 sceneEl.addEventListener('pointermove', (e) => {
@@ -1120,6 +1199,10 @@ sceneEl.addEventListener('pointermove', (e) => {
   if (e.pointerType === 'mouse') {
     pointer.px = ((e.clientX - r.left) / r.width - 0.5) * 2;
     pointer.py = ((e.clientY - r.top) / r.height - 0.5) * 2;
+  }
+  if (fightSwipe && !fightSwipe.done && game.phase === PHASES.FIGHT) {
+    const dx = e.clientX - fightSwipe.x;
+    if (Math.abs(dx) > 36) { fightSwipe.done = true; steerLatch = dx > 0 ? 1 : -1; }
   }
   if (drag && !game.busy) {
     const dx = e.clientX - drag.x;
@@ -1155,6 +1238,7 @@ sceneEl.addEventListener('contextmenu', (e) => e.preventDefault());
 window.addEventListener('keydown', (e) => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (anyDialogOpen() || view !== 'pond') return;
+  if (game.phase === PHASES.FIGHT && !e.repeat && ['ArrowLeft', 'KeyA', 'ArrowRight', 'KeyD'].includes(e.code)) { steerLatch = e.code === 'ArrowLeft' || e.code === 'KeyA' ? -1 : 1; e.preventDefault(); return; }
   if (e.code === 'ArrowLeft' || e.code === 'KeyA') { if (!keys.left) pressAt.keyLeft = performance.now(); keys.left = true; e.preventDefault(); sfx.unlock(); return; }
   if (e.code === 'ArrowRight' || e.code === 'KeyD') { if (!keys.right) pressAt.keyRight = performance.now(); keys.right = true; e.preventDefault(); sfx.unlock(); return; }
   if (e.repeat) return;

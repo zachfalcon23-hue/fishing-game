@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   GOOPS, SPOTS, UPGRADES, NOTES, NOTE_REWARD, weightedPick, encounterPool, makeFight, tickFight, pullForce,
   FishingGame, SaveStore, PHASES, CASTS_PER_TIME, conditionsMet, conditionText,
-  SPOT_BY, BAITS, SETS, RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, tackleMods, QUESTS, DECOR, THEMES, tankTips, TANK_CAP, TANK_COSTS, DECOR_SLOTS, shoreZone, zonePool, makeBounties, bountyMatches, comboFor, LUNGE_WARN, PERFECT_HOOK, isFullMoon,
+  SPOT_BY, BAITS, SETS, RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, tackleMods, QUESTS, DECOR, THEMES, tankTips, TANK_CAP, TANK_COSTS, DECOR_SLOTS, startMove, SIGNATURE, MOVE_INFO, stagesFor, BREAK_TIME, shoreZone, zonePool, makeBounties, bountyMatches, comboFor, LUNGE_WARN, PERFECT_HOOK, isFullMoon,
 } from '../src/game.js';
 
 function memStore(initial = null) {
@@ -762,4 +762,113 @@ test('multiple tanks: buy, rename, residents with a cap, decor moves between tan
   const s = memStore(JSON.stringify(g.state)).store.load();
   assert.equal(s.tank.tanks[1].name, 'Night Tank');
   assert.equal(s.tank.tanks[1].fish.length, 1);
+});
+
+// ----- signature moves -----
+const quiet = (goop) => { const f = makeFight(goop, {}, { rng: () => 0.3, moves: false }); f.nextLunge = null; return f; };
+const step = (f, input = {}, dt = 1 / 60) => tickFight(f, { reel: false, tap: false, steer: 0, ...input }, dt);
+const lastLog = (f, type) => f.log.filter((e) => typeof e === 'object' && e.type === type).pop();
+
+test('every fighting style has a signature move', () => {
+  for (const p of ['steady', 'pulse', 'dart', 'drift', 'sleepy', 'wild']) assert.ok(MOVE_INFO[SIGNATURE[p]], p);
+  const f = makeFight(GOOPS[0], {}, { rng: () => 0.5 });
+  assert.ok(f.nextMove > 1 && f.nextMove < 5, 'first move comes a couple of seconds in');
+});
+
+test('swerve: steering the right way wins, the wrong way or too late loses', () => {
+  const dart = GOOPS.find((g) => g.pattern === 'dart' && g.rarity === 'Uncommon');
+  let f = quiet(dart); f.progress = 0.2; const m = startMove(f, 'swerve');
+  step(f); step(f, { steer: m.dir });
+  assert.equal(f.move, null); assert.ok(lastLog(f, 'moveWin')); assert.ok(f.progress > 0.2);
+  f = quiet(dart); f.progress = 0.2; const m2 = startMove(f, 'swerve');
+  step(f, { steer: -m2.dir });
+  assert.equal(lastLog(f, 'moveFail').why, 'wrong'); assert.ok(f.progress < 0.2);
+  f = quiet(dart); startMove(f, 'swerve');
+  for (let i = 0; i < 120 && f.move; i++) step(f);
+  assert.equal(lastLog(f, 'moveFail').why, 'slow');
+});
+
+test('tug of war: fast taps win, no taps lose, and the tension game pauses', () => {
+  const g = GOOPS.find((x) => x.pattern === 'steady' && x.rarity === 'Common');
+  let f = quiet(g); startMove(f, 'tug');
+  const before = f.progress;
+  for (let i = 0; i < 400 && f.move; i++) step(f, { tap: i % 8 === 0, reel: i % 8 === 0 });
+  assert.ok(lastLog(f, 'moveWin'), 'about 7 taps a second is enough'); assert.ok(f.progress > before);
+  f = quiet(g); startMove(f, 'tug');
+  for (let i = 0; i < 400 && f.move; i++) step(f, { reel: true });
+  assert.ok(lastLog(f, 'moveFail'), 'holding the reel is not tapping');
+});
+
+test('fake-out: reeling while it plays dead loses; reeling right as it wakes wins', () => {
+  const g = GOOPS.find((x) => x.pattern === 'sleepy');
+  let f = quiet(g); startMove(f, 'fakeout');
+  for (let i = 0; i < 30; i++) step(f);
+  step(f, { tap: true, reel: true });
+  assert.equal(lastLog(f, 'moveFail').why, 'eager');
+  f = quiet(g); const m = startMove(f, 'fakeout');
+  let told = false;
+  while (f.move && m.state === 'still') { step(f); told ||= !!f.tell; }
+  assert.ok(told, 'there is a tell just before it wakes');
+  assert.ok(lastLog(f, 'surge'));
+  step(f, { tap: true, reel: true });
+  assert.ok(lastLog(f, 'moveWin'));
+  f = quiet(g); const m3 = startMove(f, 'fakeout');
+  while (f.move && m3.state === 'still') step(f);
+  for (let i = 0; i < 60 && f.move; i++) step(f);
+  assert.equal(lastLog(f, 'moveFail').why, 'slow');
+});
+
+test('rhythm: taps on the beat win, random taps lose', () => {
+  const g = GOOPS.find((x) => x.pattern === 'pulse');
+  let f = quiet(g); const m = startMove(f, 'rhythm');
+  const beats = Array.from({ length: m.n }, (_, i) => m.lead + i * m.gap);
+  let t = 0;
+  while (f.move) { const tap = beats.some((b) => t < b && t + 1 / 60 >= b); step(f, { tap, reel: tap }); t += 1 / 60; }
+  assert.ok(lastLog(f, 'moveWin'));
+  f = quiet(g); startMove(f, 'rhythm'); let i = 0;
+  while (f.move) { step(f, { tap: i % 23 === 0 }); i++; }
+  assert.ok(lastLog(f, 'moveFail'));
+});
+
+test('current: the zone drifts and you must follow it', () => {
+  const g = GOOPS.find((x) => x.pattern === 'drift');
+  let f = quiet(g); startMove(f, 'current');
+  let shifted = false;
+  while (f.move) {
+    const c = (f.safeLo + f.safeHi) / 2 + (f.zoneShift || 0); shifted ||= Math.abs(f.zoneShift) > 0.05;
+    step(f, { reel: f.tension < c });
+  }
+  assert.ok(shifted); assert.ok(lastLog(f, 'moveWin'));
+  f = quiet(g); startMove(f, 'current');
+  while (f.move) step(f);
+  assert.ok(lastLog(f, 'moveFail'), 'a slack line drifts out of the zone');
+});
+
+test('thrash: follow every arrow and tap in order', () => {
+  const g = GOOPS.find((x) => x.pattern === 'wild');
+  let f = quiet(g); const m = startMove(f, 'thrash');
+  while (f.move) { const w = m.steps[m.idx]; step(f, w === 'T' ? { tap: true, reel: true } : { steer: w === 'L' ? -1 : 1 }); step(f); }
+  assert.ok(lastLog(f, 'moveWin'));
+  f = quiet(g); const m2 = startMove(f, 'thrash');
+  m2.steps = ['L', 'T']; step(f, { steer: 1 });
+  assert.equal(lastLog(f, 'moveFail').why, 'wrong');
+});
+
+test('Epics fight in two stages and Legendaries in three, with a breather between', () => {
+  const leg = GOOPS.find((x) => x.rarity === 'Legendary');
+  assert.equal(stagesFor(leg), 3);
+  assert.equal(stagesFor(GOOPS.find((x) => x.rarity === 'Epic')), 2);
+  assert.equal(stagesFor(GOOPS[0]), 1);
+  const f = quiet(leg);
+  f.progress = 0.3; f.tension = 0.55;
+  for (let i = 0; i < 300 && !lastLog(f, 'breakaway'); i++) step(f, { reel: f.tension < 0.58 });
+  assert.ok(lastLog(f, 'breakaway'));
+  assert.ok(f.progress <= 1 / 3 + 1e-9, 'progress stops at the end of the stage');
+  const stam = f.stamina, prog = f.progress;
+  for (let i = 0; i < BREAK_TIME * 60 + 30 && f.stage === 1; i++) step(f, { reel: true });
+  assert.equal(f.stage, 2);
+  assert.ok(lastLog(f, 'stage'));
+  assert.ok(f.stamina > stam, 'it catches its breath');
+  assert.equal(f.progress, prog, 'no progress lost or gained during the break');
+  assert.equal(f.caught, false);
 });

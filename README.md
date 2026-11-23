@@ -17,6 +17,19 @@ The game is published with GitHub Pages (Settings → Pages → Deploy from a br
    - Staying in the zone while reeling builds a **streak** (up to ×1.6 catch speed).
    - Rare-or-better Goops **lunge**: a red `!!` appears, then they surge. Let go of the reel when it hits to dodge it (and gain a little progress); fighting it head-on costs progress.
    - Holding forever snaps the line; going slack loses progress.
+   - **Signature moves.** Every fighting style has its own challenge mid-fight, shown as a big prompt with sound and vibration:
+
+     | Style | Move | What to do |
+     | --- | --- | --- |
+     | Dart | Swerve | Steer the way it bolts (◀ ▶ buttons, swipe, or arrow keys) before the ring runs out |
+     | Steady | Tug of War | Tap REEL fast to drag the rope to your side |
+     | Sleepy | Fake-out | Hands off while it plays dead, then reel the instant it wakes (watch for the 👀 tell) |
+     | Pulse | Rhythm | Tap REEL on each beat as the notes reach the ring (mashing doesn't work) |
+     | Drift | Current | The safe zone drifts: keep the needle inside it 60% of the time |
+     | Wild | Thrash | Follow a quick string of ◀ ▶ and ● taps |
+
+     Winning a move gives a chunk of progress and tires the Goop; failing costs progress and line. Rarer Goops make the windows tighter and the moves more frequent.
+   - **Boss stages.** Epics fight in two stages and Legendaries in three. At each stage mark the Goop breaks away and leaps out of the water. After a short breather it comes back stronger, and the final stage mixes in a second fighting style's move. Bigger Goops also take longer to reel in.
 5. **Use bait** (`B`, or the bait button). Every Goop has a favourite food (Sweet, Muck, Ember, Frost or Glow), shown on its GoopDex page. Matching bait makes it bite ×3 as often and sooner. Golden Goo favours rare Goops and doubles shiny odds. One bait is used per cast; the worm is free.
 6. **Fill the GoopDex.** New stretches of shore open as your GoopDex grows; until then the path is overgrown.
 7. **Find the secret places.** Three spots are not on the path. They only show themselves when conditions line up, marked by a beacon (and a `?` on the minimap). Walk up to the beacon to find them. Old Wiggs drops rumours about them on the map and the bounty board.
@@ -99,4 +112,4 @@ Everything uses relative paths and runs in a single page, so you can copy the fo
 - `tests/game.test.js` — engine tests, including fight-balance checks (holding reel or never reeling must fail; feathering must succeed).
 
 ## Tuning notes
-Fight constants live in `tickFight` and `pullForce` in `src/game.js`. Balance was checked with simulated players: a feathering player catches most Goops, a sloppy one struggles against fast patterns (dart, pulse, wild), and max tackle makes fights easy.
+Fight constants live in `tickFight` and `pullForce` in `src/game.js`. Balance was checked with simulated players (`/tmp`-style scripts against `makeFight`/`tickFight`). A player who ignores signature moves still catches Commons and Uncommons, about 70% of Rares and 60% of Epics, but no Legendaries. A player who reacts to the moves catches nearly everything up to Epic, and roughly half (casual) to three-quarters (skilled) of Legendaries. Typical fights last about 11 seconds for a Common, 20 for an Epic and 29 for a three-stage Legendary.
