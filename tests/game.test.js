@@ -54,7 +54,7 @@ test('pond activity rises where the player fishes, changes rare encounter weight
   const active = encounterPool({ spot, weather: 'clear', time: 'Day', event: { activity: { dock: 3 } } });
   const rareId = spot.goops.find((id) => GOOPS.find((x) => x.id === id).rarity !== 'Common');
   const commonId = spot.goops.find((id) => GOOPS.find((x) => x.id === id).rarity === 'Common');
-  assert.equal(active.find((x) => x.id === rareId).weight / baseline.find((x) => x.id === rareId).weight, 1.18);
+  assert.ok(Math.abs(active.find((x) => x.id === rareId).weight / baseline.find((x) => x.id === rareId).weight - 1.18) < 1e-9);
   assert.equal(active.find((x) => x.id === commonId).weight, baseline.find((x) => x.id === commonId).weight);
   assert.equal(g.ecosystemStatus().label, 'QUIET WATER');
   g.stirWater(g.zone());
