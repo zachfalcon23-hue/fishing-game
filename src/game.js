@@ -1024,7 +1024,14 @@ export class SaveStore {
 
     try {
       const raw = this.storage?.getItem(this.key);
-      if (raw) return hydrate(parseSave(raw));
+      if (raw) {
+        const loaded = hydrate(parseSave(raw));
+        // Seed or refresh the backup from the validated primary save.
+        try { this.storage?.setItem(this.backupKey, JSON.stringify(loaded)); } catch {
+          // A full storage quota must not prevent a valid primary save from loading.
+        }
+        return loaded;
+      }
     } catch {
       // Try the last known-good copy below.
     }
@@ -1185,6 +1192,7 @@ export class SaveStore {
     }
     try {
       const serialized = JSON.stringify(s);
+      if (typeof serialized !== 'string') throw new Error('Save state is not serializable');
       this.storage.setItem(this.key, serialized);
       // The primary save is already committed. A backup-write failure should
       // not report the successful primary write as a failed save.
@@ -1200,10 +1208,10 @@ export class SaveStore {
   }
 
   reset() {
-    try {
-      this.storage?.removeItem(this.key);
-      this.storage?.removeItem(this.backupKey);
-    } catch {
+    try { this.storage?.removeItem(this.key); } catch {
+      // Storage may be unavailable; still attempt to remove the backup.
+    }
+    try { this.storage?.removeItem(this.backupKey); } catch {
       // Storage may be unavailable; still return a fresh in-memory state.
     }
     this.lastLoadRecovered = false;
