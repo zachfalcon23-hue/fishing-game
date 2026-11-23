@@ -1566,8 +1566,10 @@ export class FishingGame {
     if (s.buddy) mul *= 1 + buddyBonus(s.buddyLv);
     mul *= mods.essence;
     if (record && !(prev.count === 0)) mul *= mods.recordMul;
-    // Reward strong fight execution: the best reel streak adds up to 10% Essence.
-    const skillBonus = Math.min(0.1, Math.max(0, (this.fight.best || 1) - 1) / 6);
+    // Reward both precise hooking and strong fight execution without inflating the economy.
+    const streakBonus = Math.min(0.1, Math.max(0, (this.fight.best || 1) - 1) / 6);
+    const hookSkillBonus = this.fight.hookGrade === 'perfect' ? 0.05 : this.fight.hookGrade === 'clean' ? 0.025 : 0;
+    const skillBonus = Math.min(0.15, streakBonus + hookSkillBonus);
     mul *= 1 + skillBonus;
     const reward = Math.round(g.essence * mul);
     this.lastReward = reward;
@@ -1576,7 +1578,7 @@ export class FishingGame {
     s.stats.caught += 1;
     if (shiny) s.stats.shiny += 1;
     const firstTime = prev.count === 0;
-    this.lastCatch = { goop: id, reward, firstTime, size, record: record && !firstTime, shiny, time, combo: this.fight.best || 1, perfect: !!this.fight.perfect, hookGrade: this.fight.hookGrade || 'late', skillBonus };
+    this.lastCatch = { goop: id, reward, firstTime, size, record: record && !firstTime, shiny, time, combo: this.fight.best || 1, perfect: !!this.fight.perfect, hookGrade: this.fight.hookGrade || 'late', skillBonus, hookSkillBonus };
     this.message = `${shiny ? '✦ Shiny ' : ''}${g.name} caught! +${reward} Essence`;
     if (firstTime) this.lastCatch.tank = this.houseGoop(id);
     this.emit('catch', this.lastCatch);
