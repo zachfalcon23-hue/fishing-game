@@ -912,15 +912,24 @@ export class Scene {
       const movement = school.movement || 'cruise';
       const movementRate = movement === 'dart' ? 1.7 : movement === 'surge' ? 1.25 : movement === 'drift' ? 0.58 : movement === 'weave' ? 1.05 : 0.82;
       const swimSpeed = school.speed * movementRate * (1 + feeding * 0.3);
-      const wx = WORLD_MIN - 1100 + (((school.x - (WORLD_MIN - 1100) + t * swimSpeed) % span) + span) % span;
+      let wx = WORLD_MIN - 1100 + (((school.x - (WORLD_MIN - 1100) + t * swimSpeed) % span) + span) % span;
+      // A moving angler briefly spooks nearby schools; when the player stops, they settle naturally.
+      const distanceFromPlayer = wx - this.camX;
+      const proximity = clamp(1 - Math.abs(distanceFromPlayer) / 720, 0, 1);
+      const disturbance = proximity * clamp(this.walk * 1.5, 0, 1);
+      if (disturbance > 0.01) {
+        wx += Math.sign(distanceFromPlayer || 1) * disturbance * 115;
+      }
       const x = this.layerX(wx, d);
       if (x < -180 || x > W + 180) continue;
       const swaySize = movement === 'weave' ? 15 : movement === 'drift' ? 5 : 9;
-      const sway = Math.sin(t * (movementRate + feeding * 0.55) + school.phase) * (swaySize - feeding * 2);
+      const sway = Math.sin(t * (movementRate + feeding * 0.55 + disturbance * 1.4) + school.phase) * (swaySize - feeding * 2 + disturbance * 5);
       const y = school.y + sway;
       const depth = clamp((y - HZ) / (H - HZ), 0, 1);
       const scale = school.size * (0.58 + depth * 0.62);
-      const dir = Math.sin(t * (0.16 + feeding * 0.12) + school.phase) > 0.72 ? -1 : 1;
+      const dir = disturbance > 0.08
+        ? (distanceFromPlayer >= 0 ? 1 : -1)
+        : (Math.sin(t * (0.16 + feeding * 0.12) + school.phase) > 0.72 ? -1 : 1);
       g.save();
       g.translate(x, y);
       g.scale(dir * scale, scale);
