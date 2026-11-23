@@ -855,6 +855,17 @@ test('swerve: steering the right way wins, the wrong way or too late loses', () 
   assert.equal(lastLog(f, 'moveFail').why, 'slow');
 });
 
+test('a failed signature move cannot overfill a specimen stamina bar', () => {
+  const goop = GOOPS.find((x) => x.pattern === 'dart');
+  const fight = makeFight(goop, {}, { size: goop.size[1], rng: () => 0.3, moves: false });
+  fight.nextLunge = null;
+  fight.stamina = fight.maxStamina - 0.001;
+  startMove(fight, 'swerve');
+  for (let i = 0; i < 120 && fight.move; i++) step(fight);
+  assert.ok(lastLog(fight, 'moveFail'));
+  assert.equal(fight.stamina, fight.maxStamina);
+});
+
 test('tug of war: fast taps win, no taps lose, and the tension game pauses', () => {
   const g = GOOPS.find((x) => x.pattern === 'steady' && x.rarity === 'Common');
   let f = quiet(g); startMove(f, 'tug');
