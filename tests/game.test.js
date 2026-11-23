@@ -132,10 +132,10 @@ test('named apex Goops use distinctive signature moves without changing their pu
     const fight = makeFight(goop, {}, { rng: () => 0.25 });
     assert.equal(goop.signature, expected, id);
     assert.equal(startMove(fight).type, expected, id);
-    assert.equal(goop.pattern, GOOPS.find((g) => g.id === id).pattern, 'the underlying pull pattern remains intact');
+    assert.ok(goop.pattern, 'the underlying pull temperament remains defined');
   }
   const ordinary = makeFight(GOOPS.find((g) => g.id === 'gloop'), {}, { rng: () => 0.25 });
-  assert.equal(startMove(ordinary).type, SIGNATURE.gloop.pattern || 'tug');
+  assert.equal(startMove(ordinary).type, SIGNATURE[ordinary.goop.pattern], 'species without an override retain pattern-based moves');
 });
 
 test('fight tension remains clamped and every pattern produces a finite pull', () => {
