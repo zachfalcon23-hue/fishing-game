@@ -55,6 +55,7 @@ function sp(id, name, rarity, spots, color, pattern, o = {}) {
     ...(o.likes ? { likes: o.likes } : {}),
     ...(o.needs ? { needs: o.needs } : {}),
     ...(o.quest ? { quest: o.quest } : {}),
+    ...(o.signature ? { signature: o.signature } : {}),
   };
 }
 
@@ -77,7 +78,7 @@ export const GOOPS = [
   sp('mudmouth', 'Mudmouth', 'Common', ['dock', 'reeds'], '#b08a50', 'steady'),
   sp('slimeperch', 'Slimeperch', 'Uncommon', ['dock'], '#c060ff', 'steady'),
   sp('lanternfin', 'Lanternfin', 'Uncommon', ['dock', 'deep'], '#3d6cff', 'dart', { likes: { time: ['Night'] } }),
-  sp('kinggloop', 'King Gloop', 'Legendary', ['dock'], '#ffd23a', 'wild', { needs: { time: ['Dawn'] }, hint: 'The king of the pond. It answers to no one.' }),
+  sp('kinggloop', 'King Gloop', 'Legendary', ['dock'], '#ffd23a', 'wild', { needs: { time: ['Dawn'] }, signature: 'tug', hint: 'The king of the pond. It answers to no one.' }),
 
   // Lily Cove
   sp('blushkoi', 'Blushkoi', 'Common', ['lily'], '#ff9ad8', 'drift'),
@@ -125,8 +126,8 @@ export const GOOPS = [
   sp('sparkfin', 'Sparkfin', 'Rare', ['falls'], '#3a8aff', 'dart', { likes: { weather: ['storm'] } }),
   sp('voltfin', 'Voltfin', 'Rare', ['falls'], '#3ab8ff', 'dart', { likes: { weather: ['storm', 'rain'] } }),
   sp('prismfin', 'Prismfin', 'Epic', ['falls'], '#a0f0ff', 'dart', { likes: { time: ['Day'] } }),
-  sp('stormray', 'Stormray', 'Epic', ['falls'], '#4a8aff', 'drift', { needs: { weather: ['storm'] }, hint: 'Rides the lightning. Only seen in storms.' }),
-  sp('prismadrake', 'Prismadrake', 'Legendary', ['falls'], '#ff9ae0', 'wild', { needs: { weather: ['rain'], time: ['Day', 'Dawn'] }, hint: 'A living rainbow. It wakes when sunlight meets rain.' }),
+  sp('stormray', 'Stormray', 'Epic', ['falls'], '#4a8aff', 'drift', { needs: { weather: ['storm'] }, signature: 'swerve', hint: 'Rides the lightning. Only seen in storms.' }),
+  sp('prismadrake', 'Prismadrake', 'Legendary', ['falls'], '#ff9ae0', 'wild', { needs: { weather: ['rain'], time: ['Day', 'Dawn'] }, signature: 'rhythm', hint: 'A living rainbow. It wakes when sunlight meets rain.' }),
   sp('aurorafin', 'Aurorafin', 'Legendary', ['falls'], '#ffd84a', 'wild', { needs: { time: ['Dusk'], weather: ['clear'] }, hint: 'Shimmers like the evening sky.' }),
 
   // Glowshroom Grotto
@@ -163,11 +164,11 @@ export const GOOPS = [
   // Sunken Wreck (secret: storms and fog uncover the mast)
   sp('rustjaw', 'Rustjaw', 'Uncommon', ['wreck'], '#c9783a', 'pulse'),
   sp('barnaclebass', 'Barnacle Bass', 'Rare', ['wreck'], '#3fd4c0', 'steady', { likes: { weather: ['storm'] } }),
-  sp('ghostshark', 'Ghostshark', 'Epic', ['wreck'], '#9ff0ea', 'dart', { likes: { weather: ['fog'] }, hint: 'You can see right through it. Its lunges are real, though.' }),
-  sp('drownedking', 'Drowned King', 'Legendary', ['wreck'], '#5fe0c8', 'wild', { needs: { weather: ['storm', 'fog'] }, hint: 'The old king of the wreck. It surfaces when the weather turns.' }),
+  sp('ghostshark', 'Ghostshark', 'Epic', ['wreck'], '#9ff0ea', 'dart', { likes: { weather: ['fog'] }, signature: 'thrash', hint: 'You can see right through it. Its lunges are real, though.' }),
+  sp('drownedking', 'Drowned King', 'Legendary', ['wreck'], '#5fe0c8', 'wild', { needs: { weather: ['storm', 'fog'] }, signature: 'current', hint: 'The old king of the wreck. It surfaces when the weather turns.' }),
 
   // The Sleeper: only rises for Old Wiggs' last quest, then on full-moon nights
-  sp('sleeper', 'The Sleeper', 'Legendary', ['deep'], '#4a6aff', 'wild', { needs: { time: ['Night'] }, weight: 3, stamina: 1.6, force: 1.28, essence: 300, size: [140, 260], taste: 'glow', quest: 'sleeper', hint: 'Ancient, enormous and very, very awake.' }),
+  sp('sleeper', 'The Sleeper', 'Legendary', ['deep'], '#4a6aff', 'wild', { needs: { time: ['Night'] }, weight: 3, stamina: 1.6, force: 1.28, essence: 300, size: [140, 260], taste: 'glow', quest: 'sleeper', signature: 'fakeout', hint: 'Ancient, enormous and very, very awake.' }),
 ];
 // A few residents wander into the secret spots too.
 for (const [id, spot] of [['stardrift', 'sandbar'], ['crystalfin', 'cave'], ['lumen', 'cave'], ['goopshark', 'wreck'], ['oilspill', 'wreck']]) {
@@ -703,7 +704,7 @@ const clamp01 = (v) => Math.max(0, Math.min(1, v));
 /** Begin a signature move. `type` defaults to the Goop's own; final stages mix in a second one. */
 export function startMove(fight, type) {
   const rng = fight.rng || Math.random, rank = fight.rank;
-  let t = type || SIGNATURE[fight.goop.pattern] || 'swerve';
+  let t = type || fight.goop.signature || SIGNATURE[fight.goop.pattern] || 'swerve';
   if (!type && fight.stages > 1 && fight.stage === fight.stages && fight.moveCount % 2 === 1) {
     const others = Object.values(SIGNATURE).filter((m) => m !== t);
     t = others[Math.floor(rng() * others.length) % others.length];
