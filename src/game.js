@@ -983,9 +983,15 @@ const OLD_SPOT = { pond: 'dock', reeds: 'reeds', deep: 'deep' };
 const OLD_SPOT_COST = { reeds: 200, deep: 600 };
 
 export class SaveStore {
-  constructor(storage = globalThis.localStorage, key = 'goop-fishing-save') {
+  constructor(storage, key = 'goop-fishing-save') {
+    if (storage === undefined) {
+      try { storage = globalThis.localStorage; } catch { storage = null; }
+    }
     this.storage = storage;
     this.key = key;
+    this.backupKey = `${key}-backup`;
+    this.lastSaveSucceeded = null;
+    this.lastLoadRecovered = false;
   }
 
   fresh() {
@@ -1002,17 +1008,55 @@ export class SaveStore {
   }
 
   load() {
+    this.lastLoadRecovered = false;
+    const parseSave = (raw) => {
+      const value = JSON.parse(raw || 'null');
+      if (!value || typeof value !== 'object' || Array.isArray(value)
+        || ![1, 2, SAVE_VERSION].includes(value.version)) {
+        throw new Error('Unrecognized or damaged save structure');
+      }
+      return value;
+    };
+    const hydrate = (value) => {
+      if (value.version === 1) return this.sanitize(this.migrateV1(value));
+      return this.sanitize(value);
+    };
+
     try {
       const raw = this.storage?.getItem(this.key);
-      if (!raw) return this.fresh();
-      const p = JSON.parse(raw);
-      if (!p || typeof p !== 'object') return this.fresh();
-      if (p.version === 1) return this.sanitize(this.migrateV1(p));
-      if (p.version !== SAVE_VERSION && p.version !== 2) return this.fresh();
-      return this.sanitize(p);
+      if (raw) {
+        const loaded = hydrate(parseSave(raw));
+        // Seed or refresh the backup from the validated primary save.
+        try { this.storage?.setItem(this.backupKey, JSON.stringify(loaded)); } catch {
+          // A full storage quota must not prevent a valid primary save from loading.
+        }
+        return loaded;
+      }
     } catch {
-      return this.fresh();
+      // Try the last known-good copy below.
     }
+
+    try {
+      const raw = this.storage?.getItem(this.backupKey);
+      if (raw) {
+        const recovered = hydrate(parseSave(raw));
+        this.lastLoadRecovered = true;
+        // Repair both slots from the normalized save. A failed repair must not
+        // discard the recovered in-memory progress.
+        try {
+          const serialized = JSON.stringify(recovered);
+          this.storage?.setItem(this.key, serialized);
+          this.storage?.setItem(this.backupKey, serialized);
+        } catch {
+          // Keep the recovered state for this session even if storage is full.
+        }
+        return recovered;
+      }
+    } catch {
+      // No usable backup exists; start with a safe fresh state.
+    }
+
+    return this.fresh();
   }
 
   /** Version 1 had three separate lakes bought with Essence; they became spots on one pond. */
@@ -1142,11 +1186,36 @@ export class SaveStore {
   }
 
   save(s) {
-    try { this.storage?.setItem(this.key, JSON.stringify(s)); return true; } catch { return false; }
+    if (!this.storage || typeof this.storage.setItem !== 'function') {
+      this.lastSaveSucceeded = false;
+      return false;
+    }
+    try {
+      const serialized = JSON.stringify(s);
+      if (typeof serialized !== 'string') throw new Error('Save state is not serializable');
+      this.storage.setItem(this.key, serialized);
+      // The primary save is already committed. A backup-write failure should
+      // not report the successful primary write as a failed save.
+      try { this.storage.setItem(this.backupKey, serialized); } catch {
+        // Preserve the prior backup when storage is out of space.
+      }
+      this.lastSaveSucceeded = true;
+      return true;
+    } catch {
+      this.lastSaveSucceeded = false;
+      return false;
+    }
   }
 
   reset() {
-    try { this.storage?.removeItem(this.key); } catch { /* storage unavailable */ }
+    try { this.storage?.removeItem(this.key); } catch {
+      // Storage may be unavailable; still attempt to remove the backup.
+    }
+    try { this.storage?.removeItem(this.backupKey); } catch {
+      // Storage may be unavailable; still return a fresh in-memory state.
+    }
+    this.lastLoadRecovered = false;
+    this.lastSaveSucceeded = null;
     return this.fresh();
   }
 }

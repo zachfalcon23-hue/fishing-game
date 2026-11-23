@@ -6,11 +6,14 @@ import {
 import { Scene, loadAssets, GOOP_ART, SPOT_X, SPOT_GAP, WORLD_MIN, WORLD_MAX, CLUE_X, toShore, fromShore } from './scene.js';
 import { Sfx } from './audio.js';
 import { Tank } from './aquarium.js';
+import { SessionTelemetry, downloadJSONFile } from './telemetry.js';
 
 const $ = (id) => document.getElementById(id);
 const canvas = $('gameCanvas');
 const sceneEl = $('scene');
 const game = new FishingGame();
+if (game.saveStore.lastLoadRecovered) game.message = 'Recovered your last valid save from backup. Your progress has been restored.';
+const sessionTelemetry = new SessionTelemetry();
 const sfx = new Sfx();
 let scene = null;
 
@@ -424,6 +427,17 @@ function renderEssence(dt) {
 }
 
 let lastMessage = '';
+function renderSessionTelemetry() {
+  const summary = sessionTelemetry.summary();
+  const formatSeconds = ms => ms == null ? '—' : (ms / 1000).toFixed(1) + 's';
+  setText('sessionRounds', String(summary.completedRounds));
+  setText('sessionCatchRate', summary.catchRate == null ? '—' : Math.round(summary.catchRate * 100) + '%');
+  setText('sessionFightTime', formatSeconds(summary.averageFightMs));
+  setText('sessionEssence', summary.catchReward.toLocaleString());
+  const rate = summary.catchesPerHour == null ? '—' : Math.round(summary.catchesPerHour) + ' catches/hour';
+  setText('sessionNotice', summary.events.casts + ' casts · ' + summary.events.hooks + ' hooked · ' + summary.events.misses + ' missed · ' + summary.events.escapes + ' broke free · ' + rate);
+  $('exportSessionBtn').disabled = summary.events.casts === 0;
+}
 function render(dt) {
   const p = game.phase;
   const walking = Math.abs(walker.v) > 30;
@@ -1144,11 +1158,15 @@ $('aquariumView').addEventListener('click', (e) => {
 let last = null;
 let clickTimer = 0;
 let ambientTimer = 2;
+let sessionRefresh = 0;
 function loop(ts) {
   const dt = last == null ? 0 : Math.min(0.08, (ts - last) / 1000);
   last = ts;
   updateWalk(dt);
   game.update(dt, { reel: reelHeld || tapLatch, steer: steerLatch });
+  sessionTelemetry.observe(game);
+  sessionRefresh -= dt;
+  if (sessionRefresh <= 0) { renderSessionTelemetry(); sessionRefresh = 0.5; }
   tapLatch = false; steerLatch = 0;
   handleEvents();
   if (scene) {
@@ -1190,6 +1208,21 @@ function cast() {
   if (Math.abs(walker.v) > 30) return;
   if (game.cast()) { reelHeld = false; lastLists = ''; $('catchCard').hidden = true; }
 }
+
+$('exportSessionBtn').addEventListener('click', () => {
+  try {
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    downloadJSONFile(sessionTelemetry.exportJSON(), 'goop-fishing-session-' + stamp + '.json');
+    $('sessionNotice').textContent = 'Session JSON exported. It contains anonymous playtest measurements only.';
+  } catch (error) {
+    $('sessionNotice').textContent = 'Export failed: ' + error.message;
+  }
+});
+$('resetSessionBtn').addEventListener('click', () => {
+  sessionTelemetry.reset(game.phase);
+  renderSessionTelemetry();
+  $('sessionNotice').textContent = 'Session measurements cleared. Your game save was not changed.';
+});
 
 const reelBtn = $('reelBtn');
 reelBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); press(); });

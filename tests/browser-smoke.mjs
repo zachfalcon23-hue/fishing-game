@@ -61,7 +61,12 @@ try {
       reducedMotion: 'reduce',
     });
     await context.addInitScript(() => {
-      try { localStorage.clear(); } catch { /* storage may be unavailable in a restricted context */ }
+      // Clear storage once per tab, not on every reload (save recovery needs the backup).
+      const initializedKey = '__goopBrowserSmokeInitialized';
+      if (sessionStorage.getItem(initializedKey) !== '1') {
+        try { localStorage.clear(); } catch { /* storage may be unavailable in a restricted context */ }
+        sessionStorage.setItem(initializedKey, '1');
+      }
     });
 
     const page = await context.newPage();
@@ -86,6 +91,10 @@ try {
     assert.equal(await page.locator('#gameCanvas').isVisible(), true);
     assert.equal(await page.locator('#phaseTag').innerText(), 'READY');
     assert.match(await page.locator('.dexpill strong').innerText(), /0\/86/);
+    assert.equal(await page.locator('#sessionPanel').isVisible(), true);
+    await page.locator('#sessionPanel summary').click();
+    assert.equal(await page.locator('#sessionRounds').innerText(), '0');
+    assert.equal(await page.locator('#exportSessionBtn').isDisabled(), true);
 
     const canvasSize = await page.locator('#gameCanvas').evaluate(canvas => ({
       width: canvas.width,
@@ -128,6 +137,17 @@ try {
     // Verify the actual cast -> bite -> hook -> fight transition using player controls.
     await page.locator('#castBtn').click();
     await page.waitForFunction(() => window.__goop?.game.phase === 'cast', undefined, { timeout: 3000 });
+    await page.waitForFunction(
+      () => document.querySelector('#exportSessionBtn')?.disabled === false,
+      undefined,
+      { timeout: 2500 },
+    );
+    const [sessionDownload] = await Promise.all([
+      page.waitForEvent('download'),
+      page.locator('#exportSessionBtn').click(),
+    ]);
+    assert.match(sessionDownload.suggestedFilename(), /^goop-fishing-session-.*\.json$/);
+    assert.equal(await sessionDownload.failure(), null);
     await page.waitForFunction(() => window.__goop?.game.phase === 'bite', undefined, { timeout: 15000 });
     await page.locator('#reelBtn').click();
     await page.waitForFunction(() => window.__goop?.game.phase === 'fight', undefined, { timeout: 3000 });
@@ -145,6 +165,34 @@ try {
     await page.locator('#viewNav [data-view="aquarium"]').click();
     assert.equal(await page.locator('#pondView').isVisible(), true);
     assert.equal(await page.locator('#aquariumView').isVisible(), false);
+
+    // Verify the backup recovery path in a real browser reload.
+    await Promise.all([
+      page.waitForNavigation({ waitUntil: 'domcontentloaded' }),
+      page.evaluate(() => {
+        const backup = window.__goop.game.saveStore.fresh();
+        backup.essence = 321;
+        localStorage.setItem('goop-fishing-save-backup', JSON.stringify(backup));
+        localStorage.setItem('goop-fishing-save', '{damaged-primary');
+        location.reload();
+      }),
+    ]);
+    await page.waitForFunction(
+      () => document.querySelector('#loader')?.classList.contains('gone') === true
+        && window.__goop?.game?.saveStore?.lastLoadRecovered === true,
+      undefined,
+      { timeout: 20000 },
+    );
+    const recovery = await page.evaluate(() => ({
+      essence: window.__goop.game.state.essence,
+      recovered: window.__goop.game.saveStore.lastLoadRecovered,
+      primary: JSON.parse(localStorage.getItem('goop-fishing-save')),
+      backup: JSON.parse(localStorage.getItem('goop-fishing-save-backup')),
+    }));
+    assert.equal(recovery.essence, 321);
+    assert.equal(recovery.recovered, true);
+    assert.equal(recovery.primary.essence, 321);
+    assert.equal(recovery.backup.essence, 321);
 
     assert.deepEqual(pageErrors, [], `${viewport.name}: uncaught browser errors`);
     assert.deepEqual(failedRequests, [], `${viewport.name}: missing local assets`);

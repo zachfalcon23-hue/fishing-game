@@ -120,6 +120,21 @@
           <div><span>SHINIES</span><strong id="shinies">0</strong></div>
         </div>
         <div id="noteList" class="note-list"></div>
+        <details class="session-panel" id="sessionPanel">
+          <summary>PLAYTEST SESSION · LOCAL ONLY</summary>
+          <p class="session-caption">Anonymous gameplay measurements stay in this browser session. Nothing is uploaded; export is manual.</p>
+          <div class="session-metrics">
+            <div><span>ROUNDS</span><strong id="sessionRounds">0</strong></div>
+            <div><span>CATCH RATE</span><strong id="sessionCatchRate">—</strong></div>
+            <div><span>AVG FIGHT</span><strong id="sessionFightTime">—</strong></div>
+            <div><span>CATCH ESSENCE</span><strong id="sessionEssence">0</strong></div>
+          </div>
+          <div class="session-actions">
+            <button id="exportSessionBtn" class="mini-btn" type="button" disabled>EXPORT JSON</button>
+            <button id="resetSessionBtn" class="mini-btn" type="button">RESET SESSION</button>
+          </div>
+          <p id="sessionNotice" class="session-notice" role="status" aria-live="polite">Measurements start with your first cast.</p>
+        </details>
       </article>
 
       <article class="card">

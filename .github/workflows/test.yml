@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - feature/species-aware-wildlife
+      - feature/mainline-session-telemetry-clean
   pull_request:
     branches:
       - main
@@ -34,6 +35,9 @@ jobs:
 
       - name: Run regression tests
         run: npm test
+
+      - name: Generate current-source economy audit
+        run: npm run economy:audit
 
       - name: Install pinned Playwright
         run: npm install --no-save --no-package-lock playwright@1.56.1
