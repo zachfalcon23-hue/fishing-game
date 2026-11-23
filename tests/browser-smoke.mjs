@@ -61,7 +61,12 @@ try {
       reducedMotion: 'reduce',
     });
     await context.addInitScript(() => {
-      try { localStorage.clear(); } catch { /* storage may be unavailable in a restricted context */ }
+      // Clear storage once per tab, not on every reload (save recovery needs the backup).
+      const initializedKey = '__goopBrowserSmokeInitialized';
+      if (sessionStorage.getItem(initializedKey) !== '1') {
+        try { localStorage.clear(); } catch { /* storage may be unavailable in a restricted context */ }
+        sessionStorage.setItem(initializedKey, '1');
+      }
     });
 
     const page = await context.newPage();
