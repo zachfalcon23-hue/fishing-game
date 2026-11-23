@@ -412,12 +412,12 @@ export const BOBBERS = {
 };
 
 export const LINES = {
-  classic: { name: 'Clear Mono', cost: 0, color: '#eafff4', desc: 'Plain and nearly invisible.' },
-  slime: { name: 'Neon Slime', cost: 80, color: '#8df28a', glow: true, desc: 'Glows lime green.' },
-  pink: { name: 'Hot Pink', cost: 80, color: '#ff7ac8', glow: true, desc: 'Loud and proud.' },
-  ember: { name: 'Ember Braid', cost: 120, color: '#ffb44a', glow: true, desc: 'Smoulders orange.' },
-  gold: { name: 'Gold Thread', cost: 300, color: '#ffd23a', glow: true, desc: 'Fancy.' },
-  rainbow: { name: 'Rainbow Line', cost: 500, color: 'rainbow', glow: true, desc: 'Cycles through every colour.' },
+  classic: { name: 'Clear Mono', cost: 0, color: '#eafff4', desc: 'Low-visibility line: bites come 8% sooner, but it is less forgiving under heavy tension.', stats: { bite: 0.92, snapGuard: 1.12 } },
+  slime: { name: 'Neon Slime', cost: 80, color: '#8df28a', glow: true, desc: 'Easy-to-track line: widens the safe tension zone, but reels 6% slower.', stats: { zone: 0.03, reel: 0.94 } },
+  pink: { name: 'Hot Pink', cost: 80, color: '#ff7ac8', glow: true, desc: 'Responsive competition line: reels 10% faster, but demands a narrower tension window.', stats: { reel: 1.1, zone: -0.03 } },
+  ember: { name: 'Ember Braid', cost: 120, color: '#ffb44a', glow: true, desc: 'Heavy-duty braid: reduces pull and over-tension wear, but bites take 10% longer.', stats: { force: 0.9, snapGuard: 0.8, bite: 1.1 } },
+  gold: { name: 'Gold Thread', cost: 300, color: '#ffd23a', glow: true, desc: 'Treasure line: improves shiny odds and Essence rewards, but offers no fight-control bonus.', stats: { shiny: 1.2, essence: 1.08 } },
+  rainbow: { name: 'Rainbow Line', cost: 500, color: 'rainbow', glow: true, desc: 'All-round specialist: a small safe-zone and reel-speed bonus with no major weakness.', stats: { zone: 0.015, reel: 1.04 } },
 };
 
 /** Lures are kept once bought and upgrade through three levels; `lv` values are per level. */
@@ -448,8 +448,17 @@ export const buddyBonus = (lv = 0) => BUDDY_BONUS + 0.04 * lv;
 
 /** Combined effect of the equipped rod and lure in the given conditions. */
 export function tackleMods(equip = {}, owned = {}, ctx = {}) {
-  const m = { reel: 1, zone: 0, force: 1, lunge: 1, bite: 1, shiny: 1, essence: 1, sizeExp: 2, recordMul: 1, taste: {}, pattern: {}, rare: 1, epic: 1, legend: 1 };
+  const m = { reel: 1, zone: 0, force: 1, lunge: 1, bite: 1, shiny: 1, essence: 1, snapGuard: 1, sizeExp: 2, recordMul: 1, taste: {}, pattern: {}, rare: 1, epic: 1, legend: 1 };
   const r = RODS[equip.rod]?.stats || {};
+  const line = LINES[equip.line]?.stats || {};
+  if (line.reel) m.reel *= line.reel;
+  if (line.zone) m.zone += line.zone;
+  if (line.force) m.force *= line.force;
+  if (line.lunge) m.lunge *= line.lunge;
+  if (line.bite) m.bite *= line.bite;
+  if (line.shiny) m.shiny *= line.shiny;
+  if (line.essence) m.essence *= line.essence;
+  if (line.snapGuard) m.snapGuard *= line.snapGuard;
   if (r.reel) m.reel *= r.reel;
   if (r.zone) m.zone += r.zone;
   if (r.force) m.force *= r.force;
@@ -663,7 +672,7 @@ export function makeFight(goop, gear = {}, env = {}) {
   return {
     goop, size, sizeRatio, sizeFactor, sizeClass: sizeRatio <= 0.25 ? 'LIGHT' : sizeRatio >= 0.75 ? 'HEAVY' : 'AVERAGE',
     progress: 0, stamina: maxStamina, maxStamina, tension: 0.5, phase: 0, elapsed: 0, caught: false, escaped: false,
-    safeLo: g.safeLo - (env.zone ?? 0), safeHi: g.safeHi + (env.zone ?? 0), reelRate: g.reelRate * (env.reel ?? 1) * PACE[rank] / sizeFactor, snapGuard: g.snapGuard,
+    safeLo: g.safeLo - (env.zone ?? 0), safeHi: g.safeHi + (env.zone ?? 0), reelRate: g.reelRate * (env.reel ?? 1) * PACE[rank] / sizeFactor, snapGuard: g.snapGuard * (env.snapGuard ?? 1),
     forceMul: (env.forceMul ?? 1) * (goop.force ?? 1) * sizeForce,
     streak: 0, combo: 1, best: 1,
     rng, nextLunge: lunges(goop) ? 3.2 + rng() * 2.4 : null, warn: false,
@@ -1383,7 +1392,7 @@ export class FishingGame {
         this.phase = PHASES.FIGHT;
         const m = this.castCtx?.fightMods || this.mods();
         const specimenSize = rollGoopSize(this.goop, this.rng, m.sizeExp);
-        this.fight = makeFight(this.goop, this.state.gear, { forceMul: m.forceMul ?? this.weather.forceMul * m.force, rng: this.rng, reel: m.reel, zone: m.zone, lunge: m.lunge, size: specimenSize });
+        this.fight = makeFight(this.goop, this.state.gear, { forceMul: m.forceMul ?? this.weather.forceMul * m.force, rng: this.rng, reel: m.reel, zone: m.zone, lunge: m.lunge, snapGuard: m.snapGuard, size: specimenSize });
         const timing = hookTiming(this.timer);
         const perfect = timing.grade === 'perfect';
         this.fight.perfect = perfect;
