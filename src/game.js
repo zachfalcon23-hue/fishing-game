@@ -375,15 +375,15 @@ export const REROLL_COST = 25;
  *  bite (wait ×), shiny (×), essence (×), taste/tasteMul (bite odds for a food), legend/epic (odds ×), when (weather for a bonus). */
 export const RODS = {
   twig: { name: 'Willow Twig', cost: 0, dex: 0, style: 'wood', desc: 'A bendy starter rod. Honest and balanced.', stats: {} },
-  bamboo: { name: 'Bamboo Classic', cost: 220, dex: 0, style: 'bamboo', desc: 'Light and springy: reels a bit faster with a wider safe zone.', stats: { reel: 1.08, zone: 0.02 } },
-  glass: { name: 'Glass Slinger', cost: 420, dex: 3, style: 'glass', desc: 'Long, see-through casts land softly — bites come 15% sooner.', stats: { bite: 0.85, zone: 0.02 } },
-  carbon: { name: 'Carbon Striker', cost: 750, dex: 8, style: 'carbon', desc: 'Very fast reeling, but a narrower safe zone. For steady hands.', stats: { reel: 1.35, zone: -0.03 } },
-  oak: { name: 'Ironwood Hauler', cost: 750, dex: 8, style: 'oak', desc: 'Heavy and stubborn: Goops pull weaker and their lunges are halved. Reels slower.', stats: { reel: 0.92, force: 0.82, lunge: 0.5, zone: 0.03 } },
-  coral: { name: 'Coral Wand', cost: 900, dex: 12, style: 'coral', desc: 'Sweet-toothed Goops can’t resist it (×1.6 bites). Reels a little faster.', stats: { taste: 'sweet', tasteMul: 1.6, reel: 1.1 } },
-  ember: { name: 'Magma Pole', cost: 900, dex: 12, style: 'ember', desc: 'Warm to the touch: Ember Goops bite ×1.6 and pull 10% weaker.', stats: { taste: 'ember', tasteMul: 1.6, force: 0.9 } },
-  storm: { name: 'Storm Caller', cost: 1300, dex: 18, style: 'storm', desc: 'In rain or storms, Goops pull 30% weaker and pay 30% more Essence.', stats: { when: ['rain', 'storm'], reel: 1.05 } },
-  crystal: { name: 'Crystal Caster', cost: 1600, dex: 24, style: 'crystal', desc: 'Shimmers in the light: shiny chance ×1.6, faster reeling, wider zone.', stats: { shiny: 1.6, reel: 1.15, zone: 0.02 } },
-  abyss: { name: 'Abyssal Reach', cost: 3000, dex: 40, style: 'abyss', desc: 'Forged in the Deep Drop. Legendaries ×1.8, Epics ×1.3, strong all-round.', stats: { legend: 1.8, epic: 1.3, reel: 1.2, zone: 0.03, lunge: 0.8 } },
+  bamboo: { name: 'Bamboo Classic', cost: 220, dex: 0, style: 'bamboo', desc: 'Light and forgiving: a wider safe zone and better shock absorption, but modest reel speed.', stats: { reel: 1.03, zone: 0.025, snapGuard: 1.08 } },
+  glass: { name: 'Glass Slinger', cost: 420, dex: 3, style: 'glass', desc: 'Soft, stealthy presentation draws bites sooner, but the delicate blank tolerates less over-tension.', stats: { bite: 0.85, zone: 0.02, snapGuard: 0.88 } },
+  carbon: { name: 'Carbon Striker', cost: 750, dex: 8, style: 'carbon', desc: 'Explosive hook-to-catch speed, but its stiff blank gives little shock absorption and demands precise tension.', stats: { reel: 1.35, zone: -0.03, snapGuard: 0.9 } },
+  oak: { name: 'Ironwood Hauler', cost: 750, dex: 8, style: 'oak', desc: 'A shock-absorbing powerhouse: softens Goop pulls and lunges with a forgiving zone, but reels slowly.', stats: { reel: 0.92, force: 0.82, lunge: 0.5, zone: 0.03, snapGuard: 1.2 } },
+  coral: { name: 'Coral Wand', cost: 900, dex: 12, style: 'coral', desc: 'Specialist presentation: sweet Goops bite more readily and the light tip keeps the rod responsive, but offers little heavy-fight protection.', stats: { taste: 'sweet', tasteMul: 1.6, reel: 1.1, snapGuard: 0.94 } },
+  ember: { name: 'Magma Pole', cost: 900, dex: 12, style: 'ember', desc: 'Heat-loving Goop specialist: Ember Goops bite more readily and pull weaker, but other encounters gain no special handling.', stats: { taste: 'ember', tasteMul: 1.6, force: 0.9 } },
+  storm: { name: 'Storm Caller', cost: 1300, dex: 18, style: 'storm', desc: 'Weather specialist: in rain or storms Goops pull weaker and pay more Essence; outside those conditions it is a modest all-rounder.', stats: { when: ['rain', 'storm'], reel: 1.05 } },
+  crystal: { name: 'Crystal Caster', cost: 1600, dex: 24, style: 'crystal', desc: 'Trophy hunter: improves shiny odds with quick handling, but does not specialize in controlling heavy pulls.', stats: { shiny: 1.6, reel: 1.15, zone: 0.02, snapGuard: 0.96 } },
+  abyss: { name: 'Abyssal Reach', cost: 3000, dex: 40, style: 'abyss', desc: 'Deep-water specialist: improves Epic and Legendary encounters and resists lunges, but its premium power is not the fastest reel.', stats: { legend: 1.8, epic: 1.3, reel: 1.12, zone: 0.03, lunge: 0.8, snapGuard: 1.06 } },
 };
 
 /** Rod colourways: [dark, mid, light, highlight] for the shaft, grip colour, [hi, mid, lo] for the reel, tip glow. */
@@ -448,12 +448,13 @@ export const buddyBonus = (lv = 0) => BUDDY_BONUS + 0.04 * lv;
 
 /** Combined effect of the equipped rod and lure in the given conditions. */
 export function tackleMods(equip = {}, owned = {}, ctx = {}) {
-  const m = { reel: 1, zone: 0, force: 1, lunge: 1, bite: 1, shiny: 1, essence: 1, sizeExp: 2, recordMul: 1, taste: {}, pattern: {}, rare: 1, epic: 1, legend: 1 };
+  const m = { reel: 1, zone: 0, force: 1, lunge: 1, bite: 1, shiny: 1, essence: 1, snapGuard: 1, sizeExp: 2, recordMul: 1, taste: {}, pattern: {}, rare: 1, epic: 1, legend: 1 };
   const r = RODS[equip.rod]?.stats || {};
   if (r.reel) m.reel *= r.reel;
   if (r.zone) m.zone += r.zone;
   if (r.force) m.force *= r.force;
   if (r.lunge) m.lunge *= r.lunge;
+  if (r.snapGuard) m.snapGuard *= r.snapGuard;
   if (r.bite) m.bite *= r.bite;
   if (r.shiny) m.shiny *= r.shiny;
   if (r.taste) m.taste[r.taste] = r.tasteMul;
@@ -663,7 +664,7 @@ export function makeFight(goop, gear = {}, env = {}) {
   return {
     goop, size, sizeRatio, sizeFactor, sizeClass: sizeRatio <= 0.25 ? 'LIGHT' : sizeRatio >= 0.75 ? 'HEAVY' : 'AVERAGE',
     progress: 0, stamina: maxStamina, maxStamina, tension: 0.5, phase: 0, elapsed: 0, caught: false, escaped: false,
-    safeLo: g.safeLo - (env.zone ?? 0), safeHi: g.safeHi + (env.zone ?? 0), reelRate: g.reelRate * (env.reel ?? 1) * PACE[rank] / sizeFactor, snapGuard: g.snapGuard,
+    safeLo: g.safeLo - (env.zone ?? 0), safeHi: g.safeHi + (env.zone ?? 0), reelRate: g.reelRate * (env.reel ?? 1) * PACE[rank] / sizeFactor, snapGuard: g.snapGuard * (env.snapGuard ?? 1),
     forceMul: (env.forceMul ?? 1) * (goop.force ?? 1) * sizeForce,
     streak: 0, combo: 1, best: 1,
     rng, nextLunge: lunges(goop) ? 3.2 + rng() * 2.4 : null, warn: false,
@@ -1383,7 +1384,7 @@ export class FishingGame {
         this.phase = PHASES.FIGHT;
         const m = this.castCtx?.fightMods || this.mods();
         const specimenSize = rollGoopSize(this.goop, this.rng, m.sizeExp);
-        this.fight = makeFight(this.goop, this.state.gear, { forceMul: m.forceMul ?? this.weather.forceMul * m.force, rng: this.rng, reel: m.reel, zone: m.zone, lunge: m.lunge, size: specimenSize });
+        this.fight = makeFight(this.goop, this.state.gear, { forceMul: m.forceMul ?? this.weather.forceMul * m.force, rng: this.rng, reel: m.reel, zone: m.zone, lunge: m.lunge, snapGuard: m.snapGuard, size: specimenSize });
         const timing = hookTiming(this.timer);
         const perfect = timing.grade === 'perfect';
         this.fight.perfect = perfect;
