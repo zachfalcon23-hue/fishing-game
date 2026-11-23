@@ -69,6 +69,7 @@ export async function loadAssets(goopIds, onProgress = () => {}) {
 // ---------- helpers ----------
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const motionlessOffset = (pattern, t, i) => pattern === 'dart' || pattern === 'wild' ? Math.sin(t * 8 + i * 2.1) * 18 : pattern === 'drift' ? Math.sin(t * 0.8 + i) * 26 : Math.sin(t * 1.5 + i * 2) * 10;
 const lerp = (a, b, t) => a + (b - a) * t;
 const ease = (t) => t * t * (3 - 2 * t);
 function makeCanvas(w, h) {
@@ -2081,20 +2082,39 @@ export class Scene {
     if (!sil || !art) return;
     const b = this.bobber;
     const ds = 0.6 + (b.y - HZ) / (H - HZ) * 0.8;
+    const p = goop.pattern || 'steady';
+    const wave = (rate, phase = 0) => Math.sin(t * rate + phase);
     let x, y, a, sc, colorA = 0;
     if (phase === PHASES.CAST) {
-      const circle = t * 0.9;
-      x = b.x + Math.cos(circle) * 140 * ds; y = b.y + 60 * ds + Math.sin(circle) * 30 * ds;
-      a = clamp((game.timer - 0.3) * 0.5, 0, 0.35); sc = 0.36 * ds;
+      // The fish investigates the lure with a temperament-specific approach instead of
+      // tracing the same orbit as every other species.
+      const orbit = t * ({ steady: 0.48, pulse: 0.72, dart: 1.8, drift: 0.3, sleepy: 0.22, wild: 1.35 }[p] || 0.65);
+      const lateral = ({ steady: 88, pulse: 112, dart: 150, drift: 178, sleepy: 54, wild: 164 }[p] || 100) * ds;
+      const feint = p === 'dart' ? wave(9.5) * 42 : p === 'wild' ? wave(7.1) * 34 + wave(13.4, 1.2) * 18 : 0;
+      const rest = p === 'sleepy' && wave(0.8) > 0.72 ? 0.12 : 1;
+      x = b.x + Math.cos(orbit) * lateral + feint;
+      y = b.y + 58 * ds + wave(p === 'pulse' ? 3.8 : p === 'wild' ? 5.2 : 1.4) * (p === 'drift' ? 10 : 22) * ds * rest;
+      a = clamp((game.timer - 0.3) * 0.5, 0, 0.38) * (p === 'sleepy' ? 0.82 + wave(0.8) * 0.12 : 1);
+      sc = 0.36 * ds;
     } else if (phase === PHASES.BITE) {
-      x = b.x + 30 + Math.sin(t * 7) * 8; y = b.y + 50 * ds; a = 0.6; sc = 0.5 * ds;
+      // The final approach is a readable preview of the creature's temperament.
+      const motion = {
+        steady: [wave(2.1) * 5, wave(1.1) * 4],
+        pulse: [wave(3.8) * 13, Math.abs(wave(3.8)) * 12],
+        dart: [wave(10.5) * 19, wave(6.8) * 9],
+        drift: [wave(0.9) * 17, wave(1.4) * 5],
+        sleepy: [wave(0.65) * 4, wave(0.7) > 0.78 ? -15 : 3],
+        wild: [wave(7.2) * 15 + wave(12.6, 1) * 8, wave(5.7) * 12],
+      }[p] || [wave(2) * 6, wave(1.2) * 4];
+      x = b.x + 30 + motion[0]; y = b.y + 50 * ds + motion[1] * ds;
+      a = 0.64; sc = 0.5 * ds;
     } else {
       const f = game.fight;
       x = b.x + Math.sin(t * 4.2) * 40 * (0.4 + f.tension); y = b.y + 50 * ds + Math.sin(t * 3) * 10;
       a = 0.8; sc = 0.62 * ds; colorA = 0.45;
     }
     const w = art.width * sc, h = art.height * sc;
-    const flip = Math.cos(t * 0.9) < 0 && phase === PHASES.CAST ? -1 : 1;
+    const flip = Math.cos(t * (p === 'dart' ? 2.8 : 0.9)) < 0 && phase === PHASES.CAST ? -1 : 1;
     g.save(); g.translate(x, y); g.scale(flip, 0.8);
     g.globalAlpha = a; g.drawImage(sil, -w / 2, -h / 2, w, h);
     if (colorA) {
@@ -2104,6 +2124,18 @@ export class Scene {
       g.drawImage(art, -w / 2, -h / 2, w, h);
     }
     g.restore(); g.globalAlpha = 1;
+    if (phase === PHASES.BITE) {
+      // Small surface tells make the approach legible without adding another HUD meter.
+      const cue = p === 'dart' || p === 'wild' ? 2 : p === 'pulse' ? 3 : 1;
+      g.save(); g.globalCompositeOperation = 'lighter'; g.strokeStyle = hexA(goop.color, 0.48); g.lineWidth = 3;
+      for (let i = 0; i < cue; i++) {
+        const pulse = (t * (p === 'pulse' ? 1.8 : p === 'dart' ? 2.8 : 1.1) + i / cue) % 1;
+        const r = (18 + pulse * 42) * ds;
+        g.globalAlpha = (1 - pulse) * 0.38;
+        g.beginPath(); g.ellipse(b.x + 24 + motionlessOffset(p, t, i), b.y + 22 * ds, r * (p === 'drift' ? 1.7 : 1), r * 0.34, 0, 0, Math.PI * 2); g.stroke();
+      }
+      g.restore(); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+    }
     if (phase === PHASES.FIGHT && this.a.bubbles) {
       const sheet = this.a.bubbles, fw = sheet.width / 8, fr = Math.floor(t * 10) % 8;
       g.globalAlpha = 0.6; g.globalCompositeOperation = 'lighter';
