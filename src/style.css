@@ -319,6 +319,7 @@ img.is-shiny { filter: hue-rotate(150deg) saturate(1.3) brightness(1.08) drop-sh
 .event-tag .ev.frenzy { background: rgba(255, 210, 60, .9); color: #2a1a00; border-color: #fff27a; animation: pulse 1.2s infinite; }
 .event-tag .ev.moon { border-color: rgba(220, 232, 255, .6); color: #e8f0ff; }
 .event-tag .ev.activity { border-color: rgba(104, 224, 210, .48); color: #a8fff0; background: rgba(2, 30, 35, .72); }
+.event-tag .ev.sighting { border-color: rgba(155, 213, 208, .58); color: #d5fffa; background: rgba(2, 34, 42, .78); }
 
 .side-btns { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 10px; z-index: 2; transition: opacity .3s; }
 .scene.fighting .side-btns { opacity: .25; pointer-events: none; }
