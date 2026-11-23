@@ -798,11 +798,12 @@ test('lures level up to 3 and change odds, bites, sizes and shinies', () => {
   const g = newGame();
   g.state.essence = 100000;
   assert.equal(g.lureCost('spinner'), LURES.spinner.cost[0]);
+  const baselineBite = g.mods().bite;
   for (let i = 0; i < 3; i++) assert.ok(g.buyLure('spinner'));
   assert.equal(g.state.owned.lures.spinner, 3);
   assert.equal(g.lureCost('spinner'), null);
   assert.equal(g.buyLure('spinner'), false, 'maxed');
-  assert.equal(g.mods().bite, LURES.spinner.lv[2]);
+  assert.equal(g.mods().bite, baselineBite * LURES.spinner.lv[2]);
   assert.ok(g.equipLure('none'));
   assert.equal(g.equipLure('clover'), false, 'not owned');
   const owned = { lures: { jig: 2, spoon: 1, glowjig: 1, trophy: 3, clover: 1, feather: 1, diver: 1 } };
