@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   GOOPS, SPOTS, UPGRADES, NOTES, NOTE_REWARD, weightedPick, encounterPool, makeFight, tickFight, pullForce,
   FishingGame, SaveStore, PHASES, CASTS_PER_TIME, conditionsMet, conditionText,
-  SPOT_BY, BAITS, SETS, RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, tackleMods, QUESTS, DECOR, THEMES, tankTips, TANK_CAP, TANK_COSTS, DECOR_SLOTS, startMove, SIGNATURE, MOVE_INFO, stagesFor, BREAK_TIME, shoreZone, zonePool, makeBounties, bountyMatches, comboFor, LUNGE_WARN, LUNGE_PROFILE, PERFECT_HOOK, CLEAN_HOOK, hookTiming, isFullMoon, rollGoopSize,
+  SPOT_BY, BAITS, SETS, RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, tackleMods, QUESTS, DECOR, THEMES, tankTips, TANK_CAP, TANK_COSTS, DECOR_SLOTS, startMove, SIGNATURE, MOVE_INFO, stagesFor, BREAK_TIME, shoreZone, zonePool, makeBounties, bountyMatches, comboFor, LUNGE_PROFILE, PERFECT_HOOK, CLEAN_HOOK, hookTiming, isFullMoon, rollGoopSize,
 } from '../src/game.js';
 
 function memStore(initial = null) {
@@ -342,7 +342,8 @@ test('lunge temperament changes warning time and force by Goop pattern', () => {
     assert.ok(goop, `fixture for ${pattern}`);
     const f = makeFight(goop, {}, { rng: () => 0.5 });
     assert.equal(f.lungeWarn, profile.warning);
-    assert.ok(f.lungePower > 0);
+    const basePower = 0.3 + 0.05 * ['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'].indexOf(goop.rarity);
+    assert.ok(Math.abs(f.lungePower / basePower - profile.power) < 1e-9, `${pattern} power multiplier`);
     f.nextLunge = profile.warning + 0.05;
     tickFight(f, { reel: false }, 0.06);
     assert.ok(f.warn, `${pattern} warning appears inside its telegraph window`);
