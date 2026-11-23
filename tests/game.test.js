@@ -863,7 +863,7 @@ test('a failed signature move cannot overfill a specimen stamina bar', () => {
   startMove(fight, 'swerve');
   for (let i = 0; i < 120 && fight.move; i++) step(fight);
   assert.ok(lastLog(fight, 'moveFail'));
-  assert.equal(fight.stamina, fight.maxStamina);
+  assert.ok(fight.stamina <= fight.maxStamina, 'failure recovery is capped even after the same frame resumes normal fight drain');
 });
 
 test('tug of war: fast taps win, no taps lose, and the tension game pauses', () => {
