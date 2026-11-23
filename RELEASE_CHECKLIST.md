@@ -26,7 +26,7 @@ These are documented features, not a claim that every release check below has pa
 - The older `feature/maximal-one-shot-v0-2` branch is not a safe wholesale merge target. Its base is substantially behind current main and its snapshot omits current mainline scene, aquarium, audio, wildlife, and art assets. Its game-engine, HTML, browser-smoke, telemetry, and economy files target an older interface and require selective porting or replacement.
 - The old browser smoke script targets the Pondbound 0.4 UI and save key; it must not be treated as a current-mainline test. A new current-mainline harness has been added at `tests/browser-smoke.mjs`.
 - The old telemetry adapter assumed different game fields and a sell/keep flow not present in the current mainline API. The current-mainline replacement is implemented in `src/telemetry.js`; it observes live `cast → bite → fight → caught/escaped` transitions, stays in memory, never uploads and does not modify saves. Its unit tests and browser export flow are included in CI.
-- The old economy audit models a 50-species, five-zone build. Its figures are not valid for the current mainline. `scripts/economy-audit.mjs` now recalculates the current 86-species/10-spot neutral baseline directly from the source encounter, gear, weather and reward functions; it explicitly does not claim Essence/hour.
+- The old economy audit models a 50-species, five-zone build. Its figures are not valid for the current mainline. `scripts/economy-audit.mjs` now recalculates the current 86-species/10-spot neutral baseline directly from the source encounter, gear, weather and reward functions; `ECONOMY_AUDIT.md` records the generated snapshot. It explicitly does not claim Essence/hour.
 
 ## Automated release gates
 
@@ -36,7 +36,7 @@ Run these against the exact candidate commit:
 - [ ] `npm test` passes with zero failures.
 - [ ] The GitHub Actions validation workflow passes on the candidate commit.
 - [ ] The test run includes the species-aware wildlife, session telemetry and economy-audit suites on the candidate commit.
-- [ ] `npm run economy:audit` executes successfully and its current source-derived output is reviewed when balancing changes are made.
+- [ ] `npm run economy:audit` executes successfully and its current source-derived output is reviewed when balancing changes are made. Regenerate `ECONOMY_AUDIT.md` after any balancing change that affects its inputs.
 - [x] A current-mainline Playwright browser smoke suite is committed at `tests/browser-smoke.mjs` and wired into GitHub Actions.
 - [ ] The browser smoke suite passes on desktop and mobile viewports using the supported Ubuntu 24.04 runner.
 - [x] Browser smoke coverage exercises startup, all three views, casting, bite/hook/fight transitions, uncaught errors, console errors, missing local assets, and mobile layout/touch-control sizing.
