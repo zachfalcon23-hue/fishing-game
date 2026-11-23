@@ -631,6 +631,7 @@ export function rollGoopSize(goop, rng = Math.random, exponent = 2) {
   return Math.round((lo + (hi - lo) * sample ** power) * 10) / 10;
 }
 
+/** Build a fight for one specimen. env.size is its already-rolled length in centimetres. */
 export function makeFight(goop, gear = {}, env = {}) {
   const g = gearStats(gear);
   const rng = env.rng || Math.random;
@@ -706,7 +707,7 @@ function endMove(fight, won, extra = {}) {
     fight.progress = Math.max(0, fight.progress - 0.06);
     fight.tension = clamp01(fight.tension + 0.25);
     fight.streak = 0;
-    fight.stamina += 0.04 * scale;
+    fight.stamina = Math.min(fight.maxStamina ?? fight.goop.stamina, fight.stamina + 0.04 * scale);
   }
   fight.log.push({ type: won ? 'moveWin' : 'moveFail', move: m.type, why: extra.why });
   fight.move = null;
