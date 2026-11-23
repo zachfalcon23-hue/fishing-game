@@ -1151,5 +1151,6 @@ test('fight outcome reactions are bounded, directional, and expire deterministic
 
   assert.equal(fightReactionPose({ type: 'win', at: start, duration: 1 }, start + 1_000, 300, 500, 500), null);
   assert.equal(fightReactionPose({ type: 'win', at: start, duration: 0 }, start + 100, 300, 500, 500), null);
+  assert.equal(fightReactionPose({ type: 'win', at: start, duration: 1 }, start + 100, Number.NaN, 500, 500), null);
   assert.equal(fightReactionPose(null, start + 100, 300, 500, 500), null);
 });
