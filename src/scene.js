@@ -1,7 +1,7 @@
 // Goop Fishing — North Pond renderer (presentation only; reads game state, never changes it).
 // The pond is one continuous shoreline. The camera walks along it; every layer scrolls at its
 // own depth so near things slide past faster than far ones.
-import { PHASES, SPOTS, NOTES, SPOT_BY, GOOPS, RODS, SKINS, LINES, encounterPool } from './game.js';
+import { PHASES, SPOTS, NOTES, SPOT_BY, GOOPS, RODS, SKINS, LINES, BAITS, encounterPool } from './game.js';
 import { evaluateWildlifeBehavior, wildlifeNeeds, habitatReturnOffset, resolveWildlifeSighting, wildlifeDisplayProfile } from './wildlife.js';
 
 export const W = 1920;
@@ -961,6 +961,10 @@ export class Scene {
     const state = game.state || {};
     const timeOfDay = game.timeOfDay || 'Day';
     const day = Number.isFinite(state.day) ? state.day : 0;
+    const sightingBait = BAITS[state.bait] && (state.bait === 'worm' || state.baits?.[state.bait] > 0)
+      ? state.bait : 'worm';
+    const sightingLure = Number.isFinite(state.gear?.lure) ? state.gear.lure : 0;
+    const sightingMods = typeof game.mods === 'function' ? game.mods() : null;
     const frenzySpot = gameEvent.frenzy ?? state.frenzy ?? null;
     const areaFrenzy = frenzySpot === game.spot?.id;
     const surfaceFeeding = clamp(areaActivity / 3 + (areaFrenzy ? 0.45 : 0), 0, 1);
@@ -996,9 +1000,11 @@ export class Scene {
           spot: habitat,
           weather,
           time: timeOfDay,
-          bait: 'worm',
-          lure: 0,
+          bait: sightingBait,
+          lure: sightingLure,
           event: { ...gameEvent, activity: state.activity || {} },
+          mods: sightingMods,
+          trackedGoop: state.trackedGoop || null,
         }) : [];
         school.sighting = resolveWildlifeSighting(candidates, `school:${school.id ?? 0}|${sightingKey}`, habitatUnlocked);
         school.sightingKey = sightingKey;
