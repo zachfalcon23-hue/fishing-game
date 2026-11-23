@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   GOOPS, SPOTS, UPGRADES, NOTES, NOTE_REWARD, weightedPick, encounterPool, makeFight, tickFight, pullForce,
   FishingGame, SaveStore, PHASES, CASTS_PER_TIME, conditionsMet, conditionText,
-  SPOT_BY, BAITS, SETS, RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, tackleMods, QUESTS, DECOR, THEMES, tankTips, TANK_CAP, TANK_COSTS, DECOR_SLOTS, startMove, SIGNATURE, MOVE_INFO, stagesFor, BREAK_TIME, shoreZone, zonePool, makeBounties, bountyMatches, comboFor, LUNGE_WARN, PERFECT_HOOK, CLEAN_HOOK, hookTiming, isFullMoon, rollGoopSize,
+  SPOT_BY, BAITS, SETS, RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, tackleMods, QUESTS, DECOR, THEMES, tankTips, TANK_CAP, TANK_COSTS, DECOR_SLOTS, startMove, SIGNATURE, MOVE_INFO, stagesFor, BREAK_TIME, shoreZone, zonePool, makeBounties, bountyMatches, comboFor, LUNGE_WARN, LUNGE_PROFILE, PERFECT_HOOK, CLEAN_HOOK, hookTiming, isFullMoon, rollGoopSize,
 } from '../src/game.js';
 
 function memStore(initial = null) {
@@ -336,19 +336,33 @@ test('hook timing has fair perfect, clean and late grades with exact boundaries'
   assert.equal(late.fight.perfect, false);
 });
 
-test('lunges warn first and easing off dodges them', () => {
-  const rare = GOOPS.find((x) => x.rarity === 'Rare' && x.pattern === 'steady');
+test('lunge temperament changes warning time and force by Goop pattern', () => {
+  for (const [pattern, profile] of Object.entries(LUNGE_PROFILE)) {
+    const goop = GOOPS.find((g) => g.pattern === pattern && g.rarity !== 'Common');
+    assert.ok(goop, `fixture for ${pattern}`);
+    const f = makeFight(goop, {}, { rng: () => 0.5 });
+    assert.equal(f.lungeWarn, profile.warning);
+    assert.ok(f.lungePower > 0);
+    f.nextLunge = profile.warning + 0.05;
+    tickFight(f, { reel: false }, 0.06);
+    assert.ok(f.warn, `${pattern} warning appears inside its telegraph window`);
+    f.nextLunge = 0.04;
+    const before = f.tension;
+    tickFight(f, { reel: true }, 0.08);
+    assert.ok(f.log.includes('lunge'));
+    assert.ok(f.tension > before, `${pattern} lunge applies force`);
+  }
+
   const run = (reelDuringLunge) => {
-    const f = makeFight(rare, {}, { rng: () => 0 });
-    assert.ok(f.nextLunge > 0);
-    f.nextLunge = LUNGE_WARN + 0.05;
+    const f = makeFight(GOOPS.find((x) => x.rarity === 'Rare' && x.pattern === 'pulse'), {}, { rng: () => 0 });
+    f.nextLunge = f.lungeWarn + 0.05;
     tickFight(f, { reel: false }, 0.06);
     assert.ok(f.warn, 'warning shows before the lunge');
-    f.tension = 0.5;
-    while (!f.log.length) tickFight(f, { reel: reelDuringLunge }, 0.05);
+    f.nextLunge = 0.04;
+    tickFight(f, { reel: reelDuringLunge }, 0.08);
     return f;
   };
-  assert.deepEqual(run(false).log, ['dodge']);
+  assert.ok(run(false).log.includes('dodge'));
   assert.ok(run(true).log.includes('lunge'));
   assert.equal(makeFight(GOOPS[0]).nextLunge, null, 'common Gloops do not lunge');
 });
