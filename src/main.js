@@ -332,10 +332,14 @@ function renderFight() {
   $('safeZone').style.left = `${lo * 100}%`;
   $('safeZone').style.width = `${(hi - lo) * 100}%`;
   $('progressBar').style.width = `${fight.progress * 100}%`;
-  $('staminaBar').style.width = `${pct(fight.stamina / game.goop.stamina)}%`;
+  const staminaPct = pct(fight.stamina / (fight.maxStamina || game.goop.stamina));
+  $('staminaBar').style.width = `${staminaPct}%`;
   setText('tensionText', `${pct(fight.tension)}%`);
   setText('progressText', `${pct(fight.progress)}%`);
-  setText('staminaText', `${pct(fight.stamina / game.goop.stamina)}%`);
+  setText('staminaText', `${staminaPct}%`);
+  setText('heftText', `${fight.sizeClass || 'AVERAGE'} SIZE`);
+  hud.classList.toggle('size-heavy', fight.sizeClass === 'HEAVY');
+  hud.classList.toggle('size-light', fight.sizeClass === 'LIGHT');
   setText('tensionLbl', fight.warn ? 'EASE OFF!' : paused ? 'HOLD ON' : m?.type === 'current' ? 'FOLLOW' : 'TENSION');
   const c = fight.combo || 1;
   const combo = $('combo');
