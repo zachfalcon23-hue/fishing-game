@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { evaluateWildlifeBehavior, wildlifeNeeds, habitatReturnOffset } from '../src/wildlife.js';
+import { GOOPS, SPOTS, encounterPool } from '../src/game.js';
+import {
+  evaluateWildlifeBehavior, wildlifeNeeds, habitatReturnOffset,
+  selectWildlifeSpecies, wildlifeDisplayProfile,
+} from '../src/wildlife.js';
 
 test('ambient needs are repeatable for the same school and scene time', () => {
   const school = { phase: 2.4, chronotype: -0.5 };
@@ -85,4 +89,67 @@ test('local feeding activity strengthens the return toward a familiar feeding si
     worldX: 0, homeX: 400, hunger: 0.8, fidelity: 0.8, activity: 3,
   });
   assert.ok(active > quiet);
+});
+
+
+test('species sightings are selected only from the real encounter-eligible pool', () => {
+  const falls = SPOTS.find((spot) => spot.id === 'falls');
+  const blocked = encounterPool({ spot: falls, weather: 'clear', time: 'Dawn' });
+  const eligible = encounterPool({ spot: falls, weather: 'rain', time: 'Dawn' });
+  assert.ok(!blocked.some((goop) => goop.id === 'prismadrake'));
+  assert.ok(eligible.some((goop) => goop.id === 'prismadrake'));
+
+  const before = structuredClone(eligible);
+  const sighting = selectWildlifeSpecies(eligible, 'school-12|falls|rain|Dawn');
+  assert.ok(sighting);
+  assert.ok(eligible.some((goop) => goop.id === sighting.id));
+  assert.deepEqual(eligible, before, 'sighting selection must not change encounter weights or pool data');
+});
+
+test('species sightings can include a valid daily visitor but never invent one', () => {
+  const dock = SPOTS.find((spot) => spot.id === 'dock');
+  const withoutVisitor = encounterPool({ spot: dock, weather: 'clear', time: 'Night' });
+  const withVisitor = encounterPool({
+    spot: dock,
+    weather: 'clear',
+    time: 'Night',
+    event: { visitor: { goop: 'stardrift', spot: 'dock' } },
+  });
+  assert.ok(!withoutVisitor.some((goop) => goop.id === 'stardrift'));
+  assert.ok(withVisitor.some((goop) => goop.id === 'stardrift'));
+  const sighting = selectWildlifeSpecies(withVisitor, 'visitor-night-dock');
+  assert.ok(withVisitor.some((goop) => goop.id === sighting?.id));
+});
+
+test('quest-only species appear in sighting pools only when the real encounter rules permit them', () => {
+  const deep = SPOTS.find((spot) => spot.id === 'deep');
+  const asleep = encounterPool({ spot: deep, weather: 'clear', time: 'Night' });
+  const awakened = encounterPool({
+    spot: deep, weather: 'clear', time: 'Night', event: { sleeper: true },
+  });
+  assert.ok(!asleep.some((goop) => goop.id === 'sleeper'));
+  assert.ok(awakened.some((goop) => goop.id === 'sleeper'));
+});
+
+test('species display profiles are stable, bounded, and reflect species fight identity', () => {
+  const gloop = GOOPS.find((goop) => goop.id === 'gloop');
+  const stormray = GOOPS.find((goop) => goop.id === 'stormray');
+  const first = wildlifeDisplayProfile(gloop);
+  assert.deepEqual(first, wildlifeDisplayProfile(gloop));
+  assert.notDeepEqual(first, wildlifeDisplayProfile(stormray));
+  assert.equal(first.speed, 0.78);
+  assert.equal(wildlifeDisplayProfile(stormray).speed, 0.58);
+  for (const profile of [first, wildlifeDisplayProfile(stormray)]) {
+    for (const [key, value] of Object.entries(profile)) {
+      assert.ok(Number.isFinite(value), `${key} should be finite`);
+      assert.ok(value >= 0 && value <= 2, `${key} should remain bounded`);
+    }
+  }
+});
+
+test('species selector safely handles empty, malformed, and zero-weight pools', () => {
+  assert.equal(selectWildlifeSpecies([], 'empty'), null);
+  assert.equal(selectWildlifeSpecies(null, 'missing'), null);
+  assert.equal(selectWildlifeSpecies([{ id: 'zero', weight: 0 }], 'zero'), null);
+  assert.equal(selectWildlifeSpecies([{ weight: 3 }], 'invalid-id'), null);
 });
