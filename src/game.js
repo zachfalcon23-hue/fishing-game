@@ -1279,7 +1279,11 @@ export class FishingGame {
     if (frenzy) wait *= 0.5;
     wait *= mods.bite;
     this.biteAt = Math.max(0.6, wait);
-    this.castCtx = { spot: z.spot.id, hot: z.hot, bait, frenzy, essenceMul: st.essenceMul, weather: s.weather, time: this.timeOfDay };
+    this.castCtx = {
+      spot: z.spot.id, hot: z.hot, bait, frenzy, essenceMul: st.essenceMul, weather: s.weather, time: this.timeOfDay,
+      // Lock fight handling to the conditions that selected this encounter, even if the clock rolls over.
+      fightMods: { forceMul: this.weather.forceMul * mods.force, reel: mods.reel, zone: mods.zone, lunge: mods.lunge, sizeExp: mods.sizeExp },
+    };
     if (bait !== 'worm') {
       s.baits[bait] -= 1;
       if (s.baits[bait] <= 0) { delete s.baits[bait]; s.bait = 'worm'; this.emit('baitOut', { bait }); }
@@ -1359,9 +1363,9 @@ export class FishingGame {
     } else if (this.phase === PHASES.BITE) {
       if (pressed) {
         this.phase = PHASES.FIGHT;
-        const m = this.mods();
+        const m = this.castCtx?.fightMods || this.mods();
         const specimenSize = rollGoopSize(this.goop, this.rng, m.sizeExp);
-        this.fight = makeFight(this.goop, this.state.gear, { forceMul: this.weather.forceMul * m.force, rng: this.rng, reel: m.reel, zone: m.zone, lunge: m.lunge, size: specimenSize });
+        this.fight = makeFight(this.goop, this.state.gear, { forceMul: m.forceMul ?? this.weather.forceMul * m.force, rng: this.rng, reel: m.reel, zone: m.zone, lunge: m.lunge, size: specimenSize });
         const perfect = this.timer <= PERFECT_HOOK;
         this.fight.perfect = perfect;
         if (perfect) { this.fight.progress = 0.12; this.state.stats.perfect += 1; }
