@@ -15,7 +15,7 @@ The game is published with GitHub Pages (Settings → Pages → Deploy from a br
 3. **Hook** with a fresh press of **Reel** (`Space`, or the button). Hook within 0.4 s of the `!` for a **perfect hook** (+12% fight progress), within 1.2 s for a **clean hook** (+6%), or later for a normal start.
 4. **Fight:** hold Reel to wind tension up and release to let it fall. Keep the needle inside the green zone to gain progress.
    - Staying in the zone while reeling builds a **streak** (up to ×1.6 catch speed).
-   - Rare-or-better Goops **lunge**: a red `!!` appears, then they surge. Let go of the reel when it hits to dodge it (and gain a little progress); fighting it head-on costs progress.
+   - Rare-or-better Goops **lunge**: a red `!!` appears, then they surge. Each fighting style has its own warning window and lunge strength: slow styles give more notice, while darting and wild styles hit harder with less warning. Let go of the reel when it hits to dodge it (and gain a little progress); fighting it head-on costs progress.
    - Holding forever snaps the line; going slack loses progress.
    - **Signature moves.** Every fighting style has its own challenge mid-fight, shown as a big prompt with sound and vibration:
 

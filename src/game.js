@@ -601,7 +601,16 @@ export function gearStats(gear = {}) {
   };
 }
 
-export const LUNGE_WARN = 0.8; // seconds of warning before a lunge
+export const LUNGE_WARN = 0.8; // default warning for the pulse temperament
+// Species patterns change how a lunge is telegraphed and how hard it hits.
+export const LUNGE_PROFILE = Object.freeze({
+  steady: { warning: 1.05, power: 0.9 },
+  pulse: { warning: 0.8, power: 1 },
+  dart: { warning: 0.62, power: 1.12 },
+  drift: { warning: 1.1, power: 0.88 },
+  sleepy: { warning: 1.2, power: 0.84 },
+  wild: { warning: 0.68, power: 1.18 },
+});
 /** Rare-or-better Goops (and wild ones) lunge: a telegraphed surge you dodge by easing off. */
 export const lunges = (goop) => RANK[goop.rarity] >= 2 || goop.pattern === 'wild';
 
@@ -658,7 +667,8 @@ export function makeFight(goop, gear = {}, env = {}) {
     forceMul: (env.forceMul ?? 1) * (goop.force ?? 1) * sizeForce,
     streak: 0, combo: 1, best: 1,
     rng, nextLunge: lunges(goop) ? 3.2 + rng() * 2.4 : null, warn: false,
-    lungePower: (0.3 + 0.05 * rank) * (env.lunge ?? 1), log: [],
+    lungeWarn: LUNGE_PROFILE[goop.pattern]?.warning ?? LUNGE_WARN,
+    lungePower: (0.3 + 0.05 * rank) * (LUNGE_PROFILE[goop.pattern]?.power ?? 1) * (env.lunge ?? 1), log: [],
     rank, move: null, nextMove: (env.moves === false ? Infinity : 2.2 + rng() * 1.4), moveCount: 0, movesWon: 0,
     stages: stagesFor(goop), stage: 1, breakT: 0, zoneShift: 0,
   };
@@ -825,7 +835,7 @@ export function tickFight(fight, input, dt) {
   if (fight.move) paused = tickMove(fight, input, d);
   else {
     fight.nextMove -= d;
-    if (fight.nextMove <= 0 && !(fight.nextLunge != null && fight.nextLunge < LUNGE_WARN + 0.4)) { startMove(fight); paused = tickMove(fight, input, 0); }
+    if (fight.nextMove <= 0 && !(fight.nextLunge != null && fight.nextLunge < fight.lungeWarn + 0.4)) { startMove(fight); paused = tickMove(fight, input, 0); }
   }
   if (fight.move && fight.move.type === 'swerve') fight.swing = fight.move.dir;
   else fight.swing = 0;
@@ -839,7 +849,7 @@ export function tickFight(fight, input, dt) {
     // Lunges: a warning, then a surge. Easing off when it hits dodges most of it.
     if (fight.nextLunge != null && !fight.move) {
       fight.nextLunge -= d;
-      fight.warn = fight.nextLunge > 0 && fight.nextLunge <= LUNGE_WARN;
+      fight.warn = fight.nextLunge > 0 && fight.nextLunge <= fight.lungeWarn;
       if (fight.nextLunge <= 0) {
         const dodged = !reeling;
         fight.tension += fight.lungePower * (dodged ? 0.25 : 1) * (fight.forceMul ?? 1);
