@@ -1038,7 +1038,7 @@ export class Scene {
         wx += Math.sign(distanceFromPlayer || 1) * disturbance * 115;
       } else {
         const homeX = SPOT_X[school.homeSpot] ?? wx;
-        wx += habitatReturnOffset({
+        const returnedX = wx + habitatReturnOffset({
           worldX: wx,
           homeX,
           hunger: needs.hunger,
@@ -1047,6 +1047,12 @@ export class Scene {
           activity: localActivity,
           frenzy: localFrenzy,
         });
+        // Keep the species attached to the habitat whose encounter pool identified it.
+        // A school may leave its home patch naturally, but a home-seeking correction must
+        // not push it across a neighbouring habitat boundary while retaining the old identity.
+        const returnedHabitat = SPOTS.reduce((best, spot) =>
+          Math.abs(SPOT_X[spot.id] - returnedX) < Math.abs(SPOT_X[best.id] - returnedX) ? spot : best, SPOTS[0]);
+        if (returnedHabitat.id === habitat.id) wx = returnedX;
       }
 
       const x = this.layerX(wx, d);
