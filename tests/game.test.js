@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   GOOPS, SPOTS, UPGRADES, NOTES, NOTE_REWARD, weightedPick, encounterPool, makeFight, tickFight, pullForce,
   FishingGame, SaveStore, PHASES, CASTS_PER_TIME, conditionsMet, conditionText,
-  SPOT_BY, BAITS, SETS, RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, tackleMods, QUESTS, DECOR, THEMES, tankTips, TANK_CAP, TANK_COSTS, DECOR_SLOTS, startMove, SIGNATURE, MOVE_INFO, stagesFor, BREAK_TIME, shoreZone, zonePool, makeBounties, bountyMatches, comboFor, LUNGE_WARN, PERFECT_HOOK, isFullMoon,
+  SPOT_BY, BAITS, SETS, RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, tackleMods, QUESTS, DECOR, THEMES, tankTips, TANK_CAP, TANK_COSTS, DECOR_SLOTS, startMove, SIGNATURE, MOVE_INFO, stagesFor, BREAK_TIME, shoreZone, zonePool, makeBounties, bountyMatches, comboFor, LUNGE_WARN, PERFECT_HOOK, isFullMoon, rollGoopSize,
 } from '../src/game.js';
 
 function memStore(initial = null) {
@@ -85,6 +85,34 @@ test('gear widens the safe zone and speeds up reeling', () => {
   const base = makeFight(GOOPS[0]);
   const geared = makeFight(GOOPS[0], { rod: 3, line: 3 });
   assert.ok(geared.safeLo < base.safeLo && geared.safeHi > base.safeHi && geared.reelRate > base.reelRate);
+});
+
+test('specimen size is decided before the fight and changes its difficulty', () => {
+  for (const goop of GOOPS) {
+    const small = makeFight(goop, {}, { size: goop.size[0], rng: () => 0.5, moves: false });
+    const large = makeFight(goop, {}, { size: goop.size[1], rng: () => 0.5, moves: false });
+    assert.equal(small.size, goop.size[0]);
+    assert.equal(large.size, goop.size[1]);
+    assert.equal(small.sizeClass, 'LIGHT');
+    assert.equal(large.sizeClass, 'HEAVY');
+    assert.ok(large.maxStamina > small.maxStamina, `${goop.id}: larger specimen has more stamina`);
+    assert.ok(large.reelRate < small.reelRate, `${goop.id}: larger specimen reels in more slowly`);
+    assert.ok(large.forceMul > small.forceMul, `${goop.id}: larger specimen pulls harder`);
+  }
+
+  const goop = GOOPS[0];
+  assert.equal(rollGoopSize(goop, () => 0, 2), goop.size[0]);
+  assert.equal(rollGoopSize(goop, () => 1, 2), goop.size[1]);
+  assert.ok(rollGoopSize(goop, () => 0.5, 2) < rollGoopSize(goop, () => 0.5, 1), 'size exponent keeps large specimens rare');
+
+  const game = newGame();
+  game.cast();
+  game.phase = PHASES.FIGHT;
+  game.goop = goop;
+  game.fight = makeFight(goop, {}, { size: goop.size[1] });
+  game.fight.caught = true;
+  game.update(0);
+  assert.equal(game.lastCatch.size, game.fight.size, 'the GoopDex records the exact specimen fought');
 });
 
 test('catch awards Essence and records Dex entry', () => {
