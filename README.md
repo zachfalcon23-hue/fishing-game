@@ -22,7 +22,7 @@ Open **PLAYTEST SESSION · LOCAL ONLY** in the Field Notes card to see session m
 
 The current-source economy audit is generated from the live encounter pool and reward/bite formulas in `src/game.js`. It covers all current spots, weather and time conditions, and starter/field/deep-hunter tackle profiles. It reports encounter rarity shares, expected Essence per successful catch, and expected bite delay.
 
-The report is a neutral diagnostic baseline. It does not claim Essence/hour or catches/hour because fight success, fight duration, movement, quest/set rewards and player skill must be measured separately. Run `npm run economy:audit` after changing species weights, habitats, weather, tackle modifiers, bite windows or reward formulas.
+The report is a neutral diagnostic baseline. It does not claim Essence/hour or catches/hour because fight success, fight duration, movement, quest/set rewards and player skill must be measured separately. Run `npm run economy:audit` after changing species weights, habitats, weather, tackle modifiers, bite windows or reward formulas. The current generated snapshot is published in [`ECONOMY_AUDIT.md`](ECONOMY_AUDIT.md).
 
 ## Play online
 The game is published with GitHub Pages (Settings → Pages → Deploy from a branch → `main` / root): https://zachfalcon23-hue.github.io/fishing-game/
