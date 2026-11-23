@@ -126,3 +126,7 @@ Fight constants live in `tickFight` and `pullForce` in `src/game.js`. Balance wa
 - The submerged Goop now approaches a landed lure according to its movement temperament: darting species feint quickly, pulse species bob in repeated beats, drift species circle broadly, sleepy species linger, and wild species move in layered irregular bursts.
 - During the bite window, the silhouette keeps that identity and creates matching surface disturbances. These are visual tells only: they do not alter bite timing, encounter odds, hook windows, or fight balance.
 - The presentation stays in the water rather than adding another HUD meter, so players can learn to read the creature and the pond itself.
+
+### Signature moves in the water
+- During fights, the submerged creature and surrounding surface now express the active signature challenge: Swerve leaves lateral dart trails, Tug of War draws a taut oscillating pull, Fake-out quiets the silhouette and water before its wake-up, Rhythm sends repeated concentric pulses, Current bends rotating flow rings, and Thrash creates sharp irregular wake marks.
+- The cues are tied to the existing active move and do not alter controls, timing, difficulty, rewards, or encounter logic. They are designed to make fight identity readable without adding another HUD meter.
