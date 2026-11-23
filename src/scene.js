@@ -965,6 +965,8 @@ export class Scene {
       ? state.bait : 'worm';
     const sightingLure = Number.isFinite(state.gear?.lure) ? state.gear.lure : 0;
     const sightingMods = typeof game.mods === 'function' ? game.mods() : null;
+    const sightingWeightKey = JSON.stringify({ bait: sightingBait, lure: sightingLure,
+      mods: sightingMods, trackedGoop: state.trackedGoop || null });
     const frenzySpot = gameEvent.frenzy ?? state.frenzy ?? null;
     const areaFrenzy = frenzySpot === game.spot?.id;
     const surfaceFeeding = clamp(areaActivity / 3 + (areaFrenzy ? 0.45 : 0), 0, 1);
@@ -990,7 +992,7 @@ export class Scene {
       const habitatUnlocked = typeof game.spotUnlocked !== 'function' || game.spotUnlocked(habitat.id);
       const sightingKey = [
         habitat.id, habitatUnlocked ? 1 : 0, weather, timeOfDay, localActivity, localFrenzy ? 1 : 0,
-        visitorId, gameEvent.fullMoon ? 1 : 0, gameEvent.sleeper ? 1 : 0, day,
+        visitorId, gameEvent.fullMoon ? 1 : 0, gameEvent.sleeper ? 1 : 0, day, sightingWeightKey,
       ].join('|');
 
       // Locked and undiscovered habitats remain anonymous. For open habitats, use the exact
