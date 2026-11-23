@@ -44,5 +44,5 @@ test('economy audit output explains weighting and avoids unmeasured Essence-per-
   assert.match(report, /weather\/time combination/);
   assert.match(report, /expected values per successful catch/);
   assert.match(report, /not Essence\/hour, catch\/hour/);
-  assert.match(report, /The Sleeper quest unlock/);
+  assert.match(report, /Sleeper quest unlock/);
 });
