@@ -116,3 +116,7 @@ Everything uses relative paths and runs in a single page, so you can copy the fo
 
 ## Tuning notes
 Fight constants live in `tickFight` and `pullForce` in `src/game.js`. Balance was checked with simulated players (`/tmp`-style scripts against `makeFight`/`tickFight`). A player who ignores signature moves still catches Commons and Uncommons, about 70% of Rares and 60% of Epics, but no Legendaries. A player who reacts to the moves catches nearly everything up to Epic, and roughly half (casual) to three-quarters (skilled) of Legendaries. Typical fights last about 11 seconds for a Common, 20 for an Epic and 29 for a three-stage Legendary.
+
+
+### Creature fight identity
+- Six named apex encounters have signature-move identities that differ from their baseline pull temperament: King Gloop (Tug of War), Stormray (Swerve), Prismadrake (Rhythm), Ghostshark (Thrash), Drowned King (Current), and The Sleeper (Fake-out). Their underlying pull patterns, rarity, lunge profiles and balance values remain unchanged; the distinct move changes the skill test rather than simply increasing difficulty.
