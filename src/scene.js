@@ -965,6 +965,8 @@ export class Scene {
     const areaFrenzy = frenzySpot === game.spot?.id;
     const surfaceFeeding = clamp(areaActivity / 3 + (areaFrenzy ? 0.45 : 0), 0, 1);
     const weatherVisibility = weather === 'storm' ? 0.48 : weather === 'fog' ? 0.62 : 1;
+    this.currentSighting = null;
+    let nearestSightingDistance = Infinity;
 
     for (const school of this.wildlife) {
       const movement = school.movement || 'cruise';
@@ -1041,6 +1043,15 @@ export class Scene {
 
       const x = this.layerX(wx, d);
       if (x < -180 || x > W + 180) continue;
+      const playerDistance = Math.abs(wx - this.camX);
+      if (species && behavior.state !== 'fleeing' && playerDistance <= 640
+        && playerDistance < nearestSightingDistance) {
+        nearestSightingDistance = playerDistance;
+        this.currentSighting = {
+          id: species.id, name: species.name, rarity: species.rarity,
+          color: species.color, habitatName: habitat.name, behavior: behavior.state,
+        };
+      }
       const swaySize = (movement === 'weave' ? 15 : movement === 'drift' ? 5 : 9)
         * behavior.sway * (profile?.sway ?? 1);
       const sway = Math.sin(t * (habitatMovement * behavior.motionRate * (profile?.speed ?? 1)
