@@ -2,7 +2,7 @@
 // The pond is one continuous shoreline. The camera walks along it; every layer scrolls at its
 // own depth so near things slide past faster than far ones.
 import { PHASES, SPOTS, NOTES, SPOT_BY, GOOPS, RODS, SKINS, LINES, encounterPool } from './game.js';
-import { evaluateWildlifeBehavior, wildlifeNeeds, habitatReturnOffset, selectWildlifeSpecies, resolveWildlifeSighting, wildlifeDisplayProfile } from './wildlife.js';
+import { evaluateWildlifeBehavior, wildlifeNeeds, habitatReturnOffset, resolveWildlifeSighting, wildlifeDisplayProfile } from './wildlife.js';
 
 export const W = 1920;
 export const H = 1080;
