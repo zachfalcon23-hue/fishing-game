@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { GOOPS, SPOTS, encounterPool } from '../src/game.js';
 import {
   evaluateWildlifeBehavior, wildlifeNeeds, habitatReturnOffset,
-  selectWildlifeSpecies, wildlifeDisplayProfile,
+  selectWildlifeSpecies, resolveWildlifeSighting, wildlifeDisplayProfile,
 } from '../src/wildlife.js';
 
 test('ambient needs are repeatable for the same school and scene time', () => {
@@ -152,4 +152,13 @@ test('species selector safely handles empty, malformed, and zero-weight pools', 
   assert.equal(selectWildlifeSpecies(null, 'missing'), null);
   assert.equal(selectWildlifeSpecies([{ id: 'zero', weight: 0 }], 'zero'), null);
   assert.equal(selectWildlifeSpecies([{ weight: 3 }], 'invalid-id'), null);
+});
+
+test('locked and undiscovered habitats never reveal a recognizable species', () => {
+  const falls = SPOTS.find((spot) => spot.id === 'falls');
+  const candidates = encounterPool({ spot: falls, weather: 'clear', time: 'Day' });
+  assert.ok(candidates.length > 0);
+  assert.equal(resolveWildlifeSighting(candidates, 'falls-day', false), null);
+  const unlocked = resolveWildlifeSighting(candidates, 'falls-day', true);
+  assert.ok(candidates.some((goop) => goop.id === unlocked?.id));
 });
