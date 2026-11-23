@@ -538,6 +538,8 @@ export function encounterPool({ spot = SPOT_BY.dock, weather = 'clear', time = '
     if (bait === 'golden' && RANK[g.rarity] >= 2) weight *= 2;
     if (event.visitor?.goop === g.id && event.visitor.spot === spot.id) weight = Math.max(weight * 4, 6);
     if (trackedGoop === g.id) weight *= TRACK_WEIGHT_MULT;
+    const activity = Math.max(0, Math.min(3, Number(event.activity?.[spot.id]) || 0));
+    if (g.rarity !== 'Common' && activity) weight *= 1 + activity * 0.06;
     if (event.frenzy === spot.id && g.rarity !== 'Common') weight *= 1.3;
     if (event.fullMoon && time === 'Night' && g.rarity === 'Legendary') weight *= 2;
     if (mods) {
@@ -994,7 +996,7 @@ export class SaveStore {
       owned: { rods: ['twig'], skins: ['factory'], bobbers: ['classic'], lines: ['classic'], lures: {} },
       equip: { rod: 'twig', skin: 'factory', bobber: 'classic', line: 'classic', lure: 'none' },
       quest: { i: 0, have: 0 }, tank: { tanks: [newTank(1)], decor: [], themes: ['pond'], tipDay: 0 },
-      bounties: [], bountyDay: 0, frenzy: null, visitor: null, rumors: [], trackedGoop: null,
+      bounties: [], bountyDay: 0, frenzy: null, visitor: null, rumors: [], trackedGoop: null, activity: {},
     };
   }
 
@@ -1080,6 +1082,13 @@ export class SaveStore {
     s.buddy = ids.has(p.buddy) && s.dex[p.buddy] ? p.buddy : null;
     s.sets = list(p.sets, (id) => SETS.some((x) => x.id === id));
     s.rumors = list(p.rumors, (id) => !!SPOT_BY[id]?.secret);
+    s.activity = {};
+    if (p.activity && typeof p.activity === 'object' && !Array.isArray(p.activity)) {
+      for (const [id, value] of Object.entries(p.activity)) if (SPOT_BY[id]) {
+        const level = Math.max(0, Math.min(3, Math.floor(num(value, 0))));
+        if (level) s.activity[id] = level;
+      }
+    }
     // tackle box
     const o = p.owned && typeof p.owned === 'object' ? p.owned : {};
     const keep = (v, table, base) => [...new Set([base, ...(Array.isArray(v) ? v.filter((k) => table[k]) : [])])];
@@ -1209,6 +1218,33 @@ export class FishingGame {
   // ----- the shore -----
 
   zone(pos = this.state.shore) { return shoreZone(pos, this.openSpots()); }
+
+  /** Current feeding activity at a habitat (0 quiet → 3 boiling). */
+  activityAt(id) { return Math.max(0, Math.min(3, Math.floor(Number(this.state.activity?.[id]) || 0))); }
+
+  /** Weighted activity across the water within casting range. */
+  zoneActivity(zone = this.zone()) {
+    return zone.mix.reduce((sum, [spot, share]) => sum + this.activityAt(spot.id) * share, 0);
+  }
+
+  /** Human-readable ecosystem signal for the current water. */
+  ecosystemStatus() {
+    const level = this.zoneActivity();
+    const labels = ['QUIET WATER', 'RIPPLES GATHERING', 'FEEDING ACTIVITY', 'FEEDING FRENZY'];
+    const descriptions = ['The fish are moving cautiously.', 'Small schools are starting to stir.', 'Goops are actively feeding nearby.', 'The water is alive with feeding Goops.'];
+    return { level, label: labels[Math.round(level)], description: descriptions[Math.round(level)] };
+  }
+
+  /** A cast stirs the local habitat; activity fades as the pond moves through its day. */
+  stirWater(zone = this.zone()) {
+    for (const [spot, share] of zone.mix) {
+      if (share <= 0) continue;
+      const gain = share >= 0.65 ? 1 : 0;
+      if (!gain) continue;
+      this.state.activity[spot.id] = Math.min(3, this.activityAt(spot.id) + gain);
+    }
+    this.emit('waterStirred', { activity: this.zoneActivity(zone), spots: zone.mix.map(([spot]) => spot.id) });
+  }
 
   /**
    * Called as the player walks: `pos` is the distance along the shore in spot widths.
@@ -1346,7 +1382,7 @@ export class FishingGame {
     const bait = BAITS[s.bait] && (s.bait === 'worm' || s.baits[s.bait] > 0) ? s.bait : 'worm';
     const ev = this.event;
     const mods = this.mods();
-    const pool = zonePool(z, { weather: s.weather, time: this.timeOfDay, lure: s.gear.lure, bait, event: ev, mods, trackedGoop: s.trackedGoop });
+    const pool = zonePool(z, { weather: s.weather, time: this.timeOfDay, lure: s.gear.lure, bait, event: { ...ev, activity: s.activity }, mods, trackedGoop: s.trackedGoop });
     const picked = weightedPick(pool, this.rng);
     this.goop = picked ? GOOPS.find((g) => g.id === picked.id) : GOOPS[0];
     this.fight = null;
@@ -1357,6 +1393,8 @@ export class FishingGame {
     let wait = (st.biteMin + this.rng() * (st.biteMax - st.biteMin)) * this.weather.biteMul * (1 - 0.1 * s.gear.lure);
     if (BAITS[bait].taste && BAITS[bait].taste === this.goop.taste) wait *= 0.75;
     if (frenzy) wait *= 0.5;
+    const activity = this.zoneActivity(z);
+    wait *= 1 - activity * 0.045;
     wait *= mods.bite;
     this.biteAt = Math.max(0.6, wait);
     this.castCtx = {
@@ -1371,7 +1409,8 @@ export class FishingGame {
     this.phase = PHASES.CAST;
     this.prevReel = true; // a button already held at cast time must be released and pressed again to hook
     this.message = frenzy ? 'Frenzy! They’re biting fast…' : 'Line out… watch for a bite.';
-    this.emit('cast', { bait });
+    this.emit('cast', { bait, activity });
+    this.stirWater(z);
     this.advanceClock();
     this.saveStore.save(this.state);
     return true;
@@ -1383,6 +1422,10 @@ export class FishingGame {
     s.casts += 1;
     if (s.casts % CASTS_PER_TIME !== 0) return;
     s.timeIndex = (s.timeIndex + 1) % TIMES.length;
+    for (const id of Object.keys(s.activity)) {
+      s.activity[id] = Math.max(0, s.activity[id] - 1);
+      if (!s.activity[id]) delete s.activity[id];
+    }
     const newDay = s.timeIndex === 0;
     if (newDay) { s.day += 1; s.caughtToday = 0; }
     const entries = Object.entries(WEATHER).map(([id, w]) => ({ id, weight: w.weight }));
@@ -1741,7 +1784,7 @@ export class FishingGame {
   forecast(limit = 5) {
     const s = this.state;
     const bait = s.bait === 'worm' || s.baits[s.bait] > 0 ? s.bait : 'worm';
-    const pool = zonePool(this.zone(), { weather: s.weather, time: this.timeOfDay, lure: s.gear.lure, bait, event: this.event, mods: this.mods(), trackedGoop: s.trackedGoop });
+    const pool = zonePool(this.zone(), { weather: s.weather, time: this.timeOfDay, lure: s.gear.lure, bait, event: { ...this.event, activity: s.activity }, mods: this.mods(), trackedGoop: s.trackedGoop });
     const total = pool.reduce((a, g) => a + g.weight, 0) || 1;
     return pool.map((g) => ({ id: g.id, chance: g.weight / total })).sort((a, b) => b.chance - a.chance).slice(0, limit);
   }
