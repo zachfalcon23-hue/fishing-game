@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   GOOPS, SPOTS, UPGRADES, NOTES, NOTE_REWARD, weightedPick, encounterPool, makeFight, tickFight, pullForce,
   FishingGame, SaveStore, PHASES, CASTS_PER_TIME, conditionsMet, conditionText,
-  SPOT_BY, BAITS, SETS, RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, tackleMods, QUESTS, DECOR, THEMES, tankTips, TANK_CAP, TANK_COSTS, DECOR_SLOTS, startMove, SIGNATURE, MOVE_INFO, stagesFor, BREAK_TIME, shoreZone, zonePool, makeBounties, bountyMatches, comboFor, LUNGE_WARN, PERFECT_HOOK, isFullMoon, rollGoopSize,
+  SPOT_BY, BAITS, SETS, RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, tackleMods, QUESTS, DECOR, THEMES, tankTips, TANK_CAP, TANK_COSTS, DECOR_SLOTS, startMove, SIGNATURE, MOVE_INFO, stagesFor, BREAK_TIME, shoreZone, zonePool, makeBounties, bountyMatches, comboFor, LUNGE_WARN, PERFECT_HOOK, CLEAN_HOOK, hookTiming, isFullMoon, rollGoopSize,
 } from '../src/game.js';
 
 function memStore(initial = null) {
@@ -303,20 +303,37 @@ test('golden goo favours rare Goops and events change the pool', () => {
   assert.ok(isFullMoon(3) && !isFullMoon(4));
 });
 
-test('a perfect hook gives a head start; a late hook does not', () => {
-  const g = newGame();
-  g.cast();
-  runUntil(g, PHASES.BITE);
-  g.update(0.05, { reel: false });
-  g.update(0.05, { reel: true });
-  assert.ok(g.fight.perfect && g.fight.progress > 0);
-  const h = newGame();
-  h.cast();
-  runUntil(h, PHASES.BITE);
-  for (let t = 0; t < PERFECT_HOOK + 0.2; t += 0.05) h.update(0.05, { reel: false });
-  h.update(0.05, { reel: true });
-  assert.equal(h.phase, PHASES.FIGHT);
-  assert.equal(h.fight.perfect, false);
+test('hook timing has fair perfect, clean and late grades with exact boundaries', () => {
+  assert.deepEqual(hookTiming(0), { grade: 'perfect', progress: 0.12 });
+  assert.deepEqual(hookTiming(PERFECT_HOOK), { grade: 'perfect', progress: 0.12 });
+  assert.deepEqual(hookTiming(PERFECT_HOOK + 0.001), { grade: 'clean', progress: 0.06 });
+  assert.deepEqual(hookTiming(CLEAN_HOOK), { grade: 'clean', progress: 0.06 });
+  assert.deepEqual(hookTiming(CLEAN_HOOK + 0.001), { grade: 'late', progress: 0 });
+  assert.deepEqual(hookTiming(-1), { grade: 'perfect', progress: 0.12 });
+  assert.deepEqual(hookTiming(NaN), { grade: 'late', progress: 0 });
+
+  const makeHook = (delay) => {
+    const game = newGame();
+    game.cast();
+    runUntil(game, PHASES.BITE);
+    for (let elapsed = 0; elapsed < delay; elapsed += 0.05) game.update(Math.min(0.05, delay - elapsed), { reel: false });
+    game.update(0.05, { reel: true });
+    return game;
+  };
+  const perfect = makeHook(0.1);
+  assert.equal(perfect.fight.hookGrade, 'perfect');
+  assert.equal(perfect.fight.progress, 0.12);
+  assert.equal(perfect.fight.perfect, true);
+
+  const clean = makeHook(0.8);
+  assert.equal(clean.fight.hookGrade, 'clean');
+  assert.equal(clean.fight.progress, 0.06);
+  assert.equal(clean.fight.perfect, false);
+
+  const late = makeHook(1.4);
+  assert.equal(late.fight.hookGrade, 'late');
+  assert.equal(late.fight.progress, 0);
+  assert.equal(late.fight.perfect, false);
 });
 
 test('lunges warn first and easing off dodges them', () => {
