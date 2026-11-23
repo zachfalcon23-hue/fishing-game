@@ -119,6 +119,27 @@ test('specimen size is decided before the fight and changes its difficulty', () 
   assert.equal(game.lastCatch.size, foughtSize, 'the GoopDex records the exact specimen fought');
 });
 
+test('fight handling stays locked to the weather and time of the cast', () => {
+  const game = newGame({ rng: () => 0 });
+  game.state.casts = CASTS_PER_TIME - 1;
+  game.state.timeIndex = 1;
+  game.state.weather = 'storm';
+  game.state.equip.rod = 'storm';
+  const castForce = game.weather.forceMul * game.mods().force;
+  assert.equal(castForce, 0.84, 'Storm Caller weakens a storm pull before the clock rolls');
+
+  game.cast();
+  assert.equal(game.state.timeIndex, 2, 'the third cast advances time');
+  assert.equal(game.state.weather, 'clear', 'the deterministic weather roll changes conditions');
+
+  game.goop = GOOPS[0];
+  game.phase = PHASES.BITE;
+  game.timer = 0;
+  game.prevReel = false;
+  game.update(1 / 60, { reel: true });
+  assert.equal(game.fight.forceMul, castForce * GOOPS[0].force * 0.95, 'fight uses the conditions that selected the encounter');
+});
+
 test('catch awards Essence and records Dex entry', () => {
   const { mem, store } = memStore();
   const g = new FishingGame({ rng: () => 0, saveStore: store });
