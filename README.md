@@ -130,3 +130,7 @@ Fight constants live in `tickFight` and `pullForce` in `src/game.js`. Balance wa
 ### Signature moves in the water
 - During fights, the submerged creature and surrounding surface now express the active signature challenge: Swerve leaves lateral dart trails, Tug of War draws a taut oscillating pull, Fake-out quiets the silhouette and water before its wake-up, Rhythm sends repeated concentric pulses, Current bends rotating flow rings, and Thrash creates sharp irregular wake marks.
 - The cues are tied to the existing active move and do not alter controls, timing, difficulty, rewards, or encounter logic. They are designed to make fight identity readable without adding another HUD meter.
+
+### Fight outcome reactions
+- Resolved signature moves now trigger a short creature reaction: a successful counter makes the Goop recoil and settle, while a failed counter makes it surge toward the lure with a sharper wake.
+- Reactions use the existing move outcome events and their timestamps. They expire automatically, are cleared on a new cast/catch/escape, and do not change combat state, controls, timing, rewards, or saves.
