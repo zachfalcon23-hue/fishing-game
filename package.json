@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "node --check src/game.js && node --check src/main.js && node --check src/scene.js && node --check src/audio.js && node --check src/aquarium.js && node --check src/wildlife.js && node --check src/telemetry.js && node --check tests/game.test.js && node --check tests/wildlife.test.js && node --check tests/telemetry.test.js && node --check tests/browser-smoke.mjs && node --check src/telemetry.js && node --check scripts/economy-audit.mjs && node --check tests/telemetry.test.js && node --check tests/economy-audit.test.js",
+    "check": "node --check src/game.js && node --check src/main.js && node --check src/scene.js && node --check src/audio.js && node --check src/aquarium.js && node --check src/wildlife.js && node --check src/telemetry.js && node --check tests/game.test.js && node --check tests/wildlife.test.js && node --check tests/telemetry.test.js && node --check tests/browser-smoke.mjs && node --check src/telemetry.js && node --check scripts/economy-audit.mjs && node --check tests/telemetry.test.js && node --check tests/economy-audit.test.js && node --check tests/save-recovery.test.js",
     "test": "node --test",
     "start": "npx serve .",
     "test:browser": "node tests/browser-smoke.mjs",
