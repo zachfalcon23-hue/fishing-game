@@ -970,9 +970,9 @@ export class Scene {
       const movement = school.movement || 'cruise';
       const habitatMovement = movement === 'dart' ? 1.7 : movement === 'surge' ? 1.25
         : movement === 'drift' ? 0.58 : movement === 'weave' ? 1.05 : 0.82;
-      const knownProfile = school.sighting ? wildlifeDisplayProfile(school.sighting) : null;
-      const initialSpeed = school.speed * habitatMovement * (knownProfile?.speed ?? 1)
-        * (1 + surfaceFeeding * 0.3);
+      // Keep each school's world-space trajectory independent of changing species sightings;
+      // species motion changes its local swim rhythm, not its absolute position.
+      const initialSpeed = school.speed * habitatMovement * (1 + surfaceFeeding * 0.3);
       let wx = WORLD_MIN - 1100 + (((school.x - (WORLD_MIN - 1100) + t * initialSpeed) % span) + span) % span;
 
       // Resolve the nearest habitat before selecting a species, so the sighting stays local.
@@ -1004,10 +1004,6 @@ export class Scene {
 
       const species = school.sighting;
       const profile = species ? wildlifeDisplayProfile(species) : null;
-      // Apply species-specific movement after the local habitat has been resolved.
-      const speciesSpeed = school.speed * habitatMovement * (profile?.speed ?? 1)
-        * (1 + surfaceFeeding * 0.3);
-      wx = WORLD_MIN - 1100 + (((school.x - (WORLD_MIN - 1100) + t * speciesSpeed) % span) + span) % span;
 
       // Walking startles nearby schools. Their alert lingers briefly after the angler stops,
       // then fades so the pond naturally settles instead of snapping back immediately.
@@ -1047,7 +1043,7 @@ export class Scene {
       if (x < -180 || x > W + 180) continue;
       const swaySize = (movement === 'weave' ? 15 : movement === 'drift' ? 5 : 9)
         * behavior.sway * (profile?.sway ?? 1);
-      const sway = Math.sin(t * (habitatMovement * behavior.motionRate
+      const sway = Math.sin(t * (habitatMovement * behavior.motionRate * (profile?.speed ?? 1)
         + behavior.feeding * 0.55 + disturbance * 1.4) + school.phase)
         * (swaySize - behavior.feeding * 2 + disturbance * 5);
       const verticalStyle = profile?.vertical ?? 1;
@@ -1081,9 +1077,10 @@ export class Scene {
         // Tail, body and fins form a repeatable silhouette unique to the selected species.
         g.beginPath();
         g.moveTo(bodyLength * 0.28, 0);
-        g.lineTo(bodyLength * (0.42 + tailSpan * 0.18), -bodyHeight * tailSpan * 0.58);
+        const tailBeat = Math.sin(t * (2.1 + (profile?.speed ?? 1) * 1.3) + i + school.phase) * bodyHeight * 0.055;
+        g.lineTo(bodyLength * (0.42 + tailSpan * 0.18), -bodyHeight * tailSpan * 0.58 + tailBeat);
         g.quadraticCurveTo(bodyLength * 0.48, 0,
-          bodyLength * (0.42 + tailSpan * 0.18), bodyHeight * tailSpan * 0.58);
+          bodyLength * (0.42 + tailSpan * 0.18), bodyHeight * tailSpan * 0.58 + tailBeat);
         g.closePath();
         g.fill();
 
