@@ -6,6 +6,15 @@ A dependency-free browser fishing and Goop-collection game for Goopamon, with a 
 - Open `index.html` in a modern browser, or serve the folder (`npm start`). ES modules need `http://`, so a static server is the safest option.
 - `npm run check` checks JavaScript syntax across the engine, renderer, interface, audio, Aquarium, wildlife, and test modules.
 - `npm test` runs the Node regression suite (Node 20+).
+
+## Local playtest session data
+
+Open **PLAYTEST SESSION · LOCAL ONLY** in the Field Notes card to see session measurements. The collector uses the live fishing phases and records cast-to-bite, bite-to-hook, fight and round durations; catches, missed bites and breakaways; catch Essence; and context such as fishing spot, time, weather, rod, line, lure, bait and fight pattern.
+
+- Measurements stay in memory in the current browser session. They are not written to the game save and are never uploaded.
+- The recent-round detail is bounded to the latest 500 rounds; summary counters continue for the current page session.
+- Use **EXPORT JSON** to download the session for balancing and playtest review, or **RESET SESSION** to clear the measurements without resetting game progress.
+
 - See [`RELEASE_CHECKLIST.md`](RELEASE_CHECKLIST.md) for the current mainline verification and release gates.
 
 ## Play online
