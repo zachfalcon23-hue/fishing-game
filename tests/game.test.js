@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   GOOPS, SPOTS, UPGRADES, NOTES, NOTE_REWARD, weightedPick, encounterPool, makeFight, tickFight, pullForce,
   FishingGame, SaveStore, PHASES, CASTS_PER_TIME, conditionsMet, conditionText,
-  SPOT_BY, BAITS, SETS, RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, tackleMods, QUESTS, DECOR, THEMES, tankTips, TANK_CAP, TANK_COSTS, DECOR_SLOTS, startMove, SIGNATURE, MOVE_INFO, stagesFor, BREAK_TIME, shoreZone, zonePool, makeBounties, bountyMatches, comboFor, LUNGE_WARN, PERFECT_HOOK, isFullMoon,
+  SPOT_BY, BAITS, SETS, RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, tackleMods, QUESTS, DECOR, THEMES, tankTips, TANK_CAP, TANK_COSTS, DECOR_SLOTS, startMove, SIGNATURE, MOVE_INFO, stagesFor, BREAK_TIME, shoreZone, zonePool, makeBounties, bountyMatches, comboFor, LUNGE_WARN, PERFECT_HOOK, isFullMoon, rollGoopSize,
 } from '../src/game.js';
 
 function memStore(initial = null) {
@@ -87,6 +87,59 @@ test('gear widens the safe zone and speeds up reeling', () => {
   assert.ok(geared.safeLo < base.safeLo && geared.safeHi > base.safeHi && geared.reelRate > base.reelRate);
 });
 
+test('specimen size is decided before the fight and changes its difficulty', () => {
+  for (const goop of GOOPS) {
+    const small = makeFight(goop, {}, { size: goop.size[0], rng: () => 0.5, moves: false });
+    const large = makeFight(goop, {}, { size: goop.size[1], rng: () => 0.5, moves: false });
+    assert.equal(small.size, goop.size[0]);
+    assert.equal(large.size, goop.size[1]);
+    assert.equal(small.sizeClass, 'LIGHT');
+    assert.equal(large.sizeClass, 'HEAVY');
+    assert.ok(large.maxStamina > small.maxStamina, `${goop.id}: larger specimen has more stamina`);
+    assert.ok(large.reelRate < small.reelRate, `${goop.id}: larger specimen reels in more slowly`);
+    assert.ok(large.forceMul > small.forceMul, `${goop.id}: larger specimen pulls harder`);
+  }
+
+  const goop = GOOPS[0];
+  assert.equal(rollGoopSize(goop, () => 0, 2), goop.size[0]);
+  assert.equal(rollGoopSize(goop, () => 1, 2), goop.size[1]);
+  assert.ok(rollGoopSize(goop, () => 0.5, 2) < rollGoopSize(goop, () => 0.5, 1), 'size exponent keeps large specimens rare');
+
+  const game = newGame({ rng: () => 0.5 });
+  game.cast();
+  game.goop = goop;
+  game.phase = PHASES.BITE;
+  game.timer = 0;
+  game.prevReel = false;
+  game.update(1 / 60, { reel: true });
+  const foughtSize = rollGoopSize(goop, () => 0.5, game.mods().sizeExp);
+  assert.equal(game.fight.size, foughtSize, 'the hook creates the specimen before the fight');
+  game.fight.caught = true;
+  game.update(0, { reel: true });
+  assert.equal(game.lastCatch.size, foughtSize, 'the GoopDex records the exact specimen fought');
+});
+
+test('fight handling stays locked to the weather and time of the cast', () => {
+  const game = newGame({ rng: () => 0 });
+  game.state.casts = CASTS_PER_TIME - 1;
+  game.state.timeIndex = 1;
+  game.state.weather = 'storm';
+  game.state.equip.rod = 'storm';
+  const castForce = game.weather.forceMul * game.mods().force;
+  assert.equal(castForce, 0.84, 'Storm Caller weakens a storm pull before the clock rolls');
+
+  game.cast();
+  assert.equal(game.state.timeIndex, 2, 'the third cast advances time');
+  assert.equal(game.state.weather, 'clear', 'the deterministic weather roll changes conditions');
+
+  game.goop = GOOPS[0];
+  game.phase = PHASES.BITE;
+  game.timer = 0;
+  game.prevReel = false;
+  game.update(1 / 60, { reel: true });
+  assert.equal(game.fight.forceMul, castForce * GOOPS[0].force * 0.95, 'fight uses the conditions that selected the encounter');
+});
+
 test('catch awards Essence and records Dex entry', () => {
   const { mem, store } = memStore();
   const g = new FishingGame({ rng: () => 0, saveStore: store });
@@ -101,6 +154,20 @@ test('catch awards Essence and records Dex entry', () => {
   assert.equal(g.state.dex.gloop.count, 1);
   assert.equal(g.state.stats.caught, 1);
   assert.ok(mem.v, 'catch is saved');
+});
+
+test('best fight streak earns a capped Essence skill bonus', () => {
+  const g = newGame();
+  g.cast();
+  g.phase = PHASES.FIGHT;
+  g.goop = GOOPS[0];
+  g.fight = makeFight(GOOPS[0]);
+  g.fight.best = 1.6;
+  g.fight.caught = true;
+  g.update(0);
+  assert.equal(g.lastCatch.skillBonus, 0.1);
+  assert.equal(g.lastCatch.reward, 9, 'a max streak raises an 8 Essence catch to 9');
+  assert.equal(g.state.essence, 9);
 });
 
 test('full round trip: cast, bite, hook, fight', () => {
@@ -786,6 +853,17 @@ test('swerve: steering the right way wins, the wrong way or too late loses', () 
   f = quiet(dart); startMove(f, 'swerve');
   for (let i = 0; i < 120 && f.move; i++) step(f);
   assert.equal(lastLog(f, 'moveFail').why, 'slow');
+});
+
+test('a failed signature move cannot overfill a specimen stamina bar', () => {
+  const goop = GOOPS.find((x) => x.pattern === 'dart');
+  const fight = makeFight(goop, {}, { size: goop.size[1], rng: () => 0.3, moves: false });
+  fight.nextLunge = null;
+  fight.stamina = fight.maxStamina - 0.001;
+  startMove(fight, 'swerve');
+  for (let i = 0; i < 120 && fight.move; i++) step(fight);
+  assert.ok(lastLog(fight, 'moveFail'));
+  assert.ok(fight.stamina <= fight.maxStamina, 'failure recovery is capped even after the same frame resumes normal fight drain');
 });
 
 test('tug of war: fast taps win, no taps lose, and the tension game pauses', () => {
