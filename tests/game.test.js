@@ -61,6 +61,27 @@ test('field tracking multiplies only the selected Goop after its real habitat an
   assert.equal(wrongTime.some((g) => g.id === 'abyssmelt'), false, 'tracking cannot bypass a hard night requirement');
 });
 
+test('field tracking forecast uses the same target multiplier and reports field readiness', () => {
+  const plain = newGame();
+  const hunted = newGame();
+  plain.state.seen.push('gloop');
+  hunted.state.seen.push('gloop');
+  assert.ok(hunted.setTrackedGoop('gloop'));
+  const chance = (rows, id) => rows.find((row) => row.id === id)?.chance || 0;
+  const baseline = plain.forecast(GOOPS.length);
+  const forecast = hunted.forecast(GOOPS.length);
+  const baselineRatio = chance(baseline, 'gloop') / chance(baseline, 'murkling');
+  const huntRatio = chance(forecast, 'gloop') / chance(forecast, 'murkling');
+  assert.ok(Math.abs(huntRatio / baselineRatio - TRACK_WEIGHT_MULT) < 1e-9,
+    'Fish Finder target-to-control odds reflect the same ×4 weight change as casts');
+  assert.equal(hunted.trackingStatus().active, true, 'Gloop is on the trail at the starting dock');
+  hunted.state.seen.push('kinggloop');
+  assert.ok(hunted.setTrackedGoop('kinggloop'));
+  const waiting = hunted.trackingStatus();
+  assert.equal(waiting.active, false);
+  assert.match(waiting.status, /WAIT FOR DAWN/, 'the status points to the hard time requirement');
+});
+
 test('field tracking requires known species, persists, and can be cleared', () => {
   const { store } = memStore();
   const game = new FishingGame({ rng: () => 0, saveStore: store });
