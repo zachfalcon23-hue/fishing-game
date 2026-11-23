@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   GOOPS, SPOTS, UPGRADES, NOTES, NOTE_REWARD, weightedPick, encounterPool, makeFight, tickFight, pullForce,
   FishingGame, SaveStore, PHASES, CASTS_PER_TIME, conditionsMet, conditionText,
-  SPOT_BY, BAITS, SETS, RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, tackleMods, shoreZone, zonePool, makeBounties, bountyMatches, comboFor, LUNGE_WARN, PERFECT_HOOK, isFullMoon,
+  SPOT_BY, BAITS, SETS, RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, tackleMods, QUESTS, DECOR, THEMES, tankTips, shoreZone, zonePool, makeBounties, bountyMatches, comboFor, LUNGE_WARN, PERFECT_HOOK, isFullMoon,
 } from '../src/game.js';
 
 function memStore(initial = null) {
@@ -633,4 +633,89 @@ test('tackle saves round-trip and junk tackle data is cleaned', () => {
   assert.equal(bad.buddyLv, BUDDY_TRAIN.length);
   assert.equal(bad.finder, false);
   assert.deepEqual(bad.tips, ['gloop']);
+});
+
+test('quests: progress, claim at Wiggs, rewards, and state-based goals', () => {
+  const g = newGame();
+  assert.equal(g.quest.id, 'q1');
+  assert.equal(g.claimQuest(), false, 'not done yet');
+  const catchOne = (goop = GOOPS[0]) => { g.goop = goop; g.phase = PHASES.FIGHT; g.fight = makeFight(goop); g.fight.caught = true; g.update(0); };
+  catchOne(); catchOne();
+  assert.deepEqual(g.questProgress(), { have: 2, need: 3, ready: false });
+  catchOne();
+  assert.ok(g.questProgress().ready);
+  assert.ok(g.events.some((e) => e.type === 'questReady'));
+  const before = g.state.essence;
+  assert.ok(g.claimQuest());
+  assert.equal(g.state.essence, before + 50);
+  assert.ok(g.state.owned.bobbers.includes('slime'), 'item reward');
+  assert.equal(g.quest.id, 'q2');
+  // bait quest
+  g.selectBait('sugar'); g.cast(); g.phase = PHASES.FIGHT; g.goop = GOOPS[0]; g.fight = makeFight(GOOPS[0]); g.fight.caught = true; g.update(0);
+  assert.ok(g.claimQuest());
+  assert.equal(g.quest.id, 'q3');
+  // state-based: discover the reeds
+  for (const goop of GOOPS.slice(1, 4)) g.state.dex[goop.id] = { count: 1, fastest: null, best: null, shiny: 0 };
+  assert.ok(g.travel('reeds'));
+  assert.ok(g.questProgress().ready);
+  assert.ok(g.claimQuest());
+  assert.equal(g.quest.id, 'q4');
+  for (const q of QUESTS) {
+    assert.ok(q.title && q.story && q.done && q.goal.type);
+    if (q.reward.item) { const [kind, id] = q.reward.item; assert.ok(kind === 'decor' ? DECOR[id] : { rods: RODS, skins: SKINS, bobbers: BOBBERS }[kind][id], `${q.id} reward`); }
+  }
+});
+
+test('the Sleeper only rises during the last quest, then on full-moon nights', () => {
+  const deep = SPOT_BY.deep;
+  const has = (ev) => encounterPool({ spot: deep, time: 'Night', event: ev }).some((x) => x.id === 'sleeper');
+  assert.equal(has({}), false);
+  assert.ok(has({ sleeper: true }));
+  assert.equal(encounterPool({ spot: deep, time: 'Day', event: { sleeper: true } }).some((x) => x.id === 'sleeper'), false, 'night only');
+  const g = newGame();
+  assert.equal(g.event.sleeper, false);
+  g.state.quest.i = QUESTS.length - 1;
+  assert.ok(g.event.sleeper, 'quest active');
+  const sleeper = GOOPS.find((x) => x.id === 'sleeper');
+  g.goop = sleeper; g.phase = PHASES.FIGHT; g.fight = makeFight(sleeper); g.fight.caught = true; g.update(0);
+  assert.ok(g.claimQuest());
+  assert.equal(g.quest, null, 'story complete');
+  assert.ok(g.state.tank.decor.includes('statue'));
+  g.state.day = 3; // full moon
+  assert.ok(g.event.sleeper);
+  g.state.day = 4;
+  assert.equal(g.event.sleeper, false);
+});
+
+test('aquarium: daily tip jar, decorations and themes', () => {
+  const g = newGame();
+  assert.equal(g.tipJar(), 0, 'empty tank');
+  g.state.dex.gloop = { count: 1, fastest: null, best: null, shiny: 1 };
+  g.state.dex.lumen = { count: 1, fastest: null, best: null, shiny: 0 };
+  assert.equal(g.tipJar(), tankTips(g.state.dex));
+  assert.equal(tankTips({ gloop: { shiny: 1 }, lumen: {} }), 3 + 15 + 3 + 4);
+  const tip = g.collectTips();
+  assert.ok(tip > 0 && g.state.essence === tip);
+  assert.equal(g.collectTips(), 0, 'once a day');
+  g.state.day += 1;
+  assert.ok(g.tipJar() > 0);
+  g.state.essence = 5000;
+  assert.ok(g.buyDecor('coral'));
+  assert.equal(g.buyDecor('coral'), false, 'owned');
+  assert.equal(g.buyDecor('statue'), false, 'quest only');
+  assert.equal(g.buyDecor('throne'), false, 'needs 3 Legendaries');
+  assert.ok(g.setTheme('moon'));
+  assert.equal(g.state.tank.theme, 'moon');
+  const left = g.state.essence;
+  assert.ok(g.setTheme('pond') && g.setTheme('moon'));
+  assert.equal(g.state.essence, left, 'owned themes are free to switch');
+  const { store } = memStore(JSON.stringify(g.state));
+  const s = store.load();
+  assert.deepEqual(s.tank.decor, ['coral']);
+  assert.equal(s.tank.theme, 'moon');
+  const bad = memStore(JSON.stringify({ version: 3, quest: { i: 999, have: -4 }, tank: { decor: ['coral', 'ufo'], theme: 'lava', themes: ['nope'] } })).store.load();
+  assert.equal(bad.quest.i, QUESTS.length);
+  assert.equal(bad.quest.have, 0);
+  assert.deepEqual(bad.tank.decor, ['coral']);
+  assert.equal(bad.tank.theme, 'pond', 'theme not owned');
 });

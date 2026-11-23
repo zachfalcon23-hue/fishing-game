@@ -1,10 +1,11 @@
 import {
   GOOPS, SPOTS, SPOT_BY, UPGRADES, NOTES, PHASES, BAITS, SETS, TASTES, MOON, REROLL_COST, WEATHER,
-  RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, buddyBonus,
+  RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, buddyBonus, QUESTS, DECOR, THEMES,
   FishingGame, conditionText, tasteBait,
 } from './game.js';
 import { Scene, loadAssets, GOOP_ART, SPOT_X, SPOT_GAP, WORLD_MIN, WORLD_MAX, CLUE_X, toShore, fromShore } from './scene.js';
 import { Sfx } from './audio.js';
+import { Tank } from './aquarium.js';
 
 const $ = (id) => document.getElementById(id);
 const canvas = $('gameCanvas');
@@ -193,7 +194,8 @@ function renderShop() {
     return `<div class="option"><span class="ico">${ICON[kind]}</span><div class="txt"><b>${u.name} · Lv ${level}/${u.cost.length}</b><small>${u.desc}</small><div class="pips">${pips}</div></div>${btn}</div>`;
   }).join('');
   setHTML('loadoutCard', loadoutHTML());
-  if ($('tackleDlg').open) renderTackle();
+  if (view === 'shack') { renderTackle(); renderQuest(); drawRack(); }
+  if (view === 'aquarium') renderTank();
   const b = BAITS[s.bait];
   setHTML('baitBtn', `<span class="emoji">🎣</span><i>${b.icon}${s.bait === 'worm' ? '' : s.baits[s.bait] || 0}</i>`);
   $('baitBtn').title = `Tackle box · bait: ${b.name}`;
@@ -396,6 +398,7 @@ function render(dt) {
   renderFight();
   renderLists(false);
   renderFinder();
+  renderQuestChip();
 }
 
 function showCatchCard(c) {
@@ -444,7 +447,7 @@ function handleEvents() {
       case 'combo': sfx.combo(d.combo); break;
       case 'catch':
         if (d.firstTime) newDex.add(d.goop);
-        lastLists = ''; pendingCatch = d; sfx.splash(true); scene?.cheer();
+        lastLists = ''; pendingCatch = d; sfx.splash(true); scene?.cheer(); tank?.sync(game.state);
         break;
       case 'escaped': sfx.snap(); navigator.vibrate?.([40, 40, 80]); break;
       case 'missedBite': sfx.splash(); break;
@@ -452,6 +455,9 @@ function handleEvents() {
       case 'tackle': if (d.bought) { sfx.coin(); bumpWallet(); } else sfx.note(); lastLists = ''; break;
       case 'charm': sfx.secret(); lastLists = ''; bumpWallet(); finderSig = ''; break;
       case 'tip': lastLists = ''; break;
+      case 'questReady': setTimeout(() => { notify(`📜 Quest complete: ${d.title}! Visit Old Wiggs at the Bait Shack.`, 3400); sfx.discover(); }, 2200); break;
+      case 'questClaim': lastLists = ''; break;
+      case 'tips': case 'decor': lastLists = ''; break;
       case 'bait': sfx.note(); lastLists = ''; break;
       case 'baitOut': notify(`Out of ${BAITS[d.bait].name} — back to worms. Restock in the bait box.`, 3000); lastLists = ''; break;
       case 'buddy': sfx.discover(); lastLists = ''; break;
@@ -675,13 +681,13 @@ function previewLook() {
 function openTackle(tab) {
   if (tab) tackleTab = tab;
   tryOn = null;
-  renderTackle();
-  openDialog('tackleDlg');
+  go('shack', { scroll: false });
+  setTimeout(() => $('shopCard').scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
 }
 
 let previewLast = 0;
 function previewLoop(ts) {
-  if (!$('tackleDlg').open || !scene) { previewLast = 0; return; }
+  if (view !== 'shack' || !scene) { previewLast = 0; return; }
   const dt = previewLast ? Math.min(0.05, (ts - previewLast) / 1000) : 0;
   previewLast = ts;
   const c = $('previewCanvas');
@@ -692,10 +698,8 @@ function previewLoop(ts) {
   scene.drawPreview(c.getContext('2d'), previewLook(), dt);
   requestAnimationFrame(previewLoop);
 }
-$('tackleDlg').addEventListener('toggle', () => { if ($('tackleDlg').open) requestAnimationFrame(previewLoop); });
-new MutationObserver(() => { if ($('tackleDlg').open && !previewLast) requestAnimationFrame(previewLoop); }).observe($('tackleDlg'), { attributes: true, attributeFilter: ['open'] });
 
-$('tackleDlg').addEventListener('click', (e) => {
+$('shopCard').addEventListener('click', (e) => {
   const tab = e.target.closest('[data-tktab]')?.dataset.tktab;
   if (tab) { tackleTab = tab; tryOn = null; renderTackle(); return; }
   const buy = e.target.closest('[data-tk-buy]')?.dataset.tkBuy;
@@ -737,6 +741,235 @@ function renderFinder() {
   el.innerHTML = `<div class="f-title">📡 FISH FINDER</div>${rows}`;
 }
 
+// ---------- places: the pond, the Bait Shack and the Aquarium ----------
+
+let view = 'pond';
+let tank = null;
+const VIEWS = ['pond', 'shack', 'aquarium'];
+
+function go(next, { scroll = true } = {}) {
+  if (!VIEWS.includes(next)) next = 'pond';
+  if (next !== 'pond' && game.busy) { notify('Reel in your line first!', 1800); return; }
+  view = next;
+  for (const v of VIEWS) $(`${v}View`).hidden = v !== next;
+  document.querySelectorAll('#viewNav [data-view]').forEach((b) => b.classList.toggle('on', b.dataset.view === next));
+  if (location.hash.slice(1) !== next) history.replaceState(null, '', next === 'pond' ? location.pathname + location.search : `#${next}`);
+  if (scroll) window.scrollTo({ top: 0, behavior: 'smooth' });
+  release(); keys.left = keys.right = false; held.left = held.right = false; held.drag = 0;
+  if (next === 'shack') { renderShack(); renderTackle(); requestAnimationFrame(previewLoop); markBoardSeen(); }
+  if (next === 'aquarium' && tank) { tank.sync(game.state); tank.start(); renderTank(); } else tank?.stop();
+  if (next === 'pond') requestAnimationFrame(() => scene?.resize());
+  sfx.unlock(); sfx.step();
+}
+document.getElementById('viewNav').addEventListener('click', (e) => { const v = e.target.closest('[data-view]')?.dataset.view; if (v) go(v); });
+window.addEventListener('hashchange', () => { const v = location.hash.slice(1); if (VIEWS.includes(v) && v !== view) go(v); });
+
+// ----- Old Wiggs -----
+
+let wiggsMode = 'hello';
+let typer = 0;
+function say(text, buttons = []) {
+  const el = $('wiggsText');
+  clearInterval(typer);
+  let i = 0;
+  el.textContent = '';
+  const reduce = matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  if (reduce) el.textContent = text;
+  else typer = setInterval(() => { i += 2; el.textContent = text.slice(0, i); if (i >= text.length) clearInterval(typer); }, 16);
+  $('wiggsBtns').innerHTML = buttons.map(([label, act, cls = '']) => `<button class="${cls}" data-wiggs="${act}">${label}</button>`).join('');
+  const w = $('wiggs'); w.classList.remove('talk'); void w.offsetWidth; w.classList.add('talk');
+}
+
+function greet() {
+  const q = game.quest, p = game.questProgress();
+  const hello = { Dawn: 'Mornin’, early bird!', Day: 'Well hey there, kid!', Dusk: 'Evenin’! Good light for fishing.', Night: 'Up late, are we? The night Goops are out.' }[game.timeOfDay];
+  const btns = [['💬 CHAT', 'chat'], ['📜 BOUNTIES', 'bounties'], ['🎣 SHOP', 'shop']];
+  if (!q) return say(`${hello} You woke the Sleeper — this pond’s yours now. Stop by any time.`, btns);
+  if (p.ready) return say(`${hello} ${q.done}`, [['🎁 CLAIM REWARD', 'claim', 'hot'], ...btns]);
+  say(game.state.quest.i === 0 ? q.story : `${hello} ${q.story}`, [['📜 QUEST', 'quest'], ...btns]);
+}
+
+function renderShack() {
+  if (wiggsMode === 'hello') greet();
+  renderQuest();
+  drawRack();
+}
+
+function rewardText(r) {
+  const parts = [`+${r.essence} Essence`];
+  if (r.baits) parts.push(`${BAITS[r.baits[0]].icon} ${BAITS[r.baits[0]].name} ×${r.baits[1]}`);
+  if (r.item) { const [kind, id] = r.item; parts.push(({ rods: RODS, skins: SKINS, bobbers: BOBBERS, decor: DECOR }[kind])[id].name); }
+  return parts.join(' · ');
+}
+
+function goalText(goal) {
+  switch (goal.type) {
+    case 'catch': return `Catch ${goal.n} Goops`;
+    case 'bait': return 'Catch a Goop using special bait';
+    case 'discover': return `Reach ${spotName(goal.spot)}`;
+    case 'notes': return `Collect ${goal.n} field notes`;
+    case 'dodge': return `Dodge ${goal.n} lunges`;
+    case 'secret': return `Find a secret place (${goal.spot === 'sandbar' ? 'west, after dark' : goal.spot === 'cave' ? 'past the falls, by day' : 'past the Deep Drop, in bad weather'})`;
+    case 'dex': return `Fill your GoopDex to ${goal.n}`;
+    case 'frenzy': return `Catch ${goal.n} Goops in a feeding frenzy`;
+    case 'set': return 'Complete any collection';
+    case 'legendary': return `Catch ${goal.n} Legendary Goops`;
+    case 'goop': return 'Catch The Sleeper at the Deep Drop, at night';
+    default: return '';
+  }
+}
+
+function renderQuest() {
+  const s = game.state, q = game.quest, p = game.questProgress();
+  setText('questCount', q ? `${s.quest.i + 1} / ${QUESTS.length}` : 'COMPLETE');
+  $('questBody').innerHTML = q
+    ? `<div class="q-chapter">CHAPTER ${s.quest.i + 1}</div><h3 class="q-title">${esc(q.title)}</h3><p class="q-story">“${esc(q.story)}”</p>`
+      + `<div class="q-goal ${p.ready ? 'ready' : ''}"><b>${p.ready ? '✓ ' : ''}${esc(goalText(q.goal))}</b><span>${p.have} / ${p.need}</span><div class="spot-bar wide"><i style="width:${(p.have / p.need) * 100}%"></i></div></div>`
+      + `<div class="q-reward">Reward: ${esc(rewardText(q.reward))}</div>`
+      + `<button class="slime-btn small wide ${p.ready ? 'pulse' : ''}" id="claimBtn" ${p.ready ? '' : 'disabled'}>${p.ready ? '🎁 CLAIM REWARD' : 'IN PROGRESS'}</button>`
+    : '<div class="q-chapter">THE END</div><h3 class="q-title">Legend of North Pond</h3><p class="q-story">“You did what I never could. The Sleeper still stirs on full-moon nights, if you want a rematch.”</p>';
+  const left = QUESTS.length - s.quest.i - 1;
+  $('questLog').innerHTML = QUESTS.slice(0, s.quest.i + 1).map((x, i) => `<li class="${i < s.quest.i ? 'done' : 'now'}">${esc(x.title)}</li>`).join('')
+    + (left > 0 ? `<li class="locked">…${left} more chapter${left === 1 ? '' : 's'} to go</li>` : '');
+  $('claimBtn')?.addEventListener('click', claim);
+}
+
+function claim() {
+  const q = game.quest;
+  if (!q || !game.claimQuest()) return;
+  sfx.fanfare(); bumpWallet();
+  wiggsMode = 'claimed';
+  const next = game.quest;
+  say(next ? `There you go: ${rewardText(q.reward)}. Now then… ${next.story}` : `There you go: ${rewardText(q.reward)}. That’s the whole story, kid. Thank you.`, [['💬 CHAT', 'chat'], ['📜 BOUNTIES', 'bounties'], ['🎣 SHOP', 'shop']]);
+  renderQuest(); renderTackle(); lastLists = '';
+}
+
+$('wiggsBtns').addEventListener('click', (e) => {
+  const act = e.target.closest('[data-wiggs]')?.dataset.wiggs;
+  if (!act) return;
+  sfx.note();
+  if (act === 'claim') claim();
+  else if (act === 'quest') { wiggsMode = 'quest'; $('questCard').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+  else if (act === 'bounties') openBounties();
+  else if (act === 'shop') $('shopCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  else if (act === 'chat') {
+    wiggsMode = 'chat';
+    const r = game.rumor();
+    const lines = [...WIGGS, ...(r ? [r.text] : [])];
+    say(lines[Math.floor(Math.random() * lines.length)].replace(/^“|”$/g, ''), [['💬 MORE', 'chat'], ['📜 BOUNTIES', 'bounties'], ['🎣 SHOP', 'shop']]);
+  }
+});
+$('wiggs').querySelector('svg').addEventListener('click', () => { wiggsMode = 'hello'; greet(); });
+
+/** The rod rack on the shack wall shows every rod style. */
+function drawRack() {
+  const c = $('rackCanvas');
+  if (!scene || !c) return;
+  const r = c.getBoundingClientRect();
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  if (r.width) { c.width = Math.round(r.width * dpr); c.height = Math.round(r.height * dpr); }
+  const g = c.getContext('2d');
+  g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, c.width, c.height);
+  const k = c.height / 700;
+  const ids = Object.keys(RODS);
+  const step = c.width / k / (ids.length + 1);
+  ids.forEach((id, i) => {
+    const owned = game.state.owned.rods.includes(id);
+    g.setTransform(k, 0, 0, k, 0, 0);
+    g.globalAlpha = owned ? 1 : 0.4;
+    const x = step * (i + 1);
+    scene.drawRodIcon(g, x, 660, 600, { style: RODS[id].style, skin: game.state.equip.rod === id ? game.state.equip.skin : 'factory' });
+    g.globalAlpha = 1;
+  });
+  // rack bar
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.fillStyle = '#4a2a12'; g.fillRect(0, c.height * 0.2, c.width, c.height * 0.035);
+  g.fillStyle = '#4a2a12'; g.fillRect(0, c.height * 0.86, c.width, c.height * 0.045);
+}
+
+// ----- quest chip on the pond -----
+
+function renderQuestChip() {
+  const chip = $('questChip');
+  const q = game.quest;
+  chip.hidden = !q || game.busy;
+  $('shackDot').hidden = !(q && game.questProgress().ready);
+  $('tankDot').hidden = !game.tipJar();
+  if (!q || game.busy) return;
+  const p = game.questProgress();
+  setHTML('questChip', p.ready ? '📜 <b>Quest done!</b> Visit Wiggs' : `📜 ${esc(goalText(q.goal))} <b>${p.have}/${p.need}</b>`);
+  chip.classList.toggle('ready', p.ready);
+}
+$('questChip').addEventListener('click', () => go('shack'));
+
+// ----- aquarium -----
+
+function renderTank() {
+  const s = game.state;
+  const n = Object.keys(s.dex).length;
+  const shinies = Object.values(s.dex).filter((e) => e.shiny).length;
+  setHTML('tankCount', `${n} / ${GOOPS.length} GOOPS${shinies ? ` · <span class="sh">✦ ${shinies}</span>` : ''}`);
+  $('tankEmpty').hidden = n > 0;
+  const tip = game.tipJar();
+  $('tipsBtn').disabled = !tip;
+  $('tipsBtn').textContent = tip ? `💰 TIPS +${tip}` : '💰 TIPS ✓';
+  $('tipsBtn').title = tip ? 'Visitors left tips to see your Goops' : 'Come back tomorrow for more tips';
+  $('feedBtn').classList.toggle('on', !!tank?.feedMode);
+  const legends = GOOPS.filter((g) => g.rarity === 'Legendary' && s.dex[g.id]).length;
+  setText('decorCount', `${s.tank.decor.length} / ${Object.keys(DECOR).length}`);
+  $('decorList').innerHTML = Object.entries(DECOR).map(([id, d]) => {
+    const owned = s.tank.decor.includes(id);
+    const locked = d.legends && legends < d.legends;
+    const btn = owned ? '<button class="on" disabled>IN YOUR TANK</button>'
+      : d.quest ? '<button disabled>📜 QUEST REWARD</button>'
+        : locked ? `<button disabled>🔒 ${d.legends} LEGENDARIES</button>`
+          : `<button class="buy" data-decor="${id}" ${s.essence < d.cost ? 'disabled' : ''}>BUY · ${d.cost}</button>`;
+    return `<div class="tk-card ${owned ? 'equipped' : ''}"><div class="tk-head"><b>${d.name}</b></div><small>${d.desc}</small><div class="tk-btns">${btn}</div></div>`;
+  }).join('');
+  setText('themeCount', `${s.tank.themes.length} / ${Object.keys(THEMES).length}`);
+  $('themeList').innerHTML = Object.entries(THEMES).map(([id, t]) => {
+    const owned = s.tank.themes.includes(id), on = s.tank.theme === id;
+    const btn = on ? '<button class="on" disabled>SHOWING</button>' : owned ? `<button class="use" data-theme="${id}">SHOW</button>` : `<button class="buy" data-theme="${id}" ${s.essence < t.cost ? 'disabled' : ''}>BUY · ${t.cost}</button>`;
+    return `<div class="tk-card ${on ? 'equipped' : ''}"><div class="tk-head"><span class="swatch" style="background:linear-gradient(180deg,${t.top},${t.mid} 55%,${t.bot})"></span><b>${t.name}</b></div><div class="tk-btns">${btn}</div></div>`;
+  }).join('');
+}
+
+function showTankCard(id) {
+  const g = GOOPS.find((x) => x.id === id), e = game.state.dex[id];
+  if (!g || !e) return;
+  const card = $('tankCard');
+  card.style.setProperty('--rc', e.shiny ? '#fff27a' : `var(--r-${g.rarity.toLowerCase()})`);
+  const buddy = game.state.buddy === id;
+  card.innerHTML = `<button class="close" data-tankclose aria-label="Close">✕</button><div class="tc-rarity">${e.shiny ? 'SHINY · ' : ''}${g.rarity.toUpperCase()}</div><h3>${esc(g.name)}</h3>`
+    + `<div class="tc-stats"><span>×${e.count} caught</span><span>Best ${e.best ?? '—'} cm</span>${e.shiny ? `<span>✦ ${e.shiny} shiny</span>` : ''}</div>`
+    + `<div class="tc-btns"><button data-tankbuddy="${id}" class="${buddy ? 'on' : ''}">${buddy ? '♥ YOUR BUDDY' : 'MAKE BUDDY'}</button><button data-tankdex="${id}">GOOPDEX</button></div>`;
+  card.hidden = false;
+  card.style.animation = 'none'; void card.offsetWidth; card.style.animation = '';
+}
+
+$('tankCanvas').addEventListener('pointerdown', (e) => {
+  if (!tank) return;
+  sfx.unlock();
+  const r = $('tankCanvas').getBoundingClientRect();
+  const dpr = $('tankCanvas').width / r.width;
+  const id = tank.tap((e.clientX - r.left) * dpr, (e.clientY - r.top) * dpr);
+  if (tank.feedMode) { sfx.splash(); return; }
+  if (id) { sfx.note(); showTankCard(id); }
+});
+$('feedBtn').addEventListener('click', () => { if (!tank) return; tank.feedMode = !tank.feedMode; $('feedBtn').classList.toggle('on', tank.feedMode); $('tankHint').textContent = tank.feedMode ? 'Tap the water to drop food' : 'Tap a Goop to say hi · turn on FEED and tap the water to drop food'; sfx.note(); });
+$('tipsBtn').addEventListener('click', () => { const tip = game.collectTips(); if (tip) { sfx.coin(); bumpWallet(); notify(`💰 Visitors loved your tank: +${tip} Essence`); renderTank(); } });
+$('aquariumView').addEventListener('click', (e) => {
+  const dec = e.target.closest('[data-decor]')?.dataset.decor;
+  if (dec && game.buyDecor(dec)) { sfx.coin(); bumpWallet(); renderTank(); return; }
+  const th = e.target.closest('[data-theme]')?.dataset.theme;
+  if (th && game.setTheme(th)) { sfx.note(); renderTank(); return; }
+  if (e.target.closest('[data-tankclose]')) { $('tankCard').hidden = true; return; }
+  const bud = e.target.closest('[data-tankbuddy]')?.dataset.tankbuddy;
+  if (bud) { game.setBuddy(game.state.buddy === bud ? null : bud); showTankCard(bud); lastLists = ''; return; }
+  const dx = e.target.closest('[data-tankdex]')?.dataset.tankdex;
+  if (dx) openDexDetail(dx);
+});
+
 // ---------- loop ----------
 
 let last = null;
@@ -751,8 +984,10 @@ function loop(ts) {
   handleEvents();
   if (scene) {
     scene.reeling = reelHeld && game.phase === PHASES.FIGHT;
-    scene.render(game, dt, { ...pointer, camX: walker.x, walkSpeed: walker.v / WALK_SPEED, gate: gateX() });
-    scene.trackPerf(dt);
+    if (view === 'pond') {
+      scene.render(game, dt, { ...pointer, camX: walker.x, walkSpeed: walker.v / WALK_SPEED, gate: gateX() });
+      scene.trackPerf(dt);
+    }
   }
   if (game.phase === PHASES.FIGHT && reelHeld) {
     clickTimer -= dt;
@@ -861,7 +1096,7 @@ sceneEl.addEventListener('contextmenu', (e) => e.preventDefault());
 
 window.addEventListener('keydown', (e) => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
-  if (anyDialogOpen()) return;
+  if (anyDialogOpen() || view !== 'pond') return;
   if (e.code === 'ArrowLeft' || e.code === 'KeyA') { if (!keys.left) pressAt.keyLeft = performance.now(); keys.left = true; e.preventDefault(); sfx.unlock(); return; }
   if (e.code === 'ArrowRight' || e.code === 'KeyD') { if (!keys.right) pressAt.keyRight = performance.now(); keys.right = true; e.preventDefault(); sfx.unlock(); return; }
   if (e.repeat) return;
@@ -960,13 +1195,17 @@ async function boot() {
     pendingCatch = null;
   };
   scene.onThunder = () => sfx.thunder();
-  window.__goop = { game, scene, walker };
+  tank = new Tank($('tankCanvas'), assets, scene);
+  tank.sync(game.state);
+  window.__goop = { game, scene, walker, tank, go };
+  const start0 = location.hash.slice(1);
+  if (VIEWS.includes(start0) && start0 !== 'pond') go(start0, { scroll: false });
   $('loadHint').textContent = 'The Goops are biting.';
   const start = $('startBtn');
   start.hidden = false;
-  const go = () => { sfx.unlock(); $('loader').classList.add('gone'); };
-  start.addEventListener('click', go, { once: true });
-  if (new URLSearchParams(location.search).has('skipintro')) go();
+  const begin = () => { sfx.unlock(); $('loader').classList.add('gone'); };
+  start.addEventListener('click', begin, { once: true });
+  if (new URLSearchParams(location.search).has('skipintro')) begin();
   requestAnimationFrame(loop);
 }
 boot();

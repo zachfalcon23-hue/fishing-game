@@ -28,8 +28,22 @@ The game is published with GitHub Pages (Settings → Pages → Deploy from a br
     - **Lures** (9): kept once bought and upgradeable to level 3. They speed up bites, attract fight types, favour rare Goops by day or night, grow bigger catches, boost shinies, calm fights or dive for Epics.
     - **Bait** (used up one per cast) and **extras**: Hourglass (skip to the next time of day), Weather Totem (pick the weather), Frenzy Flare, Wiggs' Tip (learn where an unknown Goop bites), the Fish Finder (live odds of what's biting where you stand), buddy treats (your buddy grows, +4% Essence per level) and tackle tuning (Reel Gears, Line Strength, Sharp Hooks).
 
+## Places
+The game has three places, switched with the buttons under the logo. Each has its own address, so a website can link straight to it:
+- **The Pond** (`index.html`): roam, fish and explore.
+- **Wiggs' Bait Shack** (`index.html#shack`): Old Wiggs, drawn and animated in SVG, gives you his story quests, bounties and rumours. His shop (rods, skins, bobbers, lines, lures, bait and extras, with a live preview) lives here, under a rod rack that shows every rod style.
+- **The Aquarium** (`index.html#aquarium`): every Goop you've caught swims in a living tank.
+  - Tap a Goop to say hi and see its card (make it your buddy from there).
+  - Turn on FEED and tap the water to drop food; hungry Goops race for it.
+  - Shinies sparkle and Legendaries glow.
+  - Buy decorations (coral, castle, treasure chest, glowshrooms, crystals, anchor, a model wreck, the Goop Throne) and backdrops (Sunset, Moonlit, Magma, Crystal Cave, Abyss). Completed collections appear as trophies.
+  - Visitors leave tips once a day based on what's in your tank.
+
+## Old Wiggs' story
+13 chapters that walk you through the whole game: first catches, bait, the paths, field notes, dodging lunges, each secret place, the GoopDex, frenzies, collections and Legendaries. Finished quests are turned in at the shack for Essence, rods, skins, bobbers and aquarium pieces. The finale sends you to the Deep Drop at night to catch **The Sleeper**, a quest-only Legendary. After the story ends it rises again on full-moon nights. A chip on the pond shows your current goal.
+
 ## Systems
-- **85 Goop species** across 5 rarities, each with a portrait, a habitat, a favourite food, a fight pattern and a size range. 13 of them live only in the secret spots (regional variants of North Pond Goops).
+- **86 Goop species** across 5 rarities, each with a portrait, a habitat, a favourite food, a fight pattern and a size range. 13 of them live only in the secret spots (regional variants of North Pond Goops).
 - **10 spots on one pond.** Spots on the path open at the GoopDex count shown:
 
   | Spot | Opens |
@@ -67,7 +81,8 @@ The game is published with GitHub Pages (Settings → Pages → Deploy from a br
   - World features: the sandbar, the cave mouth in the second waterfall's cliff, the wreck's mast, clue beacons, frenzy leaps, Old Wiggs' bounty board on the dock, your buddy Goop, and the moon's phases.
   - Render resolution drops on its own when frames run slow.
 - `src/audio.js` — procedural Web Audio sound effects and ambience (crickets, rain, the waterfall's roar, birds, cave drips, waves). There are no audio files. `N` toggles mute.
-- `src/main.js` — game loop, DOM/HUD updates, input (pointer, touch, keyboard; tapping the scene casts or reels).
+- `src/main.js` — game loop, DOM/HUD updates, input (pointer, touch, keyboard; tapping the scene casts or reels), the three places and their URL hashes, Old Wiggs' dialogue and the shop.
+- `src/aquarium.js` — the aquarium tank: swimming, feeding, taps, decorations, backdrops and trophies (presentation only).
 - `src/style.css`, `index.html` — layout and styling. The fonts (Lilita One, Nunito, OFL) are stored in `assets/fonts`, so the game needs no external requests.
 
 ## Art assets (`assets/`)
