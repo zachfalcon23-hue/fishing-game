@@ -146,6 +146,11 @@ function openDexDetail(id) {
   btn.hidden = !e;
   btn.textContent = game.state.buddy === id ? '✓ YOUR BUDDY' : 'MAKE BUDDY';
   btn.classList.toggle('on', game.state.buddy === id);
+  const trackBtn = $('ddTrack');
+  const canTrack = !!e || seen || knows;
+  trackBtn.hidden = !canTrack;
+  trackBtn.textContent = game.state.trackedGoop === id ? 'STOP TRACKING' : 'TRACK THIS GOOP';
+  trackBtn.classList.toggle('on', game.state.trackedGoop === id);
   openDialog('dexDetail');
 }
 
@@ -471,6 +476,7 @@ function render(dt) {
   renderFight();
   renderLists(false);
   renderFinder();
+  renderHuntChip();
   renderQuestChip();
 }
 
@@ -978,6 +984,17 @@ function drawRack() {
 
 // ----- quest chip on the pond -----
 
+function renderHuntChip() {
+  const chip = $('huntChip');
+  const hunt = game.trackingStatus();
+  chip.hidden = !hunt;
+  if (!hunt) return;
+  const { goop, active, status } = hunt;
+  setHTML('huntChip', `<img src="${GOOP_ART(goop.id)}" alt=""><span class="hunt-copy"><b>TRACKING · ${esc(goop.name).toUpperCase()}</b><small>${esc(status)}</small></span><i>${active ? 'ON TRAIL' : 'FIELD LOG'}</i>`);
+  chip.classList.toggle('active', active);
+  chip.classList.toggle('waiting', !active);
+}
+
 function renderQuestChip() {
   const chip = $('questChip');
   const q = game.quest;
@@ -1304,6 +1321,18 @@ $('ddBuddy').addEventListener('click', () => {
   game.setBuddy(game.state.buddy === detailId ? null : detailId);
   openDexDetail(detailId);
   lastLists = '';
+});
+$('ddTrack').addEventListener('click', () => {
+  if (!detailId) return;
+  const next = game.state.trackedGoop === detailId ? null : detailId;
+  if (game.setTrackedGoop(next)) {
+    openDexDetail(detailId);
+    lastLists = '';
+  }
+});
+$('huntChip').addEventListener('click', () => {
+  const id = game.state.trackedGoop;
+  if (id) openDexDetail(id);
 });
 $('shopList').addEventListener('click', (e) => {
   const kind = e.target.closest('[data-buy]')?.dataset.buy;
