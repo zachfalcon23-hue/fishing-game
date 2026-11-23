@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { evaluateWildlifeBehavior, wildlifeNeeds } from '../src/wildlife.js';
+import { evaluateWildlifeBehavior, wildlifeNeeds, habitatReturnOffset } from '../src/wildlife.js';
 
 test('ambient needs are repeatable for the same school and scene time', () => {
   const school = { phase: 2.4, chronotype: -0.5 };
@@ -53,4 +53,36 @@ test('behavior outputs remain finite and bounded for malformed inputs', () => {
     if (typeof value === 'number') assert.ok(Number.isFinite(value));
   }
   assert.ok(behavior.feeding >= 0 && behavior.feeding <= 1);
+});
+
+test('hungry, faithful schools bias toward their home habitat', () => {
+  const baseline = habitatReturnOffset({
+    worldX: 100, homeX: 500, hunger: 0.2, fidelity: 0.2,
+  });
+  const returning = habitatReturnOffset({
+    worldX: 100, homeX: 500, hunger: 1, fidelity: 1,
+  });
+  assert.ok(returning > baseline);
+  assert.ok(returning > 0);
+});
+
+test('disturbance suppresses habitat return and the offset remains bounded', () => {
+  const settled = habitatReturnOffset({
+    worldX: -1000, homeX: 1000, hunger: 1, fidelity: 1,
+  });
+  const startled = habitatReturnOffset({
+    worldX: -1000, homeX: 1000, hunger: 1, fidelity: 1, disturbance: 1,
+  });
+  assert.equal(Math.abs(settled), 180);
+  assert.ok(Math.abs(startled) < Math.abs(settled));
+});
+
+test('local feeding activity strengthens the return toward a familiar feeding site', () => {
+  const quiet = habitatReturnOffset({
+    worldX: 0, homeX: 400, hunger: 0.8, fidelity: 0.8, activity: 0,
+  });
+  const active = habitatReturnOffset({
+    worldX: 0, homeX: 400, hunger: 0.8, fidelity: 0.8, activity: 3,
+  });
+  assert.ok(active > quiet);
 });
