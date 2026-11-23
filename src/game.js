@@ -620,16 +620,34 @@ export const MOVE_INFO = {
 export const stagesFor = (goop) => (goop.rarity === 'Legendary' ? 3 : goop.rarity === 'Epic' ? 2 : 1);
 const MOVE_GAP = [7, 6, 5, 4.4, 3.8]; // seconds between moves by rarity
 export const BREAK_TIME = 1.8;
-const PACE = [1, 0.95, 0.85, 0.7, 0.58]; // big Goops take longer to reel in
+const PACE = [1, 0.95, 0.85, 0.7, 0.58]; // rarity baseline; specimen heft adds its own adjustment
+
+/** Roll one individual's size before the fight so its actual heft affects the challenge. */
+export function rollGoopSize(goop, rng = Math.random, exponent = 2) {
+  const [lo, hi] = goop.size || [0, 0];
+  const sampleValue = Number(rng());
+  const sample = Number.isFinite(sampleValue) ? Math.max(0, Math.min(1, sampleValue)) : 0.5;
+  const power = Number.isFinite(exponent) && exponent > 0 ? exponent : 2;
+  return Math.round((lo + (hi - lo) * sample ** power) * 10) / 10;
+}
 
 export function makeFight(goop, gear = {}, env = {}) {
   const g = gearStats(gear);
   const rng = env.rng || Math.random;
   const rank = RANK[goop.rarity];
+  const [minSize, maxSize] = goop.size || [0, 0];
+  const requestedSize = env.size ?? (minSize + maxSize) / 2;
+  const numericSize = Number(requestedSize);
+  const size = Math.round(Math.max(minSize, Math.min(maxSize, Number.isFinite(numericSize) ? numericSize : (minSize + maxSize) / 2)) * 10) / 10;
+  const sizeRatio = maxSize > minSize ? Math.max(0, Math.min(1, (size - minSize) / (maxSize - minSize))) : 0.5;
+  const sizeFactor = 0.9 + sizeRatio * 0.2;
+  const sizeForce = 0.95 + sizeRatio * 0.1;
+  const maxStamina = goop.stamina * sizeFactor;
   return {
-    goop, progress: 0, stamina: goop.stamina, tension: 0.5, phase: 0, elapsed: 0, caught: false, escaped: false,
-    safeLo: g.safeLo - (env.zone ?? 0), safeHi: g.safeHi + (env.zone ?? 0), reelRate: g.reelRate * (env.reel ?? 1) * PACE[rank], snapGuard: g.snapGuard,
-    forceMul: (env.forceMul ?? 1) * (goop.force ?? 1),
+    goop, size, sizeRatio, sizeFactor, sizeClass: sizeRatio <= 0.25 ? 'LIGHT' : sizeRatio >= 0.75 ? 'HEAVY' : 'AVERAGE',
+    progress: 0, stamina: maxStamina, maxStamina, tension: 0.5, phase: 0, elapsed: 0, caught: false, escaped: false,
+    safeLo: g.safeLo - (env.zone ?? 0), safeHi: g.safeHi + (env.zone ?? 0), reelRate: g.reelRate * (env.reel ?? 1) * PACE[rank] / sizeFactor, snapGuard: g.snapGuard,
+    forceMul: (env.forceMul ?? 1) * (goop.force ?? 1) * sizeForce,
     streak: 0, combo: 1, best: 1,
     rng, nextLunge: lunges(goop) ? 3.2 + rng() * 2.4 : null, warn: false,
     lungePower: (0.3 + 0.05 * rank) * (env.lunge ?? 1), log: [],
@@ -784,7 +802,8 @@ export function tickFight(fight, input, dt) {
     if (fight.breakT <= 0) {
       fight.stage += 1;
       fight.forceMul = (fight.forceMul ?? 1) * 1.06;
-      fight.stamina = Math.min(fight.goop.stamina, fight.stamina + fight.goop.stamina * 0.2);
+      const staminaMax = fight.maxStamina ?? fight.goop.stamina;
+      fight.stamina = Math.min(staminaMax, fight.stamina + staminaMax * 0.2);
       fight.stageCap = fight.stage < fight.stages ? fight.stage / fight.stages : 1;
       fight.nextMove = 1.2;
       fight.log.push({ type: 'stage', stage: fight.stage, of: fight.stages });
@@ -1341,7 +1360,8 @@ export class FishingGame {
       if (pressed) {
         this.phase = PHASES.FIGHT;
         const m = this.mods();
-        this.fight = makeFight(this.goop, this.state.gear, { forceMul: this.weather.forceMul * m.force, rng: this.rng, reel: m.reel, zone: m.zone, lunge: m.lunge });
+        const specimenSize = rollGoopSize(this.goop, this.rng, m.sizeExp);
+        this.fight = makeFight(this.goop, this.state.gear, { forceMul: this.weather.forceMul * m.force, rng: this.rng, reel: m.reel, zone: m.zone, lunge: m.lunge, size: specimenSize });
         const perfect = this.timer <= PERFECT_HOOK;
         this.fight.perfect = perfect;
         if (perfect) { this.fight.progress = 0.12; this.state.stats.perfect += 1; }
@@ -1392,9 +1412,8 @@ export class FishingGame {
     const before = this.dexCount;
     const prev = s.dex[id] || { count: 0, fastest: null, best: null, shiny: 0 };
     const time = this.fight.elapsed;
-    const [lo, hi] = g.size;
     const mods = this.mods(ctx);
-    const size = Math.round((lo + (hi - lo) * this.rng() ** mods.sizeExp) * 10) / 10; // big ones are rare
+    const size = this.fight.size ?? rollGoopSize(g, this.rng, mods.sizeExp);
     let odds = SHINY_ODDS;
     if (ctx.bait === 'golden') odds *= 2;
     if (this.fullMoon && ctx.time === 'Night') odds *= 2;
