@@ -22,9 +22,9 @@ These are documented features, not a claim that every release check below has pa
 ## Integration notes — 2026-11-23
 
 - PR #32, autonomous ambient pond wildlife, is merged into main.
-- PR #33 adds species-aware wildlife sightings using the live encounter pool. It is still draft until its Node regression suite and browser playtest are validated.
+- PR #33 adds species-aware wildlife sightings using the live encounter pool. Its syntax and Node regression suite passed on commit `edbcd41`; browser validation is now wired into CI and remains pending.
 - The older `feature/maximal-one-shot-v0-2` branch is not a safe wholesale merge target. Its base is substantially behind current main and its snapshot omits current mainline scene, aquarium, audio, wildlife, and art assets. Its game-engine, HTML, browser-smoke, telemetry, and economy files target an older interface and require selective porting or replacement.
-- The old browser smoke script targets the Pondbound 0.4 UI and save key; it must not be treated as a current-mainline test.
+- The old browser smoke script targets the Pondbound 0.4 UI and save key; it must not be treated as a current-mainline test. A new current-mainline harness has been added at `tests/browser-smoke.mjs`.
 - The old telemetry adapter assumes different game fields and a sell/keep flow not present in the current mainline API. Do not integrate it without an explicit adapter and tests.
 - The old economy audit models a 50-species, five-zone build. Its figures are not valid for the current 86-species, ten-spot mainline and must be recalculated from current source before use.
 
@@ -36,8 +36,10 @@ Run these against the exact candidate commit:
 - [ ] `npm test` passes with zero failures.
 - [ ] The GitHub Actions validation workflow passes on the candidate commit.
 - [ ] The test run includes the species-aware wildlife suite after PR #33 is integrated.
-- [ ] A current browser smoke suite is available and passes on desktop and mobile viewports.
-- [ ] Browser smoke coverage checks startup, primary navigation, GoopDex, casting, bite/hook/fight, catch resolution, reload/save behavior, console errors, and failed local assets.
+- [x] A current-mainline Playwright browser smoke suite is committed at `tests/browser-smoke.mjs` and wired into GitHub Actions.
+- [ ] The browser smoke suite passes on desktop and mobile viewports using the supported Ubuntu 24.04 runner.
+- [x] Browser smoke coverage exercises startup, all three views, casting, bite/hook/fight transitions, uncaught errors, console errors, missing local assets, and mobile layout/touch-control sizing.
+- [ ] Extend browser coverage to catch resolution, reload/save behavior, keyboard-only controls, and accessibility announcements.
 - [ ] Any failed or skipped check is explained; runner-allocation failures are not counted as passing tests.
 
 ## Core gameplay validation
