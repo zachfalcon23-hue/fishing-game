@@ -103,6 +103,20 @@ test('catch awards Essence and records Dex entry', () => {
   assert.ok(mem.v, 'catch is saved');
 });
 
+test('best fight streak earns a capped Essence skill bonus', () => {
+  const g = newGame();
+  g.cast();
+  g.phase = PHASES.FIGHT;
+  g.goop = GOOPS[0];
+  g.fight = makeFight(GOOPS[0]);
+  g.fight.best = 1.6;
+  g.fight.caught = true;
+  g.update(0);
+  assert.equal(g.lastCatch.skillBonus, 0.1);
+  assert.equal(g.lastCatch.reward, 9, 'a max streak raises an 8 Essence catch to 9');
+  assert.equal(g.state.essence, 9);
+});
+
 test('full round trip: cast, bite, hook, fight', () => {
   const g = newGame();
   assert.ok(g.cast());
