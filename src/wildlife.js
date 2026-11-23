@@ -55,7 +55,7 @@ export function evaluateWildlifeBehavior({
   return {
     state,
     feeding,
-    speed: state === 'fleeing' ? 1.65 : state === 'resting' ? 0.3 : state === 'feeding' ? 0.82 : 1,
+    motionRate: state === 'fleeing' ? 1.65 : state === 'resting' ? 0.3 : state === 'feeding' ? 0.82 : 1,
     spacing: state === 'fleeing' ? 1.22 : state === 'feeding' ? 0.72 : 1,
     sway: state === 'fleeing' ? 1.42 : state === 'resting' ? 0.28 : state === 'feeding' ? 0.68 : 1,
   };
