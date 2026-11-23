@@ -167,13 +167,16 @@ try {
     assert.equal(await page.locator('#aquariumView').isVisible(), false);
 
     // Verify the backup recovery path in a real browser reload.
-    await page.evaluate(() => {
-      const backup = window.__goop.game.saveStore.fresh();
-      backup.essence = 321;
-      localStorage.setItem('goop-fishing-save-backup', JSON.stringify(backup));
-      localStorage.setItem('goop-fishing-save', '{damaged-primary');
-      location.reload();
-    });
+    await Promise.all([
+      page.waitForNavigation({ waitUntil: 'domcontentloaded' }),
+      page.evaluate(() => {
+        const backup = window.__goop.game.saveStore.fresh();
+        backup.essence = 321;
+        localStorage.setItem('goop-fishing-save-backup', JSON.stringify(backup));
+        localStorage.setItem('goop-fishing-save', '{damaged-primary');
+        location.reload();
+      }),
+    ]);
     await page.waitForFunction(
       () => document.querySelector('#loader')?.classList.contains('gone') === true
         && window.__goop?.game?.saveStore?.lastLoadRecovered === true,
