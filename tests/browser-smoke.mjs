@@ -141,7 +141,7 @@ try {
       page.waitForEvent('download'),
       page.locator('#exportSessionBtn').click(),
     ]);
-    assert.match(sessionDownload.suggestedFilename(), /^goop-fishing-session-.*\\.json$/);
+    assert.match(sessionDownload.suggestedFilename(), /^goop-fishing-session-.*\.json$/);
     assert.equal(await sessionDownload.failure(), null);
     await page.waitForFunction(() => window.__goop?.game.phase === 'bite', undefined, { timeout: 15000 });
     await page.locator('#reelBtn').click();
