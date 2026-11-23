@@ -72,6 +72,34 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const motionlessOffset = (pattern, t, i) => pattern === 'dart' || pattern === 'wild' ? Math.sin(t * 8 + i * 2.1) * 18 : pattern === 'drift' ? Math.sin(t * 0.8 + i) * 26 : Math.sin(t * 1.5 + i * 2) * 10;
 const lerp = (a, b, t) => a + (b - a) * t;
 const ease = (t) => t * t * (3 - 2 * t);
+
+/**
+ * Pure visual response to a resolved signature move.
+ * `at` is the game's event timestamp (milliseconds); no fight state is modified.
+ * Returns null for expired/invalid reactions so old effects cannot leak into a later cast.
+ */
+export function fightReactionPose(reaction, now, x, y, bobberX) {
+  if (!reaction || !['win', 'fail'].includes(reaction.type)
+    || !Number.isFinite(reaction.at) || !Number.isFinite(reaction.duration)
+    || reaction.duration <= 0 || !Number.isFinite(now)) return null;
+  const age = Math.max(0, (now - reaction.at) / 1000);
+  const progress = age / reaction.duration;
+  if (progress >= 1) return null;
+  const strength = Math.sin(Math.PI * clamp(progress, 0, 1));
+  const success = reaction.type === 'win';
+  const direction = success ? (Math.sign(x - bobberX) || 1) : (Math.sign(bobberX - x) || 1);
+  return {
+    type: reaction.type,
+    move: reaction.move,
+    progress,
+    strength,
+    x: x + direction * (success ? 34 : 48) * strength
+      + (success ? 0 : Math.sin(age * 30) * 12 * strength),
+    y: y + (success ? 18 : -24) * strength,
+    scale: 1 + (success ? -0.08 : 0.1) * strength,
+    alpha: 1 + (success ? -0.18 : 0.08) * strength,
+  };
+}
 function makeCanvas(w, h) {
   const c = document.createElement('canvas');
   c.width = Math.max(1, Math.round(w)); c.height = Math.max(1, Math.round(h));
@@ -267,6 +295,7 @@ export class Scene {
     this.cast = null;
     this.jump = null;
     this.reveal = null;
+    this.goopReaction = null;
     this.snap = null;
     this.bobber = { x: 1250, y: 700, dip: 0 };
     this.walk = 0;               // walking speed 0..1 (lowers the rod, bobs the camera)
@@ -428,7 +457,7 @@ export class Scene {
       this.anchorX = this.camX;
       const tx = lerp(D.lane.x0, D.lane.x1, Math.random()), ty = lerp(D.lane.y0, D.lane.y1, Math.random());
       this.cast = { t: 0, dur: 0.75, tx, ty };
-      this.reveal = null; this.snap = null; this.jump = null;
+      this.reveal = null; this.goopReaction = null; this.snap = null; this.jump = null;
       this.bobber.x = tx; this.bobber.y = ty;
       this.castX = null;
     } else if (e.type === 'bite') {
@@ -441,12 +470,14 @@ export class Scene {
       this.splash(this.bobber.x, this.bobber.y, 22, '#e8fdff', 1);
       this.ring(this.bobber.x, this.bobber.y, 1.6);
     } else if (e.type === 'catch') {
+      this.goopReaction = null;
       const g = game.goop;
       this.reveal = { t: 0, id: g.id, color: g.color, rarity: g.rarity, shiny: e.detail.shiny, x0: this.bobber.x, y0: this.bobber.y };
       this.splash(this.bobber.x, this.bobber.y, 46, '#ffffff', 1.5);
       this.ring(this.bobber.x, this.bobber.y, 2.2);
       this.cam.shake = 14;
     } else if (e.type === 'escaped') {
+      this.goopReaction = null;
       this.snap = { t: 0, x: this.bobber.x, y: this.bobber.y };
       this.splash(this.bobber.x, this.bobber.y, 18, '#ffffff', 1);
       this.cam.shake = 16;
@@ -455,10 +486,13 @@ export class Scene {
       this.splash(this.bobber.x, this.bobber.y, 12, '#e8fdff', 0.8);
       this.ring(this.bobber.x, this.bobber.y, 1.3);
     } else if (e.type === 'moveWin') {
+      this.goopReaction = { type: 'win', move: e.detail.move, at: e.time, duration: 0.95 };
       this.sparkle(this.bobber.x, this.bobber.y - 30, 22, '#8df28a');
+      this.ring(this.bobber.x, this.bobber.y, 1.25);
     } else if (e.type === 'moveFail') {
-      this.cam.shake = Math.max(this.cam.shake, 14);
-      this.splash(this.bobber.x, this.bobber.y, 18, '#ffffff', 1);
+      this.goopReaction = { type: 'fail', move: e.detail.move, at: e.time, duration: 0.72 };
+      this.cam.shake = Math.max(this.cam.shake, 10);
+      this.splash(this.bobber.x, this.bobber.y, 16, '#ffc0a0', 0.85);
     } else if (e.type === 'beat' || e.type === 'step') {
       this.bobber.dip = 16;
       this.ring(this.bobber.x, this.bobber.y, 0.9);
@@ -2125,6 +2159,15 @@ export class Scene {
       a = move === 'fakeout' && f.move?.state === 'still' ? 0.48 : 0.8;
       sc = 0.62 * ds; colorA = 0.45;
     }
+    let reactionPose = null;
+    if (phase === PHASES.FIGHT && this.goopReaction) {
+      reactionPose = fightReactionPose(this.goopReaction, Date.now(), x, y, b.x);
+      if (!reactionPose) this.goopReaction = null;
+      else {
+        x = reactionPose.x; y = reactionPose.y;
+        sc *= reactionPose.scale; a *= reactionPose.alpha;
+      }
+    }
     const w = art.width * sc, h = art.height * sc;
     const flip = Math.cos(t * (p === 'dart' ? 2.8 : 0.9)) < 0 && phase === PHASES.CAST ? -1 : 1;
     g.save(); g.translate(x, y); g.scale(flip, 0.8);
@@ -2136,6 +2179,16 @@ export class Scene {
       g.drawImage(art, -w / 2, -h / 2, w, h);
     }
     g.restore(); g.globalAlpha = 1;
+    if (reactionPose && reactionPose.strength > 0.01) {
+      // A short-lived ring follows the Goop itself: green on a clean counter, warm on a mistake.
+      g.save(); g.globalCompositeOperation = 'lighter';
+      g.strokeStyle = reactionPose.type === 'win' ? '#8df28a' : '#ffad91';
+      g.lineWidth = reactionPose.type === 'win' ? 4 : 5;
+      g.globalAlpha = (1 - reactionPose.progress) * 0.48;
+      const radius = 34 + reactionPose.progress * 76;
+      g.beginPath(); g.ellipse(x, y + h * 0.22, radius * ds, 8 + reactionPose.progress * 13, 0, 0, Math.PI * 2); g.stroke();
+      g.restore();
+    }
     if (phase === PHASES.BITE) {
       // Small surface tells make the approach legible without adding another HUD meter.
       const cue = p === 'dart' || p === 'wild' ? 2 : p === 'pulse' ? 3 : 1;
