@@ -296,6 +296,12 @@ export class Scene {
     this.rain = Array.from({ length: 260 }, () => ({ x: rnd() * W, y: rnd() * H, l: 18 + rnd() * 26, v: 1300 + rnd() * 700, z: 0.4 + rnd() * 0.6 }));
     this.motes = Array.from({ length: 70 }, () => ({ x: rnd() * W, y: rnd(), ph: rnd() * 6.28, r: 1 + rnd() * 2.5 }));
     this.forestFlip = Array.from({ length: 64 }, () => rnd() < 0.5);
+    // Ambient schools are presentation-only; fixed seeds keep the pond coherent between frames.
+    this.wildlife = Array.from({ length: 18 }, (_, i) => ({
+      x: WORLD_MIN - 900 + rnd() * (WORLD_MAX - WORLD_MIN + 1800),
+      y: HZ + 105 + rnd() * 390, phase: rnd() * 6.28, speed: 10 + rnd() * 24,
+      size: 0.55 + rnd() * 0.8, count: 2 + Math.floor(rnd() * 4), color: ['#b9e6e8', '#9bd5d0', '#a8c8ff', '#c5b8ef'][i % 4],
+    }));
   }
 
   makeCloud(rnd) {
@@ -577,6 +583,8 @@ export class Scene {
     // ---- water ----
     base(0.55);
     this.drawWater(g, base, time, weather, t, spotOff);
+    base(0.62);
+    this.drawWildlife(g, t, weather, game);
 
     this.drawSecretsMid(g, base, game, t);
     this.drawFrenzy(g, base, game, t, dt);
@@ -878,6 +886,60 @@ export class Scene {
       g.fillStyle = gr; g.fillRect(0, hy, this.canvas.width, this.canvas.height - hy);
     }
     void spotOff;
+  }
+
+  /** Small schools of wild pond life. These are ambient sightings, not catchable targets. */
+  drawWildlife(g, t, weather, game) {
+    const d = 0.62;
+    const span = WORLD_MAX - WORLD_MIN + 2200;
+    const visibility = weather === 'storm' ? 0.48 : weather === 'fog' ? 0.62 : 1;
+    for (const school of this.wildlife) {
+      const wx = WORLD_MIN - 1100 + (((school.x - (WORLD_MIN - 1100) + t * school.speed) % span) + span) % span;
+      const x = this.layerX(wx, d);
+      if (x < -180 || x > W + 180) continue;
+      const sway = Math.sin(t * 0.9 + school.phase) * 9;
+      const y = school.y + sway;
+      const depth = clamp((y - HZ) / (H - HZ), 0, 1);
+      const scale = school.size * (0.58 + depth * 0.62);
+      const dir = Math.sin(t * 0.16 + school.phase) > 0.72 ? -1 : 1;
+      g.save();
+      g.translate(x, y);
+      g.scale(dir * scale, scale);
+      g.globalAlpha = visibility * (0.16 + depth * 0.17);
+      g.fillStyle = school.color;
+      for (let i = 0; i < school.count; i++) {
+        const fx = -i * 22 - Math.sin(t * 1.3 + i + school.phase) * 5;
+        const fy = Math.sin(t * 1.7 + i * 1.8 + school.phase) * 5;
+        g.beginPath();
+        g.moveTo(fx + 11, fy);
+        g.quadraticCurveTo(fx - 1, fy - 9, fx - 15, fy);
+        g.quadraticCurveTo(fx - 1, fy + 9, fx + 11, fy);
+        g.lineTo(fx + 19, fy - 6);
+        g.lineTo(fx + 17, fy);
+        g.lineTo(fx + 19, fy + 6);
+        g.closePath();
+        g.fill();
+        g.globalAlpha = visibility * (0.2 + depth * 0.18);
+        g.fillStyle = '#e8fbff';
+        g.beginPath(); g.arc(fx + 5, fy - 1, 1.15, 0, 6.29); g.fill();
+        g.fillStyle = school.color;
+        g.globalAlpha = visibility * (0.16 + depth * 0.17);
+      }
+      g.restore();
+    }
+    // Occasional surface dimples suggest movement just below the waterline.
+    const dimpleChance = weather === 'storm' ? 0.35 : 0.7;
+    if (Math.sin(t * 0.7 + game.state.day) > 0.15 && Math.sin(t * 0.31) > -0.3) {
+      g.globalAlpha = 0.18 * dimpleChance;
+      g.strokeStyle = '#d8f8ff';
+      g.lineWidth = 2;
+      for (let i = 0; i < 3; i++) {
+        const x = ((i * 613 + t * (18 + i * 5)) % (W + 100)) - 50;
+        const y = HZ + 28 + ((i * 137 + t * 8) % 70);
+        g.beginPath(); g.ellipse(x, y, 10 + i * 3, 2.5, 0, 0, Math.PI * 2); g.stroke();
+      }
+      g.globalAlpha = 1;
+    }
   }
 
   /** Stage (x, y) to canvas pixels for screen-anchored drawing (depth 0). */
