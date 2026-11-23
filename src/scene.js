@@ -297,11 +297,23 @@ export class Scene {
     this.motes = Array.from({ length: 70 }, () => ({ x: rnd() * W, y: rnd(), ph: rnd() * 6.28, r: 1 + rnd() * 2.5 }));
     this.forestFlip = Array.from({ length: 64 }, () => rnd() < 0.5);
     // Ambient schools are presentation-only; fixed seeds keep the pond coherent between frames.
-    this.wildlife = Array.from({ length: 18 }, (_, i) => ({
-      x: WORLD_MIN - 900 + rnd() * (WORLD_MAX - WORLD_MIN + 1800),
-      y: HZ + 105 + rnd() * 390, phase: rnd() * 6.28, speed: 10 + rnd() * 24,
-      size: 0.55 + rnd() * 0.8, count: 2 + Math.floor(rnd() * 4), color: ['#b9e6e8', '#9bd5d0', '#a8c8ff', '#c5b8ef'][i % 4],
-    }));
+    const habitatBands = {
+      sandbar: [92, 168, 'dart'], dock: [145, 265, 'cruise'], lily: [92, 190, 'dart'],
+      reeds: [118, 228, 'weave'], boulder: [218, 338, 'cruise'], falls: [150, 290, 'surge'],
+      cave: [238, 360, 'drift'], grotto: [250, 378, 'drift'], deep: [320, 438, 'drift'],
+      wreck: [292, 420, 'drift'],
+    };
+    this.wildlife = Array.from({ length: 18 }, (_, i) => {
+      const x = WORLD_MIN - 900 + rnd() * (WORLD_MAX - WORLD_MIN + 1800);
+      const nearest = SPOTS.reduce((best, spot) => Math.abs(SPOT_X[spot.id] - x) < Math.abs(SPOT_X[best.id] - x) ? spot : best, SPOTS[0]);
+      const [low, high, movement] = habitatBands[nearest.id] || [150, 300, 'cruise'];
+      return {
+        x, y: HZ + low + rnd() * (high - low), movement,
+        phase: rnd() * 6.28, speed: 10 + rnd() * 24,
+        size: 0.55 + rnd() * 0.8, count: 2 + Math.floor(rnd() * 4),
+        color: ['#b9e6e8', '#9bd5d0', '#a8c8ff', '#c5b8ef'][i % 4],
+      };
+    });
   }
 
   makeCloud(rnd) {
@@ -897,11 +909,14 @@ export class Scene {
     const feeding = clamp(activity / 3 + (frenzy ? 0.45 : 0), 0, 1);
     const visibility = (weather === 'storm' ? 0.48 : weather === 'fog' ? 0.62 : 1) * (0.82 + feeding * 0.18);
     for (const school of this.wildlife) {
-      const swimSpeed = school.speed * (1 + feeding * 0.38);
+      const movement = school.movement || 'cruise';
+      const movementRate = movement === 'dart' ? 1.7 : movement === 'surge' ? 1.25 : movement === 'drift' ? 0.58 : movement === 'weave' ? 1.05 : 0.82;
+      const swimSpeed = school.speed * movementRate * (1 + feeding * 0.3);
       const wx = WORLD_MIN - 1100 + (((school.x - (WORLD_MIN - 1100) + t * swimSpeed) % span) + span) % span;
       const x = this.layerX(wx, d);
       if (x < -180 || x > W + 180) continue;
-      const sway = Math.sin(t * (0.9 + feeding * 0.7) + school.phase) * (9 - feeding * 3);
+      const swaySize = movement === 'weave' ? 15 : movement === 'drift' ? 5 : 9;
+      const sway = Math.sin(t * (movementRate + feeding * 0.55) + school.phase) * (swaySize - feeding * 2);
       const y = school.y + sway;
       const depth = clamp((y - HZ) / (H - HZ), 0, 1);
       const scale = school.size * (0.58 + depth * 0.62);
