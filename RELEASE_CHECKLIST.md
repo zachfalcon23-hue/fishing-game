@@ -25,7 +25,7 @@ These are documented features, not a claim that every release check below has pa
 - PR #33 adds species-aware wildlife sightings using the live encounter pool. Its syntax and Node regression suite passed on commit `edbcd41`; browser validation is now wired into CI and remains pending.
 - The older `feature/maximal-one-shot-v0-2` branch is not a safe wholesale merge target. Its base is substantially behind current main and its snapshot omits current mainline scene, aquarium, audio, wildlife, and art assets. Its game-engine, HTML, browser-smoke, telemetry, and economy files target an older interface and require selective porting or replacement.
 - The old browser smoke script targets the Pondbound 0.4 UI and save key; it must not be treated as a current-mainline test. A new current-mainline harness has been added at `tests/browser-smoke.mjs`.
-- The old telemetry adapter assumes different game fields and a sell/keep flow not present in the current mainline API. Do not integrate it without an explicit adapter and tests.
+- The old telemetry adapter assumed different game fields and a sell/keep flow not present in the current mainline API. Its replacement is now implemented in `src/telemetry.js`, observing the live `cast → bite → fight → caught/escaped` phases. It is in-memory only, never uploaded, and does not modify saves.
 - The old economy audit models a 50-species, five-zone build. Its figures are not valid for the current 86-species, ten-spot mainline and must be recalculated from current source before use.
 
 ## Automated release gates
@@ -35,12 +35,13 @@ Run these against the exact candidate commit:
 - [ ] `npm run check` passes.
 - [ ] `npm test` passes with zero failures.
 - [ ] The GitHub Actions validation workflow passes on the candidate commit.
-- [ ] The test run includes the species-aware wildlife suite after PR #33 is integrated.
+- [ ] The test run includes the species-aware wildlife suite and the adapted session telemetry suite on the candidate commit.
 - [x] A current-mainline Playwright browser smoke suite is committed at `tests/browser-smoke.mjs` and wired into GitHub Actions.
 - [ ] The browser smoke suite passes on desktop and mobile viewports using the supported Ubuntu 24.04 runner.
 - [x] Browser smoke coverage exercises startup, all three views, casting, bite/hook/fight transitions, uncaught errors, console errors, missing local assets, and mobile layout/touch-control sizing.
 - [ ] Extend browser coverage to catch resolution, reload/save behavior, keyboard-only controls, and accessibility announcements.
 - [ ] Any failed or skipped check is explained; runner-allocation failures are not counted as passing tests.
+- [ ] Session telemetry accurately captures catch, miss, and escape outcomes, uses only current-mainline fields, and exports no player identifiers.
 
 ## Core gameplay validation
 
@@ -55,6 +56,7 @@ Run these against the exact candidate commit:
 - [ ] Old Wiggs' chapters, daily bounties, rumours, rewards, and quest-only encounters progress correctly.
 - [ ] Aquarium placement, storage, feeding, tank capacity, decorations, themes, and visitor tips work correctly.
 - [ ] Ambient wildlife remains presentation-only and does not consume encounter RNG or alter fishing outcomes.
+- [ ] Session telemetry remains observational: it does not change game RNG, progression, save contents, or network behavior.
 - [ ] Species-aware sightings never reveal locked/undiscovered habitats and never imply that a sighting guarantees a bite.
 
 ## Save, accessibility, and device validation
