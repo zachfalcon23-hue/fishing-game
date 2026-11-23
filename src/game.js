@@ -5,6 +5,7 @@ export const PHASES = Object.freeze({
 });
 
 export const RARITIES = ['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'];
+export const TRACK_WEIGHT_MULT = 4;
 const BY_RARITY = {
   Common: { weight: 40, essence: 9, stamina: 1, force: 1, size: [8, 24] },
   Uncommon: { weight: 16, essence: 15, stamina: 1.05, force: 1.03, size: [14, 34] },
@@ -523,7 +524,7 @@ export function conditionsMet(goop, weather, time) {
  * Weighted pool of Goops at one spot for the given conditions.
  * `event` may hold { frenzy: spotId, visitor: { goop, spot }, fullMoon }.
  */
-export function encounterPool({ spot = SPOT_BY.dock, weather = 'clear', time = 'Day', lure = 0, bait = 'worm', event = {}, mods = null } = {}) {
+export function encounterPool({ spot = SPOT_BY.dock, weather = 'clear', time = 'Day', lure = 0, bait = 'worm', event = {}, mods = null, trackedGoop = null } = {}) {
   const b = BAITS[bait] || BAITS.worm;
   const ids = new Set(spot.goops);
   if (event.visitor && event.visitor.spot === spot.id) ids.add(event.visitor.goop);
@@ -536,6 +537,7 @@ export function encounterPool({ spot = SPOT_BY.dock, weather = 'clear', time = '
     if (b.taste && g.taste === b.taste) weight *= 3;
     if (bait === 'golden' && RANK[g.rarity] >= 2) weight *= 2;
     if (event.visitor?.goop === g.id && event.visitor.spot === spot.id) weight = Math.max(weight * 4, 6);
+    if (trackedGoop === g.id) weight *= TRACK_WEIGHT_MULT;
     if (event.frenzy === spot.id && g.rarity !== 'Common') weight *= 1.3;
     if (event.fullMoon && time === 'Night' && g.rarity === 'Legendary') weight *= 2;
     if (mods) {
@@ -992,7 +994,7 @@ export class SaveStore {
       owned: { rods: ['twig'], skins: ['factory'], bobbers: ['classic'], lines: ['classic'], lures: {} },
       equip: { rod: 'twig', skin: 'factory', bobber: 'classic', line: 'classic', lure: 'none' },
       quest: { i: 0, have: 0 }, tank: { tanks: [newTank(1)], decor: [], themes: ['pond'], tipDay: 0 },
-      bounties: [], bountyDay: 0, frenzy: null, visitor: null, rumors: [],
+      bounties: [], bountyDay: 0, frenzy: null, visitor: null, rumors: [], trackedGoop: null,
     };
   }
 
@@ -1092,6 +1094,10 @@ export class SaveStore {
     s.finder = p.finder === true;
     s.buddyLv = Math.min(BUDDY_TRAIN.length, Math.floor(num(p.buddyLv, 0)));
     s.tips = list(p.tips, (id) => ids.has(id));
+    const tracked = p.trackedGoop;
+    const trackedKnown = ids.has(tracked) && (!!s.dex[tracked] || s.seen.includes(tracked) || s.tips.includes(tracked)
+      || s.notes.some((noteId) => NOTES.find((n) => n.id === noteId)?.reveals === tracked));
+    s.trackedGoop = trackedKnown ? tracked : null;
     const q = p.quest && typeof p.quest === 'object' ? p.quest : {};
     s.quest = { i: Math.min(QUESTS.length, Math.floor(num(q.i, 0))), have: Math.floor(num(q.have, 0)) };
     const tk = p.tank && typeof p.tank === 'object' ? p.tank : {};
@@ -1285,6 +1291,52 @@ export class FishingGame {
     return s ? { spot: s.id, text: s.secret.rumor } : null;
   }
 
+  /** Pin one identified species as the current hunt target, or clear the active hunt. */
+  setTrackedGoop(goopId = null) {
+    if (this.busy) return false;
+    if (goopId == null) {
+      if (!this.state.trackedGoop) return false;
+      this.state.trackedGoop = null;
+      this.message = 'Hunt tracking cleared.';
+    } else {
+      const known = GOOPS.some((g) => g.id === goopId) && (this.knows(goopId) || this.state.seen.includes(goopId));
+      if (!known) return false;
+      this.state.trackedGoop = goopId;
+      const goop = GOOPS.find((g) => g.id === goopId);
+      this.message = `Tracking ${goop.name}. Check its habitat and conditions.`;
+    }
+    this.emit('tracking', { goop: this.state.trackedGoop });
+    this.saveStore.save(this.state);
+    return true;
+  }
+
+  /** Current field status for the pinned species; never implies an impossible encounter. */
+  trackingStatus() {
+    const id = this.state.trackedGoop;
+    const goop = GOOPS.find((g) => g.id === id);
+    if (!goop) return null;
+    const zone = this.zone();
+    const visitor = this.event.visitor;
+    const inHabitat = zone.mix.some(([spot, share]) => share > 0 &&
+      (spot.goops.includes(id) || (visitor?.goop === id && visitor.spot === spot.id)));
+    const meetsConditions = conditionsMet(goop, this.state.weather, this.timeOfDay);
+    let status;
+    if (!inHabitat) {
+      const homes = goop.spots.map((spotId) => SPOT_BY[spotId]?.name).filter(Boolean);
+      status = `MOVE TO ${homes.join(' / ').toUpperCase()}`;
+    } else if (!meetsConditions) {
+      const requirements = [];
+      if (goop.needs?.time && !goop.needs.time.includes(this.timeOfDay)) requirements.push(goop.needs.time.join(' / ').toUpperCase());
+      if (goop.needs?.weather && !goop.needs.weather.includes(this.state.weather)) {
+        requirements.push(goop.needs.weather.map((weather) => WEATHER[weather]?.label || weather).join(' / ').toUpperCase());
+      }
+      status = `WAIT FOR ${requirements.join(' + ')}`;
+    } else {
+      status = `ON THE TRAIL · WEIGHT ×${TRACK_WEIGHT_MULT}`;
+    }
+    return { goop, active: inHabitat && meetsConditions, status };
+  }
+
   // ----- fishing -----
 
   cast() {
@@ -1294,7 +1346,7 @@ export class FishingGame {
     const bait = BAITS[s.bait] && (s.bait === 'worm' || s.baits[s.bait] > 0) ? s.bait : 'worm';
     const ev = this.event;
     const mods = this.mods();
-    const pool = zonePool(z, { weather: s.weather, time: this.timeOfDay, lure: s.gear.lure, bait, event: ev, mods });
+    const pool = zonePool(z, { weather: s.weather, time: this.timeOfDay, lure: s.gear.lure, bait, event: ev, mods, trackedGoop: s.trackedGoop });
     const picked = weightedPick(pool, this.rng);
     this.goop = picked ? GOOPS.find((g) => g.id === picked.id) : GOOPS[0];
     this.fight = null;
@@ -1689,7 +1741,7 @@ export class FishingGame {
   forecast(limit = 5) {
     const s = this.state;
     const bait = s.bait === 'worm' || s.baits[s.bait] > 0 ? s.bait : 'worm';
-    const pool = zonePool(this.zone(), { weather: s.weather, time: this.timeOfDay, lure: s.gear.lure, bait, event: this.event, mods: this.mods() });
+    const pool = zonePool(this.zone(), { weather: s.weather, time: this.timeOfDay, lure: s.gear.lure, bait, event: this.event, mods: this.mods(), trackedGoop: s.trackedGoop });
     const total = pool.reduce((a, g) => a + g.weight, 0) || 1;
     return pool.map((g) => ({ id: g.id, chance: g.weight / total })).sort((a, b) => b.chance - a.chance).slice(0, limit);
   }

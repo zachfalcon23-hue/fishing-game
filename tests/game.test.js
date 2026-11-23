@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   GOOPS, SPOTS, UPGRADES, NOTES, NOTE_REWARD, weightedPick, encounterPool, makeFight, tickFight, pullForce,
   FishingGame, SaveStore, PHASES, CASTS_PER_TIME, conditionsMet, conditionText,
-  SPOT_BY, BAITS, SETS, RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, tackleMods, QUESTS, DECOR, THEMES, tankTips, TANK_CAP, TANK_COSTS, DECOR_SLOTS, startMove, SIGNATURE, MOVE_INFO, stagesFor, BREAK_TIME, shoreZone, zonePool, makeBounties, bountyMatches, comboFor, LUNGE_PROFILE, PERFECT_HOOK, CLEAN_HOOK, hookTiming, isFullMoon, rollGoopSize,
+  SPOT_BY, BAITS, SETS, RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, tackleMods, QUESTS, DECOR, THEMES, tankTips, TANK_CAP, TANK_COSTS, DECOR_SLOTS, startMove, SIGNATURE, MOVE_INFO, stagesFor, BREAK_TIME, shoreZone, zonePool, makeBounties, bountyMatches, comboFor, LUNGE_PROFILE, PERFECT_HOOK, CLEAN_HOOK, hookTiming, isFullMoon, rollGoopSize, TRACK_WEIGHT_MULT,
 } from '../src/game.js';
 
 function memStore(initial = null) {
@@ -45,6 +45,54 @@ test('weather and time boost matching Goops in the encounter pool', () => {
   assert.ok(weightOf(storm, 'stormling') > weightOf(clear, 'stormling'));
   const night = encounterPool({ spot, weather: 'clear', time: 'Night' });
   assert.ok(weightOf(night, 'lumen') > weightOf(clear, 'lumen'));
+});
+
+test('field tracking multiplies only the selected Goop after its real habitat and conditions qualify', () => {
+  const spot = SPOTS.find((s) => s.id === 'deep');
+  const base = encounterPool({ spot, weather: 'storm', time: 'Night' });
+  const tracked = encounterPool({ spot, weather: 'storm', time: 'Night', trackedGoop: 'abyssmelt' });
+  const baseTarget = base.find((g) => g.id === 'abyssmelt');
+  const trackedTarget = tracked.find((g) => g.id === 'abyssmelt');
+  assert.ok(baseTarget && trackedTarget, 'the eligible species is in the encounter pool');
+  assert.equal(trackedTarget.weight / baseTarget.weight, TRACK_WEIGHT_MULT);
+  assert.equal(tracked.find((g) => g.id === 'goopshark').weight, base.find((g) => g.id === 'goopshark').weight,
+    'tracking does not inflate unrelated species');
+  const wrongTime = encounterPool({ spot, weather: 'storm', time: 'Day', trackedGoop: 'abyssmelt' });
+  assert.equal(wrongTime.some((g) => g.id === 'abyssmelt'), false, 'tracking cannot bypass a hard night requirement');
+});
+
+test('field tracking forecast uses the same target multiplier and reports field readiness', () => {
+  const plain = newGame();
+  const hunted = newGame();
+  plain.state.seen.push('gloop');
+  hunted.state.seen.push('gloop');
+  assert.ok(hunted.setTrackedGoop('gloop'));
+  const chance = (rows, id) => rows.find((row) => row.id === id)?.chance || 0;
+  const baseline = plain.forecast(GOOPS.length);
+  const forecast = hunted.forecast(GOOPS.length);
+  const baselineRatio = chance(baseline, 'gloop') / chance(baseline, 'murkling');
+  const huntRatio = chance(forecast, 'gloop') / chance(forecast, 'murkling');
+  assert.ok(Math.abs(huntRatio / baselineRatio - TRACK_WEIGHT_MULT) < 1e-9,
+    'Fish Finder target-to-control odds reflect the same ×4 weight change as casts');
+  assert.equal(hunted.trackingStatus().active, true, 'Gloop is on the trail at the starting dock');
+  hunted.state.seen.push('kinggloop');
+  assert.ok(hunted.setTrackedGoop('kinggloop'));
+  const waiting = hunted.trackingStatus();
+  assert.equal(waiting.active, false);
+  assert.match(waiting.status, /WAIT FOR DAWN/, 'the status points to the hard time requirement');
+});
+
+test('field tracking requires known species, persists, and can be cleared', () => {
+  const { store } = memStore();
+  const game = new FishingGame({ rng: () => 0, saveStore: store });
+  assert.equal(game.setTrackedGoop('lumen'), false, 'unknown species cannot be tracked');
+  game.state.seen.push('lumen');
+  assert.equal(game.setTrackedGoop('lumen'), true, 'a species already hooked can be tracked');
+  assert.equal(game.state.trackedGoop, 'lumen');
+  assert.equal(store.load().trackedGoop, 'lumen', 'the selected target survives a save reload');
+  assert.equal(game.setTrackedGoop(null), true);
+  assert.equal(game.state.trackedGoop, null);
+  assert.equal(game.setTrackedGoop(null), false, 'clearing an empty hunt is a no-op');
 });
 
 test('fight tension remains clamped and every pattern produces a finite pull', () => {
