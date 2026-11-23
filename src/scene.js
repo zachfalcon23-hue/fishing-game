@@ -2,7 +2,7 @@
 // The pond is one continuous shoreline. The camera walks along it; every layer scrolls at its
 // own depth so near things slide past faster than far ones.
 import { PHASES, SPOTS, NOTES, SPOT_BY, GOOPS, RODS, SKINS, LINES, encounterPool } from './game.js';
-import { evaluateWildlifeBehavior, wildlifeNeeds, habitatReturnOffset, selectWildlifeSpecies, wildlifeDisplayProfile } from './wildlife.js';
+import { evaluateWildlifeBehavior, wildlifeNeeds, habitatReturnOffset, selectWildlifeSpecies, resolveWildlifeSighting, wildlifeDisplayProfile } from './wildlife.js';
 
 export const W = 1920;
 export const H = 1080;
@@ -981,16 +981,16 @@ export class Scene {
       const localActivity = typeof game.activityAt === 'function' ? game.activityAt(habitat.id) : areaActivity;
       const localFrenzy = frenzySpot === habitat.id;
       const visitorId = gameEvent.visitor?.spot === habitat.id ? gameEvent.visitor.goop : '';
+      const habitatUnlocked = typeof game.spotUnlocked !== 'function' || game.spotUnlocked(habitat.id);
       const sightingKey = [
-        habitat.id, weather, timeOfDay, localActivity, localFrenzy ? 1 : 0,
+        habitat.id, habitatUnlocked ? 1 : 0, weather, timeOfDay, localActivity, localFrenzy ? 1 : 0,
         visitorId, gameEvent.fullMoon ? 1 : 0, gameEvent.sleeper ? 1 : 0, day,
       ].join('|');
 
       // Locked and undiscovered habitats remain anonymous. For open habitats, use the exact
       // same candidate rules as fishing, including weather/time gates, visitors and quest state.
       if (school.sightingKey !== sightingKey) {
-        const unlocked = typeof game.spotUnlocked !== 'function' || game.spotUnlocked(habitat.id);
-        const candidates = unlocked ? encounterPool({
+        const candidates = habitatUnlocked ? encounterPool({
           spot: habitat,
           weather,
           time: timeOfDay,
@@ -998,7 +998,7 @@ export class Scene {
           lure: 0,
           event: { ...gameEvent, activity: state.activity || {} },
         }) : [];
-        school.sighting = selectWildlifeSpecies(candidates, `school:${school.id ?? 0}|${sightingKey}`);
+        school.sighting = resolveWildlifeSighting(candidates, `school:${school.id ?? 0}|${sightingKey}`, habitatUnlocked);
         school.sightingKey = sightingKey;
       }
 
