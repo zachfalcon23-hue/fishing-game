@@ -2110,8 +2110,20 @@ export class Scene {
       a = 0.64; sc = 0.5 * ds;
     } else {
       const f = game.fight;
-      x = b.x + Math.sin(t * 4.2) * 40 * (0.4 + f.tension); y = b.y + 50 * ds + Math.sin(t * 3) * 10;
-      a = 0.8; sc = 0.62 * ds; colorA = 0.45;
+      const move = f?.move?.type;
+      const pulse = Math.sin(t * 8);
+      const signatures = {
+        swerve: [Math.sin(t * 13) * 76, Math.sin(t * 5) * 8],
+        tug: [Math.sin(t * 2.2) * 18, Math.sin(t * 2.2 + 0.8) * 9],
+        fakeout: [Math.sin(t * 0.7) * 5, move === 'fakeout' && f.move?.state === 'still' ? 0 : Math.sin(t * 2.4) * 16],
+        rhythm: [Math.sin(t * 7) * 12, Math.abs(pulse) * 18],
+        current: [Math.sin(t * 1.8) * 54, Math.cos(t * 1.8) * 12],
+        thrash: [Math.sin(t * 17) * 34 + Math.sin(t * 23) * 18, Math.sin(t * 14) * 20],
+      };
+      const motion = signatures[move] || [Math.sin(t * 4.2) * 40 * (0.4 + f.tension), Math.sin(t * 3) * 10];
+      x = b.x + motion[0]; y = b.y + 50 * ds + motion[1];
+      a = move === 'fakeout' && f.move?.state === 'still' ? 0.48 : 0.8;
+      sc = 0.62 * ds; colorA = 0.45;
     }
     const w = art.width * sc, h = art.height * sc;
     const flip = Math.cos(t * (p === 'dart' ? 2.8 : 0.9)) < 0 && phase === PHASES.CAST ? -1 : 1;
@@ -2133,6 +2145,45 @@ export class Scene {
         const r = (18 + pulse * 42) * ds;
         g.globalAlpha = (1 - pulse) * 0.38;
         g.beginPath(); g.ellipse(b.x + 24 + motionlessOffset(p, t, i), b.y + 22 * ds, r * (p === 'drift' ? 1.7 : 1), r * 0.34, 0, 0, Math.PI * 2); g.stroke();
+      }
+      g.restore(); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+    }
+    if (phase === PHASES.FIGHT && game.fight) {
+      // Signature moves speak through the water: each challenge gets a distinct physical cue.
+      const move = game.fight.move?.type;
+      const f = game.fight;
+      const cx = x, cy = y + 18 * ds;
+      g.save(); g.globalCompositeOperation = 'lighter';
+      if (move === 'swerve' || move === 'thrash') {
+        const count = move === 'thrash' ? 5 : 3;
+        g.strokeStyle = hexA(goop.color, 0.42); g.lineWidth = move === 'thrash' ? 4 : 3;
+        for (let i = 0; i < count; i++) {
+          const side = Math.sin(t * (move === 'thrash' ? 17 : 11) + i * 2) * (move === 'thrash' ? 62 : 92);
+          g.globalAlpha = 0.42 - i * 0.055;
+          g.beginPath(); g.ellipse(cx + side, cy + i * 9, 34 + i * 12, 7 + i * 2, side * 0.002, 0, Math.PI * 2); g.stroke();
+        }
+      } else if (move === 'tug') {
+        g.strokeStyle = hexA(goop.color, 0.5); g.lineWidth = 5; g.globalAlpha = 0.65;
+        const pull = Math.sin(t * 2.2) * 26;
+        g.beginPath(); g.moveTo(cx - 95 + pull, cy + 22); g.quadraticCurveTo(cx, cy + 42 + pull, cx + 95 + pull, cy + 22); g.stroke();
+      } else if (move === 'fakeout') {
+        const still = f.move?.state === 'still';
+        g.strokeStyle = hexA(goop.color, still ? 0.2 : 0.55); g.lineWidth = still ? 2 : 4;
+        g.globalAlpha = still ? 0.24 : 0.65;
+        g.beginPath(); g.ellipse(cx, cy + 20, still ? 38 : 78 + Math.sin(t * 8) * 12, still ? 8 : 18, 0, 0, Math.PI * 2); g.stroke();
+      } else if (move === 'rhythm') {
+        g.strokeStyle = hexA(goop.color, 0.55); g.lineWidth = 4;
+        for (let i = 0; i < 3; i++) {
+          const beat = (t * 1.6 + i / 3) % 1;
+          g.globalAlpha = (1 - beat) * 0.5;
+          g.beginPath(); g.ellipse(cx, cy, 42 + beat * 100, 12 + beat * 28, 0, 0, Math.PI * 2); g.stroke();
+        }
+      } else if (move === 'current') {
+        g.strokeStyle = hexA(goop.color, 0.5); g.lineWidth = 4; g.globalAlpha = 0.55;
+        for (let i = 0; i < 3; i++) {
+          const a0 = t * 1.8 + i * 2.1;
+          g.beginPath(); g.ellipse(cx, cy, 86 + i * 22, 18 + i * 6, a0, a0, a0 + Math.PI * 1.25); g.stroke();
+        }
       }
       g.restore(); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
     }
