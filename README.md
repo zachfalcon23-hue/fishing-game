@@ -120,3 +120,9 @@ Fight constants live in `tickFight` and `pullForce` in `src/game.js`. Balance wa
 
 ### Creature fight identity
 - Six named apex encounters have signature-move identities that differ from their baseline pull temperament: King Gloop (Tug of War), Stormray (Swerve), Prismadrake (Rhythm), Ghostshark (Thrash), Drowned King (Current), and The Sleeper (Fake-out). Their underlying pull patterns, rarity, lunge profiles and balance values remain unchanged; the distinct move changes the skill test rather than simply increasing difficulty.
+
+
+### Creature approach and bite tells
+- The submerged Goop now approaches a landed lure according to its movement temperament: darting species feint quickly, pulse species bob in repeated beats, drift species circle broadly, sleepy species linger, and wild species move in layered irregular bursts.
+- During the bite window, the silhouette keeps that identity and creates matching surface disturbances. These are visual tells only: they do not alter bite timing, encounter odds, hook windows, or fight balance.
+- The presentation stays in the water rather than adding another HUD meter, so players can learn to read the creature and the pond itself.
