@@ -1,0 +1,36 @@
+name: Goop Fishing CI
+
+on:
+  push:
+    branches:
+      - main
+      - feature/species-aware-wildlife
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: goop-fishing-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check JavaScript syntax
+        run: npm run check
+
+      - name: Run regression tests
+        run: npm test
