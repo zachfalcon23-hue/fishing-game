@@ -111,6 +111,9 @@ body:has(.loader:not(.gone)) { overflow: hidden; }
 .fight-hud.danger .tension-row .val { color: var(--danger); }
 .mini-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 10px; }
 .bar-label { display: flex; justify-content: space-between; color: var(--muted); font-size: 10px; letter-spacing: .12em; font-weight: 900; margin-bottom: 5px; }
+.heft-tag { margin-left: 5px; color: #b8e9ff; font-size: .9em; font-style: normal; letter-spacing: .08em; white-space: nowrap; }
+.fight-hud.size-heavy .heft-tag { color: #ffbd8a; }
+.fight-hud.size-light .heft-tag { color: #b8f2a0; }
 .meter { position: relative; height: 12px; border-radius: 99px; background: rgba(0, 0, 0, .55); border: 1px solid rgba(255, 255, 255, .12); overflow: hidden; }
 .meter.tension { height: 22px; overflow: visible; background: linear-gradient(90deg, rgba(90, 200, 255, .18), rgba(255, 220, 90, .18) 60%, rgba(255, 70, 70, .35)); }
 .tension-fill { height: 100%; width: 50%; border-radius: 99px; background: linear-gradient(90deg, #4fd8e8, #f1e06d 70%, #ff7a5a); opacity: .55; }
