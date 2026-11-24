@@ -166,6 +166,51 @@ try {
     assert.equal(await page.locator('#pondView').isVisible(), true);
     assert.equal(await page.locator('#aquariumView').isVisible(), false);
 
+    // Resolve the active hooked specimen deterministically, then verify the
+    // reveal, field-research attribution, GoopDex update and persisted save.
+    await page.evaluate(() => {
+      const game = window.__goop.game;
+      const fight = game.fight;
+      fight.stage = fight.stages;
+      fight.stageCap = 1;
+      fight.progress = 1;
+      fight.move = null;
+      fight.breakT = 0;
+      fight.nextMove = Infinity;
+      fight.nextLunge = null;
+      fight.caught = true;
+      game.update(0.016, { reel: false });
+    });
+    await page.waitForFunction(() => {
+      const game = window.__goop?.game;
+      return game?.phase === 'caught'
+        && game.state.dex[game.goop?.id]?.count > 0
+        && Object.values(game.state.research || {}).some(record => record.catches > 0);
+    }, undefined, { timeout: 3000 });
+    await page.waitForFunction(() => {
+      const card = document.querySelector('#catchCard');
+      return card && !card.hidden
+        && /FIELD RESEARCH/.test(document.querySelector('#ccProgress')?.textContent || '');
+    }, undefined, { timeout: 5000 });
+
+    const landed = await page.evaluate(() => {
+      const game = window.__goop.game;
+      const habitatId = game.lastCatch && game.castCtx?.researchSpot || game.state.spot;
+      return {
+        phase: game.phase,
+        goopId: game.goop.id,
+        dexCount: game.state.dex[game.goop.id]?.count || 0,
+        researchSpot: habitatId,
+        researchText: document.querySelector('#ccProgress')?.textContent || '',
+        saved: JSON.parse(localStorage.getItem('goop-fishing-save') || 'null'),
+      };
+    });
+    assert.equal(landed.phase, 'caught');
+    assert.ok(landed.dexCount > 0, 'a landed Goop is added to the GoopDex');
+    assert.match(landed.researchText, /FIELD RESEARCH/, 'the reveal explains the habitat research earned');
+    assert.ok(landed.saved?.dex?.[landed.goopId]?.count > 0, 'the GoopDex update is persisted');
+    assert.ok(landed.saved?.research?.[landed.researchSpot]?.catches > 0, 'habitat research is persisted');
+
     // Verify the backup recovery path in a real browser reload.
     await Promise.all([
       page.waitForNavigation({ waitUntil: 'domcontentloaded' }),
@@ -197,7 +242,7 @@ try {
     assert.deepEqual(pageErrors, [], `${viewport.name}: uncaught browser errors`);
     assert.deepEqual(failedRequests, [], `${viewport.name}: missing local assets`);
     assert.deepEqual(consoleErrors, [], `${viewport.name}: console errors`);
-    console.log(`PASS ${viewport.name}: startup, navigation, responsive controls, cast, bite, hook, fight (${hooked.goopId})`);
+    console.log(`PASS ${viewport.name}: startup, navigation, controls, cast, bite, hook, fight, catch reveal, Dex, research and save (${hooked.goopId})`);
     await context.close();
   }
 } finally {
