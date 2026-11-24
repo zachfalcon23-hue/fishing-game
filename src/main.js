@@ -541,6 +541,9 @@ function render(dt) {
   if (z.mix.some(([spot, share]) => spot.id === 'reeds' && share >= 0.65)) {
     evs.push('<span class="ev" title="Dense cattails shelter feeding schools. Each cast builds water activity twice as fast here.">🌾 REED COVER · ACTIVITY ×2</span>');
   }
+  if (z.mix.some(([spot, share]) => spot.id === 'boulder' && share >= 0.65)) {
+    evs.push('<span class="ev" title="Rocky eddies narrow the safe tension window during fights. Better line upgrades can offset the strain.">🪨 ROCKY CURRENT · TIGHTER LINE WINDOW</span>');
+  }
   const sighting = view === 'pond' ? scene?.currentSighting : null;
   if (sighting) {
     const hint = `Observed in ${sighting.habitatName}. Current habitat, weather and time rules permit this Goop to bite; a sighting is not a guaranteed catch.`;

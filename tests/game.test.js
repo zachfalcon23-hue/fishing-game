@@ -80,6 +80,23 @@ test('Cattail Reeds build feeding activity twice as fast as ordinary habitats', 
   assert.equal(g.activityAt('reeds'), 3, 'reed activity still respects the shared maximum of three');
 });
 
+test('Slime Boulders narrow the fight tension window without changing ordinary habitats', () => {
+  const boulders = newGame();
+  boulders.state.dex = Object.fromEntries(GOOPS.slice(0, 7).map((goop) => [goop.id, { count: 1 }]));
+  boulders.state.shore = SPOT_BY.boulder.pos;
+  assert.equal(boulders.zone().spot.id, 'boulder', 'the seven-entry GoopDex unlocks Slime Boulders');
+  assert.equal(boulders.cast(), true);
+  const ordinary = newGame();
+  ordinary.state.shore = SPOT_BY.dock.pos;
+  assert.equal(ordinary.cast(), true);
+  assert.ok(Math.abs((boulders.castCtx.fightMods.zone - ordinary.castCtx.fightMods.zone) + 0.035) < 1e-9,
+    'rocky eddies reduce the safe tension band by 0.07 total before line-upgrade offsets');
+  const base = makeFight(GOOPS[0], {}, { zone: ordinary.castCtx.fightMods.zone });
+  const rocky = makeFight(GOOPS[0], {}, { zone: boulders.castCtx.fightMods.zone });
+  assert.ok(rocky.safeHi - rocky.safeLo < base.safeHi - base.safeLo,
+    'the rocky-current modifier produces a narrower playable tension band');
+});
+
 test('Fish Finder forecast responds to live feeding activity', () => {
   const quiet = newGame();
   const active = newGame();
