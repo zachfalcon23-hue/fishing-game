@@ -294,7 +294,12 @@ function renderMap() {
     const label = found ? sp.name.replace(/^The /, '') : open ? 'Unexplored' : sp.secret ? '???' : `🔒 ${sp.unlockAt}`;
     const p = game.spotProgress(sp.id);
     const badge = `${s.frenzy === sp.id ? '<text class="bdg" dx="22" dy="-20">✦</text>' : ''}${s.visitor?.spot === sp.id ? '<text class="bdg v" dx="-30" dy="-20">👁</text>' : ''}`;
-    return `<g class="${cls}" ${open ? `data-walk="${sp.id}"` : ''} transform="translate(${x.toFixed(1)} ${y.toFixed(1)})" role="button" aria-label="${esc(label)}">`
+    const accessibleLabel = open
+      ? `${label}. Walk to this spot.`
+      : sp.secret
+        ? 'Hidden location. Not yet accessible.'
+        : `${sp.name}. Locked. Requires GoopDex ${sp.unlockAt}.`;
+    return `<g class="${cls}" ${open ? `data-walk="${sp.id}"` : ''} transform="translate(${x.toFixed(1)} ${y.toFixed(1)})" role="${open ? 'button' : 'img'}" ${open ? 'tabindex="0" focusable="true"' : ''} aria-label="${esc(accessibleLabel)}">`
       + `<circle r="26"/><text class="ico" dy="8">${found ? SPOT_ICON[sp.id] : open ? '•' : sp.secret ? '?' : '🔒'}</text>${badge}`
       + `<text class="lbl" dy="48">${esc(label)}</text>${found ? `<text class="sub" dy="64">${p.found}/${p.total}</text>` : ''}</g>`;
   }).join('');
@@ -1422,6 +1427,15 @@ function openBounties() {
   openDialog('bountyDlg');
   markBoardSeen();
 }
+
+$('mapSvg').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const pin = e.target.closest('.pin[data-walk]');
+  if (!pin) return;
+  e.preventDefault();
+  walkTo(pin.dataset.walk);
+  closeDialog('mapDlg');
+});
 
 document.addEventListener('click', (e) => {
   const walk = e.target.closest('[data-walk]')?.dataset.walk;
