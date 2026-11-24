@@ -730,7 +730,7 @@ export function evaluateSpecimenQuality(fight = {}) {
   const controlRatio = controlTime > 0 ? clamp01(safeTime / controlTime) : 0.5;
   const lineControl = Math.round(30 * controlRatio);
   const score = Math.max(0, Math.min(100, hook + streak + moves + lungeControl + lineControl));
-  return { score, grade: specimenGrade(score), breakdown: { hook, streak, moves, lunges: lungeControl, lineControl }, moveRecord: { won: wins, attempted: attempts }, lungeRecord: { dodged, attempted: lunges }, lineControl: Math.round(controlRatio * 100) };
+  return { score, grade: specimenGrade(score), breakdown: { hook, streak, moves, lunges: lungeControl, lineControl }, moveRecord: { won: wins, attempted: attempts }, lungeRecord: { dodged: dodges, attempted: lunges }, lineControl: Math.round(controlRatio * 100) };
 }
 
 /**
