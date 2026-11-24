@@ -222,6 +222,18 @@ function renderNotes() {
   $('noteList').innerHTML = found.length
     ? found.map((id) => { const n = NOTES.find((x) => x.id === id); const g = GOOPS.find((x) => x.id === n.reveals); return `<p><b>${g.name}</b> — ${conditionText(g)}</p>`; }).join('')
     : '<p class="muted">Glowing bottles wash up along the shore. Tap one to read it — each reveals where a rare Goop hides.</p>';
+  const log = game.state.catchLog || [];
+  $('catchLogList').innerHTML = log.length ? log.slice(0, 8).map((entry) => {
+    const goop = GOOPS.find((item) => item.id === entry.goop);
+    const date = entry.at ? new Date(entry.at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : `Day ${entry.day}`;
+    const weather = WEATHER[entry.weather]?.label || entry.weather;
+    const bait = BAITS[entry.bait]?.name || entry.bait;
+    return `<div class="catch-log-row r-${entry.rarity.toLowerCase()}">
+      <img src="${GOOP_ART(entry.goop)}" alt="" loading="lazy">
+      <div class="catch-log-copy"><b>${entry.shiny ? '✦ ' : ''}${esc(goop?.name || entry.goop)}</b><small>${esc(spotName(entry.spot))} · ${date} · ${esc(entry.time)} · ${esc(weather)}</small><small>${esc(bait)} bait · ${entry.size.toFixed(1)} cm · ${esc(entry.qualityGrade)} (${entry.qualityScore})</small></div>
+      <strong>+${entry.reward}</strong>
+    </div>`;
+  }).join('') : '<p class="muted">Your recent landings will appear here. Every catch is saved to this local log.</p>';
 }
 
 function baitRows() {
@@ -356,7 +368,7 @@ function renderMinimap() {
 let lastLists = '';
 function renderLists(force) {
   const s = game.state;
-  const sig = JSON.stringify([s.essence, s.spot, game.here, s.discovered, s.gear, game.dexCount, s.stats.caught, s.notes.length, s.completed, game.busy, dexFilter,
+  const sig = JSON.stringify([s.essence, s.spot, game.here, s.discovered, s.gear, game.dexCount, s.stats.caught, s.notes.length, s.catchLog?.length || 0, s.completed, game.busy, dexFilter,
     Object.keys(snaps).length, s.seen.length, s.bait, s.baits, s.buddy, s.buddyLv, s.equip, s.owned, s.finder, s.tips.length, s.sets, s.bounties.map((b) => b.have + b.id), s.frenzy, s.visitor, s.timeIndex, s.weather, s.activity, s.research, SECRETS.map((id) => game.secretVisible(id))]);
   if (!force && sig === lastLists) return;
   lastLists = sig;
