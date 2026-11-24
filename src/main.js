@@ -1613,7 +1613,7 @@ async function boot() {
   const begin = () => {
     sfx.unlock();
     $('loader').classList.add('gone');
-    if (!guideSeen()) { markGuideSeen(); openGuide(); }
+    if (!guideSeen() && game.state.stats.caught === 0) { markGuideSeen(); openGuide(); }
   };
   start.addEventListener('click', begin, { once: true });
   if (new URLSearchParams(location.search).has('skipintro')) begin();
