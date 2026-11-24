@@ -538,6 +538,9 @@ function render(dt) {
   const evs = [];
   const ecology = game.ecosystemStatus();
   evs.push(`<span class="ev activity" title="${ecology.description}">◉ ${ecology.label}</span>`);
+  if (z.mix.some(([spot, share]) => spot.id === 'reeds' && share >= 0.5)) {
+    evs.push('<span class="ev" title="Dense cattails shelter feeding schools. Each cast builds water activity twice as fast here.">🌾 REED COVER · ACTIVITY ×2</span>');
+  }
   const sighting = view === 'pond' ? scene?.currentSighting : null;
   if (sighting) {
     const hint = `Observed in ${sighting.habitatName}. Current habitat, weather and time rules permit this Goop to bite; a sighting is not a guaranteed catch.`;
