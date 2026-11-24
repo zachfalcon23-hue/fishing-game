@@ -585,6 +585,9 @@ function render(dt) {
   if (z.mix.some(([spot, share]) => spot.id === 'deep' && share >= 0.65)) {
     evs.push('<span class="ev" title="Abyssal pressure sinks the line every nine seconds. Watch for the warning and reel through the short pressure drop to prevent slack.">⬇️ ABYSSAL PRESSURE · REEL THROUGH THE DROP</span>');
   }
+  if (z.mix.some(([spot, share]) => spot.id === 'sandbar' && share >= 0.65) && game.fullMoon && game.timeOfDay === 'Night') {
+    evs.push('<span class="ev moon" title="Full-moon tide pools at the Moonlit Sandbar favour larger specimens. The size bonus is locked in when you cast.">🌕 MOON-TIDE · TROPHY GOOPS</span>');
+  }
   if (z.mix.some(([spot, share]) => spot.id === 'wreck' && share >= 0.65)) {
     evs.push('<span class="ev" title="Loose wreck rigging catches your line every eight seconds. Watch the direction cue and steer that way to cut free.">⚓ WRECK RIGGING · CUT FREE WITH STEERING</span>');
   }
