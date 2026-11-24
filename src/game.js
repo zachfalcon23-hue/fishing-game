@@ -330,6 +330,16 @@ export const HABITAT_RESEARCH_TIERS = Object.freeze([
   { points: 96, name: 'Habitat Expert', benefit: 'Catches here earn 4% more Essence.', modifiers: { essence: 1.04 } },
   { points: 148, name: 'Pond Guardian', benefit: 'Shiny odds here improve by 8%.', modifiers: { shiny: 1.08 } },
 ]);
+
+/** Full-moon nights expose trophy-sized catches in the Moonlit Sandbar's shallow tide pools. */
+export function moonTideSizeExponent(base, zone, time, fullMoon) {
+  const sandbarShare = zone?.mix?.reduce((share, [spot, weight]) => share + (spot.id === 'sandbar' ? weight : 0), 0) || 0;
+  const exponent = Number.isFinite(base) && base > 0 ? base : 2;
+  return time === 'Night' && fullMoon && sandbarShare >= 0.65
+    ? Math.max(1, exponent * 0.75)
+    : exponent;
+}
+
 export const SHINY_ODDS = 1 / 48;
 export const PERFECT_HOOK = 0.4; // seconds after the bite for a perfect hook
 export const CLEAN_HOOK = 1.2; // clean hooks still earn a smaller head start
@@ -1791,7 +1801,7 @@ export class FishingGame {
       // Rocky eddies compress the safe tension band; waterfall surges periodically increase line pull.
       // Glowshroom spores create a short, predictable window of reduced pull and stronger reeling.
       // Deep Drop pressure periodically sinks the line; reeling through it prevents slack.
-      fightMods: { forceMul: this.weather.forceMul * mods.force, reel: mods.reel, zone: mods.zone - (rockyCurrent ? 0.035 : 0), lunge: mods.lunge, sizeExp: mods.sizeExp, currentFlow: waterfallCurrent, crystalShift: z.mix.some(([spot, share]) => spot.id === 'cave' && share >= 0.65), sporeBloom: glowshroomBloom, deepPressure, wreckSnags }, 
+      fightMods: { forceMul: this.weather.forceMul * mods.force, reel: mods.reel, zone: mods.zone - (rockyCurrent ? 0.035 : 0), lunge: mods.lunge, sizeExp: moonTideSizeExponent(mods.sizeExp, z, this.timeOfDay, this.fullMoon), currentFlow: waterfallCurrent, crystalShift: z.mix.some(([spot, share]) => spot.id === 'cave' && share >= 0.65), sporeBloom: glowshroomBloom, deepPressure, wreckSnags }, 
     };
     if (bait !== 'worm') {
       s.baits[bait] -= 1;
