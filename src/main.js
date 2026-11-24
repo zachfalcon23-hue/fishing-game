@@ -1,7 +1,7 @@
 import {
   MOVE_INFO, GOOPS, SPOTS, SPOT_BY, UPGRADES, NOTES, PHASES, BAITS, SETS, TASTES, MOON, REROLL_COST, WEATHER,
   RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, buddyBonus, QUESTS, DECOR, THEMES, TANK_CAP, DECOR_SLOTS,
-  FishingGame, conditionText, tasteBait,
+  HABITAT_RESEARCH_TIERS, FishingGame, conditionText, tasteBait,
 } from './game.js';
 import { Scene, loadAssets, GOOP_ART, SPOT_X, SPOT_GAP, WORLD_MIN, WORLD_MAX, CLUE_X, toShore, fromShore } from './scene.js';
 import { Sfx } from './audio.js';
@@ -181,8 +181,16 @@ function renderSpots() {
     }).join('');
     const extra = Math.max(0, sp.goops.length - 6);
     const rosterHTML = open ? `<div class="spot-roster" aria-label="Resident species">${roster}${extra ? `<span class="spot-more">+${extra}</span>` : ''}</div>` : '';
+    const study = found && open ? game.habitatResearch(sp.id) : null;
+    const studyTier = study?.rank ? HABITAT_RESEARCH_TIERS[study.rank - 1] : null;
+    const studyStatus = !study ? '' : study.rank === HABITAT_RESEARCH_TIERS.length ? 'MASTERED' : `${study.points}/${study.next} RP`;
+    const researchHTML = study ? `<div class="spot-research" title="${esc(studyTier?.benefit || 'Catch local Goops under varied conditions to build your survey.')}">
+      <div class="spot-research-head"><span>FIELD RESEARCH</span><b>${study.rank ? `RANK ${study.rank} · ${study.title}` : 'UNSURVEYED'}</b></div>
+      <div class="spot-research-track"><i style="width:${Math.round(study.progress * 100)}%"></i></div>
+      <small>${studyStatus} · ${study.catches} samples · ${study.speciesCount} species · ${study.timeCount}/4 times · ${study.weatherCount}/4 weather</small>
+    </div>` : '';
     return `<div class="spot ${here ? 'current' : ''} ${open ? '' : 'locked'} ${done ? 'done' : ''}" ${bg}><div class="spot-copy"><b>${open || found ? sp.name : '???'} ${tags}</b><small>${sub}</small>`
-      + `<div class="spot-bar"><i style="width:${(p.found / p.total) * 100}%"></i></div><div class="spot-meta">${activityHTML}${rosterHTML}</div></div>${btn}</div>`;
+      + `<div class="spot-bar"><i style="width:${(p.found / p.total) * 100}%"></i></div><div class="spot-meta">${activityHTML}${rosterHTML}</div>${researchHTML}</div>${btn}</div>`;
   }).join('');
 }
 
@@ -323,7 +331,7 @@ let lastLists = '';
 function renderLists(force) {
   const s = game.state;
   const sig = JSON.stringify([s.essence, s.spot, game.here, s.discovered, s.gear, game.dexCount, s.stats.caught, s.notes.length, s.completed, game.busy, dexFilter,
-    Object.keys(snaps).length, s.seen.length, s.bait, s.baits, s.buddy, s.buddyLv, s.equip, s.owned, s.finder, s.tips.length, s.sets, s.bounties.map((b) => b.have + b.id), s.frenzy, s.visitor, s.timeIndex, s.weather, s.activity, SECRETS.map((id) => game.secretVisible(id))]);
+    Object.keys(snaps).length, s.seen.length, s.bait, s.baits, s.buddy, s.buddyLv, s.equip, s.owned, s.finder, s.tips.length, s.sets, s.bounties.map((b) => b.have + b.id), s.frenzy, s.visitor, s.timeIndex, s.weather, s.activity, s.research, SECRETS.map((id) => game.secretVisible(id))]);
   if (!force && sig === lastLists) return;
   lastLists = sig;
   renderDex(); renderSpots(); renderShop(); renderNotes(); renderMinimap(); renderBounties(); renderSets();
@@ -580,6 +588,14 @@ function handleEvents() {
         if (d.firstTime) {
           const nm = goopName(d.goop);
           setTimeout(() => notify(d.tank >= 0 ? `🐠 ${nm} moved into ${game.state.tank.tanks[d.tank].name}.` : `🐠 Your tanks are full — ${nm} is waiting in storage at the Aquarium.`, 2600), 3800);
+        }
+        break;
+      case 'research':
+        lastLists = '';
+        if (d.rank > d.previousRank) {
+          const tier = HABITAT_RESEARCH_TIERS[d.rank - 1];
+          notify(`📖 ${spotName(d.spot)} research reached rank ${d.rank}: ${tier.name}! ${tier.benefit}`, 3900);
+          sfx.discover();
         }
         break;
       case 'escaped': sfx.snap(); navigator.vibrate?.([40, 40, 80]); break;
