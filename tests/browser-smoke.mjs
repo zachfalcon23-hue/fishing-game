@@ -140,6 +140,14 @@ try {
     await page.keyboard.press('Escape');
     await page.waitForFunction(() => document.querySelector('#mapDlg')?.open === false);
 
+    // Map activation intentionally starts shore movement; stop the test avatar before
+    // exercising cast input so movement cannot correctly reject a moving-player cast.
+    await page.evaluate(() => {
+      const walker = window.__goop.walker;
+      walker.target = walker.x;
+      walker.v = 0;
+    });
+
     if (viewport.name === 'mobile') {
       const dimensions = await page.evaluate(() => ({
         viewport: document.documentElement.clientWidth,
@@ -160,8 +168,12 @@ try {
     }
 
     // Primary fishing controls need accessible names and live announcements for important state.
+    assert.equal(await page.locator('#castBtn').getAttribute('aria-label'), 'Cast line');
+    assert.equal(await page.locator('#castBtn').getAttribute('aria-keyshortcuts'), 'C');
+    assert.equal(await page.locator('#reelBtn').getAttribute('aria-label'), 'Reel or hook');
+    assert.equal(await page.locator('#reelBtn').getAttribute('aria-keyshortcuts'), 'Space');
     assert.equal(await page.getByRole('button', { name: /CAST LINE/i }).count(), 1);
-    assert.equal(await page.getByRole('button', { name: /REEL \/ HOOK/i }).count(), 1);
+    assert.equal(await page.getByRole('button', { name: /REEL OR HOOK/i }).count(), 1);
     for (const selector of ['#message', '#movePrompt', '#eventTag', '#catchCard', '#sessionNotice']) {
       assert.ok(
         await page.locator(selector).getAttribute('aria-live'),
