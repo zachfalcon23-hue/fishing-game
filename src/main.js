@@ -397,7 +397,7 @@ function renderFight() {
   }
   if (!active) return;
   const pct = (v) => Math.round(Math.max(0, Math.min(1, v)) * 100);
-  const shift = fight.zoneShift || 0;
+  const shift = (fight.zoneShift || 0) + (fight.crystalOffset || 0);
   const lo = fight.safeLo + shift, hi = fight.safeHi + shift;
   const m = fight.move;
   const paused = fight.breakT > 0 || (m && ['tug', 'rhythm', 'thrash'].includes(m.type));
@@ -419,7 +419,7 @@ function renderFight() {
   setText('heftText', `${fight.sizeClass || 'AVERAGE'} SIZE`);
   hud.classList.toggle('size-heavy', fight.sizeClass === 'HEAVY');
   hud.classList.toggle('size-light', fight.sizeClass === 'LIGHT');
-  setText('tensionLbl', fight.warn ? 'EASE OFF!' : fight.flowSurge ? 'CURRENT!' : fight.flowWarning ? 'SURGE SOON' : paused ? 'HOLD ON' : m?.type === 'current' ? 'FOLLOW' : 'TENSION');
+  setText('tensionLbl', fight.warn ? 'EASE OFF!' : fight.flowSurge ? 'CURRENT!' : fight.flowWarning ? 'SURGE SOON' : fight.crystalWarning ? 'PRISM SHIFT' : fight.crystalOffset ? 'FOLLOW BAND' : paused ? 'HOLD ON' : m?.type === 'current' ? 'FOLLOW' : 'TENSION');
   const c = fight.combo || 1;
   const combo = $('combo');
   combo.classList.toggle('show', c > 1 && !paused);
@@ -546,6 +546,9 @@ function render(dt) {
   }
   if (z.mix.some(([spot, share]) => spot.id === 'falls' && share >= 0.65)) {
     evs.push('<span class="ev" title="The waterfall current pulses every six seconds during fights. Watch for CURRENT BUILDING, then manage the stronger pull during the surge.">💧 FALLS CURRENT · SURGE CYCLES</span>');
+  }
+  if (z.mix.some(([spot, share]) => spot.id === 'cave' && share >= 0.65)) {
+    evs.push('<span class="ev" title="Crystal refraction shifts the safe line window every five seconds. Watch the warning and follow the moving green band.">🔮 PRISM LIGHT · SHIFTING LINE WINDOW</span>');
   }
   const sighting = view === 'pond' ? scene?.currentSighting : null;
   if (sighting) {

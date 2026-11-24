@@ -279,7 +279,7 @@ const SPOT_DEFS = [
   { id: 'falls', name: 'Waterfall Inlet', pos: 4, unlockAt: 12, essenceMul: 1.4, rareMul: 1.25, biteMin: 1.0, biteMax: 2.8, desc: 'Cold, churning water under the falls. Every six seconds, a current surge pulls harder against your line; watch for the warning and manage the extra tension.' },
   {
     id: 'cave', name: 'Hidden Falls Cave', pos: 5, essenceMul: 1.6, rareMul: 1.4, biteMin: 1.1, biteMax: 3.0,
-    desc: 'A crystal cave tucked behind the waterfall.',
+    desc: 'A crystal cave tucked behind the waterfall. Refracted light shifts the safe line window every five seconds—watch for the warning and follow the moving green band.',
     secret: { when: { time: ['Day', 'Dawn'] }, requires: 'falls', rumor: '“Sunlight hits the far side of the falls just right in the daytime. There’s a gap back there, I swear it.”', clue: 'Light is shining through a gap in the rocks…' },
   },
   { id: 'grotto', name: 'Glowshroom Grotto', pos: 6, unlockAt: 18, essenceMul: 1.5, rareMul: 1.35, biteMin: 1.2, biteMax: 3.2, desc: 'Glowing mushrooms over still, dark water.' },
@@ -700,6 +700,7 @@ export function makeFight(goop, gear = {}, env = {}) {
     rank, move: null, nextMove: (env.moves === false ? Infinity : 2.2 + rng() * 1.4), moveCount: 0, movesWon: 0,
     stages: stagesFor(goop), stage: 1, breakT: 0, zoneShift: 0,
     currentFlow: !!env.currentFlow, flowWarning: false, flowSurge: false,
+    crystalShift: !!env.crystalShift, crystalWarning: false, crystalOffset: 0,
   };
 }
 
@@ -800,6 +801,13 @@ export function fightReadout(fight) {
     return { kind: 'lunge', title: 'LUNGE INCOMING', action: 'RELEASE REEL', time, ratio: clamp01(1 - time / fight.lungeWarn), urgent: true };
   }
 
+  if (!m && fight.crystalShift && fight.crystalWarning) {
+    const phase = fight.elapsed % 5;
+    return { kind: 'crystal', title: 'PRISM REFRACTION', action: 'SAFE LINE WINDOW IS ABOUT TO SHIFT', time: Math.max(0, 4 - phase), ratio: clamp01(1 - Math.max(0, 4 - phase) / 0.4), urgent: false };
+  }
+  if (!m && fight.crystalShift && fight.crystalOffset) {
+    return { kind: 'crystal', title: 'REFRACTED LIGHT', action: 'FOLLOW THE SHIFTED GREEN WINDOW', time: Math.max(0, 5 - (fight.elapsed % 5)), ratio: clamp01((fight.elapsed % 5 - 4) / 1), urgent: true };
+  }
   if (!m && fight.currentFlow && fight.flowSurge) {
     const phase = fight.elapsed % 6;
     return { kind: 'current', title: 'WATERFALL SURGE', action: 'THE FLOW IS PULLING HARDER · MANAGE TENSION', time: Math.max(0, 5.7 - phase), ratio: clamp01((phase - 4.5) / 1.2), urgent: true };
@@ -967,6 +975,10 @@ export function tickFight(fight, input, dt) {
   const flowPhase = fight.elapsed % 6;
   fight.flowWarning = !!fight.currentFlow && flowPhase >= 3.6 && flowPhase < 4.5;
   fight.flowSurge = !!fight.currentFlow && flowPhase >= 4.5 && flowPhase < 5.7;
+  const crystalPhase = fight.elapsed % 5;
+  fight.crystalWarning = !!fight.crystalShift && (crystalPhase >= 3.6 && crystalPhase < 4 || crystalPhase >= 8.6);
+  fight.crystalOffset = !fight.crystalShift ? 0 : crystalPhase >= 4 ? (crystalPhase < 5 ? 0.07 : 0) : 0;
+  if (fight.crystalShift && fight.elapsed % 10 >= 9 && fight.elapsed % 10 < 10) fight.crystalOffset = -0.07;
 
   // signature moves
   let paused = false;
@@ -1001,7 +1013,7 @@ export function tickFight(fight, input, dt) {
     } else if (fight.move) fight.warn = false;
     fight.tension = clamp01(fight.tension);
 
-    const lo = (fight.safeLo ?? 0.38) + (fight.zoneShift || 0), hi = (fight.safeHi ?? 0.78) + (fight.zoneShift || 0);
+    const lo = (fight.safeLo ?? 0.38) + (fight.zoneShift || 0) + (fight.crystalOffset || 0), hi = (fight.safeHi ?? 0.78) + (fight.zoneShift || 0) + (fight.crystalOffset || 0);
     const safe = fight.tension >= lo && fight.tension <= hi;
     fight.controlTime = (fight.controlTime || 0) + d;
     if (safe) fight.safeTime = (fight.safeTime || 0) + d;
@@ -1703,7 +1715,7 @@ export class FishingGame {
       habitatMods,
       // Lock fight handling to the conditions that selected this encounter, even if the clock rolls over.
       // Rocky eddies compress the safe tension band; waterfall surges periodically increase line pull.
-      fightMods: { forceMul: this.weather.forceMul * mods.force, reel: mods.reel, zone: mods.zone - (rockyCurrent ? 0.035 : 0), lunge: mods.lunge, sizeExp: mods.sizeExp, currentFlow: waterfallCurrent },
+      fightMods: { forceMul: this.weather.forceMul * mods.force, reel: mods.reel, zone: mods.zone - (rockyCurrent ? 0.035 : 0), lunge: mods.lunge, sizeExp: mods.sizeExp, currentFlow: waterfallCurrent, crystalShift: z.mix.some(([spot, share]) => spot.id === 'cave' && share >= 0.65) },
     };
     if (bait !== 'worm') {
       s.baits[bait] -= 1;
@@ -1791,7 +1803,7 @@ export class FishingGame {
         this.phase = PHASES.FIGHT;
         const m = this.castCtx?.fightMods || this.mods();
         const specimenSize = rollGoopSize(this.goop, this.rng, m.sizeExp);
-        this.fight = makeFight(this.goop, this.state.gear, { forceMul: m.forceMul ?? this.weather.forceMul * m.force, rng: this.rng, reel: m.reel, zone: m.zone, lunge: m.lunge, snapGuard: m.snapGuard, size: specimenSize, currentFlow: !!m.currentFlow });
+        this.fight = makeFight(this.goop, this.state.gear, { forceMul: m.forceMul ?? this.weather.forceMul * m.force, rng: this.rng, reel: m.reel, zone: m.zone, lunge: m.lunge, snapGuard: m.snapGuard, size: specimenSize, currentFlow: !!m.currentFlow, crystalShift: !!m.crystalShift });
         const timing = hookTiming(this.timer);
         const perfect = timing.grade === 'perfect';
         this.fight.perfect = perfect;
