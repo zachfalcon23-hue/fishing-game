@@ -599,6 +599,9 @@ function handleEvents() {
           const tier = HABITAT_RESEARCH_TIERS[d.rank - 1];
           notify(`📖 ${spotName(d.spot)} research reached rank ${d.rank}: ${tier.name}! ${tier.benefit}`, 3900);
           sfx.discover();
+        } else if (d.firstSample) {
+          notify(`📖 Field research started at ${spotName(d.spot)} · +${d.earned} RP. Study different species, times, weather and baits.`, 3900);
+          sfx.note();
         }
         break;
       case 'escaped': sfx.snap(); navigator.vibrate?.([40, 40, 80]); break;
