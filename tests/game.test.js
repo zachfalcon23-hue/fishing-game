@@ -1285,6 +1285,15 @@ test('habitat mastery perks compose with tackle and blend smoothly between neigh
   assert.ok(Math.abs(blended.rare - 1.025) < 1e-12);
   assert.ok(Math.abs(blended.essence - 1.02) < 1e-12);
   assert.ok(Math.abs(blended.shiny - 1.04) < 1e-12);
+
+  assert.ok(game.cast());
+  const castResearch = { ...game.castCtx.habitatMods };
+  assert.equal(castResearch.essence, 1.04, 'a cast snapshots the habitat rank at line-out');
+  game.state.research.dock.points = 0;
+  const locked = game.mods(game.castCtx);
+  const tackleOnly = tackleMods(game.state.equip, game.state.owned, game.castCtx);
+  assert.ok(Math.abs(locked.essence / tackleOnly.essence - castResearch.essence) < 1e-12,
+    'the caught specimen keeps the cast-time habitat bonus even if research state changes later');
 });
 
 test('habitat rare-rank bonus changes forecast encounter weighting without bypassing ecology gates', () => {
