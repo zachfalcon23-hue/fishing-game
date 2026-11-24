@@ -397,7 +397,7 @@ function renderFight() {
   }
   if (!active) return;
   const pct = (v) => Math.round(Math.max(0, Math.min(1, v)) * 100);
-  const shift = fight.zoneShift || 0;
+  const shift = (fight.zoneShift || 0) + (fight.crystalOffset || 0);
   const lo = fight.safeLo + shift, hi = fight.safeHi + shift;
   const m = fight.move;
   const paused = fight.breakT > 0 || (m && ['tug', 'rhythm', 'thrash'].includes(m.type));
