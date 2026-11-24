@@ -175,6 +175,8 @@ for (const [id, spot] of [['stardrift', 'sandbar'], ['crystalfin', 'cave'], ['lu
   GOOPS.find((g) => g.id === id).spots.push(spot);
 }
 export const RANK = { Common: 0, Uncommon: 1, Rare: 2, Epic: 3, Legendary: 4 };
+export const SPECIMEN_GRADE_RANK = Object.freeze({ Rough: 0, Sound: 1, Prized: 2, Flawless: 3 });
+const specimenGrade = (score) => score >= 88 ? 'Flawless' : score >= 70 ? 'Prized' : score >= 50 ? 'Sound' : 'Rough';
 // ---------- Old Wiggs' story quests ----------
 
 /** The quest chain. Goals: catch (any n), bait (n on special bait), discover (spot), notes (total),
@@ -691,7 +693,7 @@ export function makeFight(goop, gear = {}, env = {}) {
     progress: 0, stamina: maxStamina, maxStamina, tension: 0.5, phase: 0, elapsed: 0, caught: false, escaped: false,
     safeLo: g.safeLo - (env.zone ?? 0), safeHi: g.safeHi + (env.zone ?? 0), reelRate: g.reelRate * (env.reel ?? 1) * PACE[rank] / sizeFactor, snapGuard: g.snapGuard * (env.snapGuard ?? 1),
     forceMul: (env.forceMul ?? 1) * (goop.force ?? 1) * sizeForce,
-    streak: 0, combo: 1, best: 1,
+    streak: 0, combo: 1, best: 1, movesAttempted: 0, lungeAttempts: 0, lungeDodges: 0, lungeHits: 0, controlTime: 0, safeTime: 0,
     rng, nextLunge: lunges(goop) ? 3.2 + rng() * 2.4 : null, warn: false,
     lungeWarn: LUNGE_PROFILE[goop.pattern]?.warning ?? LUNGE_WARN,
     lungePower: (0.3 + 0.05 * rank) * (LUNGE_PROFILE[goop.pattern]?.power ?? 1) * (env.lunge ?? 1), log: [],
@@ -711,6 +713,25 @@ const MOVE_FAIL = {
 export const comboFor = (streak) => 1 + Math.min(4, Math.floor(streak / 1.2)) * 0.15;
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
+
+/** Score landed-fight execution independently of a specimen's size or rarity. */
+export function evaluateSpecimenQuality(fight = {}) {
+  const hook = fight.hookGrade === 'perfect' ? 20 : fight.hookGrade === 'clean' ? 14 : 8;
+  const best = Number.isFinite(fight.best) ? fight.best : 1;
+  const streak = Math.round(clamp01((best - 1) / 0.6) * 20);
+  const attempts = Math.max(0, Math.floor(Number.isFinite(fight.movesAttempted) ? fight.movesAttempted : 0));
+  const wins = Math.min(attempts, Math.max(0, Math.floor(Number.isFinite(fight.movesWon) ? fight.movesWon : 0)));
+  const moves = attempts ? Math.round(20 * wins / attempts) : 14;
+  const lunges = Math.max(0, Math.floor(Number.isFinite(fight.lungeAttempts) ? fight.lungeAttempts : 0));
+  const dodges = Math.min(lunges, Math.max(0, Math.floor(Number.isFinite(fight.lungeDodges) ? fight.lungeDodges : 0)));
+  const lungeControl = lunges ? Math.round(10 * dodges / lunges) : 7;
+  const controlTime = Number.isFinite(fight.controlTime) ? Math.max(0, fight.controlTime) : 0;
+  const safeTime = Number.isFinite(fight.safeTime) ? Math.max(0, fight.safeTime) : 0;
+  const controlRatio = controlTime > 0 ? clamp01(safeTime / controlTime) : 0.5;
+  const lineControl = Math.round(30 * controlRatio);
+  const score = Math.max(0, Math.min(100, hook + streak + moves + lungeControl + lineControl));
+  return { score, grade: specimenGrade(score), breakdown: { hook, streak, moves, lunges: lungeControl, lineControl }, moveRecord: { won: wins, attempted: attempts }, lungeRecord: { dodged: dodges, attempted: lunges }, lineControl: Math.round(controlRatio * 100) };
+}
 
 /**
  * Translate the active fight state into one concise, actionable player cue.
@@ -815,6 +836,7 @@ export function startMove(fight, type) {
 
 function endMove(fight, won, extra = {}) {
   const m = fight.move;
+  fight.movesAttempted = (fight.movesAttempted || 0) + 1;
   const scale = 1 + fight.rank * 0.1;
   const gain = { swerve: 0.06, tug: 0.12, fakeout: 0.1, rhythm: 0.04, current: 0.08, thrash: 0.12 }[m.type] * (extra.mul ?? 1);
   if (won) {
@@ -954,9 +976,10 @@ export function tickFight(fight, input, dt) {
       fight.warn = fight.nextLunge > 0 && fight.nextLunge <= fight.lungeWarn;
       if (fight.nextLunge <= 0) {
         const dodged = !reeling;
+        fight.lungeAttempts = (fight.lungeAttempts || 0) + 1;
         fight.tension += fight.lungePower * (dodged ? 0.25 : 1) * (fight.forceMul ?? 1);
-        if (dodged) fight.progress = Math.min(fight.stageCap, fight.progress + 0.04);
-        else { fight.progress = Math.max(0, fight.progress - 0.05); fight.streak = 0; }
+        if (dodged) { fight.lungeDodges = (fight.lungeDodges || 0) + 1; fight.progress = Math.min(fight.stageCap, fight.progress + 0.04); }
+        else { fight.lungeHits = (fight.lungeHits || 0) + 1; fight.progress = Math.max(0, fight.progress - 0.05); fight.streak = 0; }
         fight.log.push(dodged ? 'dodge' : 'lunge');
         fight.nextLunge = 3.4 + (fight.rng || Math.random)() * 2.8;
         fight.warn = false;
@@ -966,6 +989,8 @@ export function tickFight(fight, input, dt) {
 
     const lo = (fight.safeLo ?? 0.38) + (fight.zoneShift || 0), hi = (fight.safeHi ?? 0.78) + (fight.zoneShift || 0);
     const safe = fight.tension >= lo && fight.tension <= hi;
+    fight.controlTime = (fight.controlTime || 0) + d;
+    if (safe) fight.safeTime = (fight.safeTime || 0) + d;
     const rate = fight.reelRate ?? 1, guard = fight.snapGuard ?? 1;
 
     // Staying in the zone while reeling builds a streak that speeds up the catch.
@@ -1005,12 +1030,12 @@ export function tickFight(fight, input, dt) {
 
 // ---------- daily bounties ----------
 
-const BOUNTY_KINDS = ['spot', 'rarity', 'weather', 'time', 'size', 'bait', 'new', 'count'];
+const BOUNTY_KINDS = ['spot', 'rarity', 'weather', 'time', 'size', 'bait', 'new', 'count', 'quality'];
 
 /** Three fresh bounties for the day, chosen to suit what the player has unlocked. */
 export function makeBounties(rng, { open = [SPOT_BY.dock, SPOT_BY.lily], dexCount = 0, day = 1 } = {}) {
   const pick = (list) => list[Math.floor(rng() * list.length) % list.length];
-  const kinds = [...BOUNTY_KINDS];
+  const kinds = BOUNTY_KINDS.filter((kind) => kind !== 'quality' || dexCount >= 3);
   const out = [];
   while (out.length < 3 && kinds.length) {
     const kind = kinds.splice(Math.floor(rng() * kinds.length) % kinds.length, 1)[0];
@@ -1042,6 +1067,9 @@ export function makeBounties(rng, { open = [SPOT_BY.dock, SPOT_BY.lily], dexCoun
     } else if (kind === 'count') {
       const need = 6 + Math.floor(rng() * 4);
       b = { kind, need, text: `Catch ${need} Goops today`, essence: 30 + need * 10, bait: pick(['sugar', 'mud']), baitN: 4 };
+    } else if (kind === 'quality') {
+      const grade = dexCount >= 28 ? 'Flawless' : 'Prized';
+      b = { kind, grade, need: 1, text: `Land a ${grade} specimen or better`, essence: grade === 'Flawless' ? 220 : 125 };
     }
     out.push({ id, have: 0, done: false, bait: null, baitN: 0, ...b });
   }
@@ -1059,13 +1087,14 @@ export function bountyMatches(b, c) {
     case 'bait': return c.bait && c.bait !== 'worm';
     case 'new': return c.firstTime;
     case 'count': return true;
+    case 'quality': return (SPECIMEN_GRADE_RANK[c.qualityGrade] ?? -1) >= (SPECIMEN_GRADE_RANK[b.grade] ?? SPECIMEN_GRADE_RANK.Prized);
     default: return false;
   }
 }
 
 // ---------- persistence ----------
 
-const SAVE_VERSION = 4;
+const SAVE_VERSION = 5;
 const OLD_SPOT = { pond: 'dock', reeds: 'reeds', deep: 'deep' };
 const OLD_SPOT_COST = { reeds: 200, deep: 600 };
 
@@ -1099,7 +1128,7 @@ export class SaveStore {
     const parseSave = (raw) => {
       const value = JSON.parse(raw || 'null');
       if (!value || typeof value !== 'object' || Array.isArray(value)
-        || ![1, 2, 3, SAVE_VERSION].includes(value.version)) {
+        || ![1, 2, 3, 4, SAVE_VERSION].includes(value.version)) {
         throw new Error('Unrecognized or damaged save structure');
       }
       return value;
@@ -1182,6 +1211,10 @@ export class SaveStore {
           fastest: Number.isFinite(e.fastest) ? e.fastest : null,
           best: Number.isFinite(e.best) ? e.best : null,
           shiny: Math.floor(num(e.shiny, 0)),
+          qualityBest: Number.isFinite(e.qualityBest) ? Math.max(0, Math.min(100, Math.floor(e.qualityBest))) : null,
+          qualityGrade: Object.hasOwn(SPECIMEN_GRADE_RANK, e.qualityGrade) ? e.qualityGrade : null,
+          lastQuality: Number.isFinite(e.lastQuality) ? Math.max(0, Math.min(100, Math.floor(e.lastQuality))) : null,
+          qualityCounts: Object.fromEntries(Object.keys(SPECIMEN_GRADE_RANK).map((grade) => { const key = grade.toLowerCase(); return [key, Math.floor(Math.min(1000000, num(e.qualityCounts?.[key], 0)))]; })),
         };
       }
     }
@@ -1234,6 +1267,7 @@ export class SaveStore {
           weather: list(record.weather, (id) => !!WEATHER[id]),
           baits: list(record.baits, (id) => !!BAITS[id]),
           perfect: Math.floor(Math.min(1000000, num(record.perfect, 0))),
+          qualityGrades: list(record.qualityGrades, (grade) => Object.hasOwn(SPECIMEN_GRADE_RANK, grade)),
         };
       }
     }
@@ -1279,7 +1313,7 @@ export class SaveStore {
     s.bountyDay = Math.floor(num(p.bountyDay, 0));
     s.bounties = Array.isArray(p.bounties) ? p.bounties.filter((b) => b && typeof b === 'object' && BOUNTY_KINDS.includes(b.kind) && typeof b.text === 'string')
       .slice(0, 3).map((b) => ({
-        ...b, need: Math.max(1, Math.floor(num(b.need, 1, 1))), have: Math.floor(num(b.have, 0)), done: !!b.done,
+        ...b, ...(b.kind === 'quality' ? { grade: Object.hasOwn(SPECIMEN_GRADE_RANK, b.grade) ? b.grade : 'Prized' } : {}), need: Math.max(1, Math.floor(num(b.need, 1, 1))), have: Math.floor(num(b.have, 0)), done: !!b.done,
         essence: Math.floor(num(b.essence, 0)), bait: BAITS[b.bait] ? b.bait : null, baitN: Math.floor(num(b.baitN, 0)),
       })) : [];
     if (!s.bounties.length) s.bountyDay = 0;
@@ -1771,7 +1805,7 @@ export class FishingGame {
     const s = this.state;
     const ctx = this.castCtx || { spot: s.spot, hot: true, bait: 'worm', frenzy: false, essenceMul: this.spot.essenceMul, weather: s.weather, time: this.timeOfDay };
     const before = this.dexCount;
-    const prev = s.dex[id] || { count: 0, fastest: null, best: null, shiny: 0 };
+    const prev = s.dex[id] || { count: 0, fastest: null, best: null, shiny: 0, qualityBest: null, qualityCounts: {} };
     const time = this.fight.elapsed;
     const mods = this.mods(ctx);
     const size = this.fight.size ?? rollGoopSize(g, this.rng, mods.sizeExp);
@@ -1781,12 +1815,22 @@ export class FishingGame {
     odds *= mods.shiny;
     const shiny = this.rng() > 1 - odds;
     const record = prev.best == null || size > prev.best;
+    const quality = evaluateSpecimenQuality(this.fight);
+    const qualityKey = quality.grade.toLowerCase();
+    const qualityCounts = { rough: 0, sound: 0, prized: 0, flawless: 0, ...(prev.qualityCounts || {}) };
+    qualityCounts[qualityKey] = Math.min(1000000, (qualityCounts[qualityKey] || 0) + 1);
+    const qualityRecord = prev.qualityBest == null || quality.score > prev.qualityBest;
     s.dex[id] = {
       count: prev.count + 1,
       fastest: prev.fastest == null ? time : Math.min(prev.fastest, time),
       best: record ? size : prev.best,
       shiny: prev.shiny + (shiny ? 1 : 0),
+      qualityBest: qualityRecord ? quality.score : prev.qualityBest,
+      qualityGrade: qualityRecord ? quality.grade : (prev.qualityGrade || null),
+      lastQuality: quality.score,
+      qualityCounts,
     };
+    this.fight.quality = quality;
     let mul = ctx.essenceMul * (shiny ? 3 : 1);
     if (ctx.frenzy) mul *= 1.5;
     if (s.buddy) mul *= 1 + buddyBonus(s.buddyLv);
@@ -1804,7 +1848,7 @@ export class FishingGame {
     s.stats.caught += 1;
     if (shiny) s.stats.shiny += 1;
     const firstTime = prev.count === 0;
-    this.lastCatch = { goop: id, reward, firstTime, size, record: record && !firstTime, shiny, time, combo: this.fight.best || 1, perfect: !!this.fight.perfect, hookGrade: this.fight.hookGrade || 'late', skillBonus, hookSkillBonus };
+    this.lastCatch = { goop: id, reward, firstTime, size, record: record && !firstTime, shiny, time, combo: this.fight.best || 1, perfect: !!this.fight.perfect, hookGrade: this.fight.hookGrade || 'late', skillBonus, hookSkillBonus, quality, qualityRecord };
     this.message = `${shiny ? '✦ Shiny ' : ''}${g.name} caught! +${reward} Essence`;
     if (firstTime) this.lastCatch.tank = this.houseGoop(id);
     this.emit('catch', this.lastCatch);
@@ -1835,7 +1879,7 @@ export class FishingGame {
       this.questTick('set');
     }
     // Bounties
-    const info = { ...ctx, rarity: g.rarity, size, firstTime };
+    const info = { ...ctx, rarity: g.rarity, size, firstTime, qualityGrade: quality.grade, qualityScore: quality.score };
     for (const b of s.bounties) {
       if (b.done || !bountyMatches(b, info)) continue;
       b.have = Math.min(b.need, b.have + 1);
@@ -1866,7 +1910,7 @@ export class FishingGame {
 
     const records = this.state.research || (this.state.research = {});
     const record = records[spotId] || (records[spotId] = {
-      points: 0, catches: 0, species: [], times: [], weather: [], baits: [], perfect: 0,
+      points: 0, catches: 0, species: [], times: [], weather: [], baits: [], perfect: 0, qualityGrades: [],
     });
     const previousRank = this.habitatResearch(spotId).rank;
     const reasons = [];
@@ -1893,6 +1937,16 @@ export class FishingGame {
       record.perfect = Math.min(1000000, record.perfect + 1);
       earned += 1;
       reasons.push('perfect hook');
+    }
+    const qualityGrades = record.qualityGrades || (record.qualityGrades = []);
+    const qualityGrade = fight?.quality?.grade;
+    if (Object.hasOwn(SPECIMEN_GRADE_RANK, qualityGrade)
+      && SPECIMEN_GRADE_RANK[qualityGrade] >= SPECIMEN_GRADE_RANK.Prized
+      && !qualityGrades.includes(qualityGrade)) {
+      qualityGrades.push(qualityGrade);
+      const qualityPoints = qualityGrade === 'Flawless' ? 4 : 2;
+      earned += qualityPoints;
+      reasons.push(`${qualityGrade.toLowerCase()} specimen`);
     }
 
     record.points = Math.min(1000000, record.points + earned);

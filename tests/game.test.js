@@ -4,7 +4,7 @@ import { fightReactionPose } from '../src/scene.js';
 import {
   GOOPS, SPOTS, UPGRADES, NOTES, NOTE_REWARD, HABITAT_RESEARCH_TIERS, weightedPick, encounterPool, makeFight, tickFight, pullForce,
   FishingGame, SaveStore, PHASES, CASTS_PER_TIME, conditionsMet, conditionText,
-  SPOT_BY, BAITS, SETS, RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, tackleMods, QUESTS, DECOR, THEMES, tankTips, TANK_CAP, TANK_COSTS, DECOR_SLOTS, startMove, SIGNATURE, MOVE_INFO, fightReadout, stagesFor, BREAK_TIME, shoreZone, zonePool, makeBounties, bountyMatches, comboFor, LUNGE_PROFILE, PERFECT_HOOK, CLEAN_HOOK, hookTiming, isFullMoon, rollGoopSize, TRACK_WEIGHT_MULT,
+  SPOT_BY, BAITS, SETS, RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, tackleMods, QUESTS, DECOR, THEMES, tankTips, TANK_CAP, TANK_COSTS, DECOR_SLOTS, startMove, SIGNATURE, MOVE_INFO, fightReadout, stagesFor, BREAK_TIME, shoreZone, zonePool, makeBounties, bountyMatches, comboFor, LUNGE_PROFILE, PERFECT_HOOK, CLEAN_HOOK, hookTiming, isFullMoon, rollGoopSize, TRACK_WEIGHT_MULT, evaluateSpecimenQuality, SPECIMEN_GRADE_RANK,
 } from '../src/game.js';
 
 function memStore(initial = null) {
@@ -251,6 +251,17 @@ test('catch awards Essence and records Dex entry', () => {
   assert.ok(mem.v, 'catch is saved');
 });
 
+test('specimen quality scores line skill independently of species rarity and size', () => {
+  const rough = evaluateSpecimenQuality({ hookGrade: 'late', best: 1, movesAttempted: 2, movesWon: 0, lungeAttempts: 2, lungeDodges: 0, controlTime: 10, safeTime: 0 });
+  const flawless = evaluateSpecimenQuality({ hookGrade: 'perfect', best: 1.6, movesAttempted: 2, movesWon: 2, lungeAttempts: 2, lungeDodges: 2, controlTime: 10, safeTime: 10 });
+  assert.equal(rough.score, 8);
+  assert.equal(rough.grade, 'Rough');
+  assert.equal(flawless.score, 100);
+  assert.equal(flawless.grade, 'Flawless');
+  assert.equal(SPECIMEN_GRADE_RANK[flawless.grade], 3);
+  assert.equal(evaluateSpecimenQuality({ hookGrade: 'clean' }).grade, 'Sound');
+});
+
 test('hook timing and fight execution combine into a capped Essence skill bonus', () => {
   const catchWith = ({ hookGrade, best = 1 }) => {
     const g = newGame();
@@ -280,6 +291,25 @@ test('hook timing and fight execution combine into a capped Essence skill bonus'
   const skilled = catchWith({ hookGrade: 'perfect', best: 1.6 });
   assert.equal(skilled.lastCatch.skillBonus, 0.15, 'perfect timing stacks with streak skill up to the 15% cap');
   assert.equal(skilled.lastCatch.reward, 9);
+});
+
+test('a landed specimen quality record persists in the GoopDex and habitat ledger', () => {
+  const { mem, store } = memStore();
+  const game = new FishingGame({ rng: () => 0, saveStore: store });
+  game.cast();
+  game.phase = PHASES.FIGHT;
+  game.goop = GOOPS[0];
+  game.fight = makeFight(GOOPS[0]);
+  Object.assign(game.fight, { hookGrade: 'perfect', best: 1.6, movesAttempted: 2, movesWon: 2, lungeAttempts: 2, lungeDodges: 2, controlTime: 10, safeTime: 10, caught: true });
+  game.update(0);
+  assert.equal(game.lastCatch.quality.grade, 'Flawless');
+  assert.equal(game.lastCatch.quality.score, 100);
+  assert.equal(game.lastCatch.qualityRecord, true);
+  assert.equal(game.state.dex.gloop.qualityBest, 100);
+  assert.equal(game.state.dex.gloop.qualityCounts.flawless, 1);
+  assert.ok(game.state.research.dock.qualityGrades.includes('Flawless'));
+  assert.equal(JSON.parse(mem.v).dex.gloop.qualityBest, 100);
+  assert.equal(JSON.parse(mem.v).research.dock.qualityGrades[0], 'Flawless');
 });
 
 test('full round trip: cast, bite, hook, fight', () => {
@@ -490,6 +520,14 @@ test('staying in the zone builds a combo that speeds the catch', () => {
   assert.ok(f.best >= 1);
 });
 
+test('quality contracts require the requested grade and unlock after early discoveries', () => {
+  assert.equal(bountyMatches({ kind: 'quality', grade: 'Prized' }, { qualityGrade: 'Sound' }), false);
+  assert.equal(bountyMatches({ kind: 'quality', grade: 'Prized' }, { qualityGrade: 'Flawless' }), true);
+  assert.equal(bountyMatches({ kind: 'quality', grade: 'Flawless' }, { qualityGrade: 'Prized' }), false);
+  const early = makeBounties(() => 0.5, { open: [SPOT_BY.dock], dexCount: 2, day: 2 });
+  assert.equal(early.some((b) => b.kind === 'quality'), false);
+});
+
 test('bounties: three a day, progress on matching catches and pay out once', () => {
   const g = newGame();
   assert.equal(g.state.bounties.length, 3);
@@ -644,7 +682,7 @@ test('field notes are picked up once, at their own spot, and teach the Goop', ()
 test('save storage recovers from malformed data and version mismatch', () => {
   const mem = { v: 'bad', getItem() { return this.v; }, setItem(k, v) { this.v = v; }, removeItem() { this.v = null; } };
   const store = new SaveStore(mem);
-  assert.equal(store.load().version, 4);
+  assert.equal(store.load().version, 5);
   mem.v = JSON.stringify({ version: 99, essence: 999 });
   assert.equal(store.load().essence, 0);
 });
@@ -672,7 +710,7 @@ test('version-2 saves load with new fields filled in and bad new fields are drop
     version: 2, essence: 30, dex: { gloop: { count: 1 } }, discovered: ['dock', 'sandbar'], spot: 'dock',
   }));
   const s = store.load();
-  assert.equal(s.version, 4);
+  assert.equal(s.version, 5);
   assert.equal(s.baits.sugar, 3, 'returning players get starter bait');
   assert.equal(s.bait, 'worm');
   assert.ok(s.discovered.includes('sandbar'), 'found secrets are kept');
@@ -696,7 +734,7 @@ test('version-1 saves migrate: GoopDex kept, old lake purchases refunded', () =>
     caughtToday: 1, spot: 'reeds', unlocked: ['pond', 'reeds'], gear: { rod: 1 },
   }));
   const s = store.load();
-  assert.equal(s.version, 4);
+  assert.equal(s.version, 5);
   assert.equal(s.essence, 240, 'the 200 paid for Reed Shallows comes back');
   assert.equal(s.dex.gloop.count, 2);
   assert.equal(s.dex.gloop.fastest, 3.1);
@@ -1215,7 +1253,7 @@ test('fight outcome reactions are bounded, directional, and expire deterministic
 });
 
 
-test('habitat research upgrades v3 saves safely and sanitizes malformed v4 research', () => {
+test('habitat research upgrades v3/v4 saves safely and sanitizes malformed research', () => {
   const legacy = memStore(JSON.stringify({
     version: 3,
     essence: 415,
@@ -1225,10 +1263,16 @@ test('habitat research upgrades v3 saves safely and sanitizes malformed v4 resea
     spot: 'dock',
   })).store.load();
 
-  assert.equal(legacy.version, 4);
+  assert.equal(legacy.version, 5);
   assert.equal(legacy.essence, 415);
   assert.equal(legacy.dex.gloop.count, 2);
+  assert.equal(legacy.dex.gloop.qualityBest, null);
   assert.deepEqual(legacy.research, {}, 'old saves gain an empty research ledger without losing progress');
+  const priorV4 = memStore(JSON.stringify({ version: 4, essence: 75, dex: { gloop: { count: 3, best: 18, qualityBest: 82, qualityGrade: 'Prized', lastQuality: 65, qualityCounts: { rough: 1, prized: 2, invalid: 99 } } } })).store.load();
+  assert.equal(priorV4.version, 5);
+  assert.equal(priorV4.dex.gloop.qualityBest, 82);
+  assert.equal(priorV4.dex.gloop.qualityGrade, 'Prized');
+  assert.deepEqual(priorV4.dex.gloop.qualityCounts, { rough: 1, sound: 0, prized: 2, flawless: 0 });
 
   const migrated = memStore(JSON.stringify({
     version: 4,
@@ -1242,6 +1286,7 @@ test('habitat research upgrades v3 saves safely and sanitizes malformed v4 resea
         weather: ['storm', 'meteors'],
         baits: ['worm', 'not-a-bait'],
         perfect: 2,
+        qualityGrades: ['Prized', 'bogus', 'Prized'],
       },
       nowhere: { points: 9999, species: ['sleeper'] },
       constructor: { points: 999999, species: ['sleeper'] },
@@ -1257,6 +1302,7 @@ test('habitat research upgrades v3 saves safely and sanitizes malformed v4 resea
     weather: ['storm'],
     baits: ['worm'],
     perfect: 2,
+    qualityGrades: ['Prized'],
   });
   assert.equal(migrated.research.nowhere, undefined, 'unknown habitats are discarded');
   assert.equal(Object.hasOwn(migrated.research, 'constructor'), false, 'inherited object keys are not treated as real habitats');
