@@ -86,6 +86,35 @@ function openDialog(id) { const d = $(id); if (d.open) return; if (d.showModal) 
 function closeDialog(id) { const d = $(id); if (d.close) d.close(); else d.removeAttribute('open'); }
 const anyDialogOpen = () => [...document.querySelectorAll('dialog')].some((d) => d.open);
 
+// First-session guide: shown once per browser, and always available from the ? button.
+const GUIDE_SEEN_KEY = 'goop-fishing-guide-seen-v1';
+let guideStep = 0;
+function renderGuide() {
+  const steps = [...$('guideSteps').querySelectorAll('[data-guide-step]')];
+  guideStep = Math.max(0, Math.min(steps.length - 1, guideStep));
+  steps.forEach((step, index) => { step.hidden = index !== guideStep; });
+  $('guideCount').textContent = (guideStep + 1) + ' / ' + steps.length;
+  $('guideProgress').style.width = (((guideStep + 1) / steps.length) * 100) + '%';
+  $('guidePrev').disabled = guideStep === 0;
+  $('guideNext').hidden = guideStep === steps.length - 1;
+  $('guideFinish').hidden = guideStep !== steps.length - 1;
+}
+function openGuide() {
+  guideStep = 0;
+  renderGuide();
+  openDialog('guideDlg');
+}
+function guideSeen() {
+  try { return localStorage.getItem(GUIDE_SEEN_KEY) === '1'; } catch { return true; }
+}
+function markGuideSeen() {
+  try { localStorage.setItem(GUIDE_SEEN_KEY, '1'); } catch { /* guide remains available from the ? button */ }
+}
+$('guideBtn').addEventListener('click', openGuide);
+$('guidePrev').addEventListener('click', () => { guideStep -= 1; renderGuide(); });
+$('guideNext').addEventListener('click', () => { guideStep += 1; renderGuide(); });
+$('guideFinish').addEventListener('click', () => { markGuideSeen(); closeDialog('guideDlg'); });
+
 // Toasts that arrive together are shown one after another.
 const notes = [];
 let noteAt = 0;
@@ -1581,7 +1610,11 @@ async function boot() {
   $('loadHint').textContent = 'The Goops are biting.';
   const start = $('startBtn');
   start.hidden = false;
-  const begin = () => { sfx.unlock(); $('loader').classList.add('gone'); };
+  const begin = () => {
+    sfx.unlock();
+    $('loader').classList.add('gone');
+    if (!guideSeen()) { markGuideSeen(); openGuide(); }
+  };
   start.addEventListener('click', begin, { once: true });
   if (new URLSearchParams(location.search).has('skipintro')) begin();
   requestAnimationFrame(loop);
