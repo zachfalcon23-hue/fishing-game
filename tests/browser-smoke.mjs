@@ -161,6 +161,30 @@ try {
     assert.ok(typeof hooked.goopId === 'string' && hooked.goopId.length > 0);
     assert.ok(['steady', 'pulse', 'dart', 'drift', 'sleepy', 'wild'].includes(hooked.pattern));
 
+    // Verify the new fight readout follows the actual warning and signature state.
+    await page.evaluate(() => {
+      const fight = window.__goop.game.fight;
+      fight.warn = true;
+      fight.nextLunge = 0.6;
+    });
+    await page.waitForFunction(() => {
+      const cue = document.querySelector('#fightCue');
+      return cue && !cue.hidden
+        && document.querySelector('#fightCueTitle')?.textContent === 'LUNGE INCOMING'
+        && document.querySelector('#fightCueAction')?.textContent === 'RELEASE REEL';
+    }, undefined, { timeout: 2000 });
+    await page.evaluate(() => {
+      const fight = window.__goop.game.fight;
+      fight.warn = false;
+      fight.nextLunge = null;
+      fight.move = { type: 'swerve', dir: 1, t: 0, window: 2 };
+    });
+    await page.waitForFunction(() =>
+      document.querySelector('#fightCueTitle')?.textContent === 'SWERVE'
+      && document.querySelector('#fightCueAction')?.textContent === 'STEER RIGHT',
+    undefined, { timeout: 2000 });
+    await page.evaluate(() => { window.__goop.game.fight.move = null; });
+
     // The game deliberately prevents leaving the pond with a live line/fight.
     await page.locator('#viewNav [data-view="aquarium"]').click();
     assert.equal(await page.locator('#pondView').isVisible(), true);

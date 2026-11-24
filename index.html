@@ -9,7 +9,7 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='34' r='26' fill='%2359e04a'/%3E%3Ccircle cx='24' cy='28' r='7' fill='%23fff'/%3E%3Ccircle cx='25' cy='29' r='3.5' fill='%23062a10'/%3E%3Cpath d='M14 46q4 12 6 0M38 50q3 10 5 0' fill='%2359e04a'/%3E%3C/svg%3E">
   <link rel="preload" as="font" type="font/woff2" href="assets/fonts/lilita-one.woff2" crossorigin>
   <link rel="preload" as="image" href="assets/ui/title.webp">
-  <link rel="stylesheet" href="src/style.css?v=0.12">
+  <link rel="stylesheet" href="src/style.css?v=0.13">
 </head>
 <body>
 <div class="loader" id="loader">
@@ -62,6 +62,12 @@
 
       <div class="move-prompt" id="movePrompt" aria-live="assertive"></div>
       <div class="fight-hud dim" id="fightUi" aria-hidden="true">
+        <div class="fight-cue" id="fightCue" role="status" aria-live="polite" hidden>
+          <span class="fight-cue-title" id="fightCueTitle">LINE CONTROL</span>
+          <strong class="fight-cue-action" id="fightCueAction">REEL IN THE GREEN TO BUILD A STREAK</strong>
+          <span class="fight-cue-time" id="fightCueTime" aria-hidden="true"></span>
+          <div class="fight-cue-track" aria-hidden="true"><i id="fightCueFill"></i></div>
+        </div>
         <div class="combo" id="combo"></div>
         <div class="tension-row">
           <span class="lbl" id="tensionLbl">TENSION</span>

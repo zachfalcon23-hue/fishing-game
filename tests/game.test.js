@@ -4,7 +4,7 @@ import { fightReactionPose } from '../src/scene.js';
 import {
   GOOPS, SPOTS, UPGRADES, NOTES, NOTE_REWARD, HABITAT_RESEARCH_TIERS, weightedPick, encounterPool, makeFight, tickFight, pullForce,
   FishingGame, SaveStore, PHASES, CASTS_PER_TIME, conditionsMet, conditionText,
-  SPOT_BY, BAITS, SETS, RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, tackleMods, QUESTS, DECOR, THEMES, tankTips, TANK_CAP, TANK_COSTS, DECOR_SLOTS, startMove, SIGNATURE, MOVE_INFO, stagesFor, BREAK_TIME, shoreZone, zonePool, makeBounties, bountyMatches, comboFor, LUNGE_PROFILE, PERFECT_HOOK, CLEAN_HOOK, hookTiming, isFullMoon, rollGoopSize, TRACK_WEIGHT_MULT,
+  SPOT_BY, BAITS, SETS, RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, tackleMods, QUESTS, DECOR, THEMES, tankTips, TANK_CAP, TANK_COSTS, DECOR_SLOTS, startMove, SIGNATURE, MOVE_INFO, fightReadout, stagesFor, BREAK_TIME, shoreZone, zonePool, makeBounties, bountyMatches, comboFor, LUNGE_PROFILE, PERFECT_HOOK, CLEAN_HOOK, hookTiming, isFullMoon, rollGoopSize, TRACK_WEIGHT_MULT,
 } from '../src/game.js';
 
 function memStore(initial = null) {
@@ -1020,6 +1020,60 @@ test('multiple tanks: buy, rename, residents with a cap, decor moves between tan
 const quiet = (goop) => { const f = makeFight(goop, {}, { rng: () => 0.3, moves: false }); f.nextLunge = null; return f; };
 const step = (f, input = {}, dt = 1 / 60) => tickFight(f, { reel: false, tap: false, steer: 0, ...input }, dt);
 const lastLog = (f, type) => f.log.filter((e) => typeof e === 'object' && e.type === type).pop();
+
+test('fight readout turns every live signature tell into an actionable cue', () => {
+  const dart = GOOPS.find((g) => g.pattern === 'dart' && g.rarity === 'Rare');
+  let fight = quiet(dart);
+  let move = startMove(fight, 'swerve');
+  move.t = move.window * 0.25;
+  let cue = fightReadout(fight);
+  assert.equal(cue.title, 'SWERVE');
+  assert.equal(cue.action, move.dir < 0 ? 'STEER LEFT' : 'STEER RIGHT');
+  assert.ok(Math.abs(cue.time - move.window * 0.75) < 1e-9);
+
+  fight = quiet(dart); move = startMove(fight, 'tug'); move.t = 1; move.pos = 0.25;
+  cue = fightReadout(fight);
+  assert.equal(cue.action, 'TAP REEL');
+  assert.ok(Math.abs(cue.ratio - 0.625) < 1e-9);
+
+  const sleepy = GOOPS.find((g) => g.pattern === 'sleepy');
+  fight = quiet(sleepy); move = startMove(fight, 'fakeout'); move.t = move.still - 0.2; fight.tell = true;
+  assert.equal(fightReadout(fight).action, 'GET READY TO REEL');
+  move.state = 'surge'; move.surgeT = 0.1;
+  assert.equal(fightReadout(fight).action, 'REEL NOW');
+
+  const pulse = GOOPS.find((g) => g.pattern === 'pulse');
+  fight = quiet(pulse); move = startMove(fight, 'rhythm'); move.t = move.lead - 0.1;
+  assert.match(fightReadout(fight).action, /PREPARE FOR BEAT 1/);
+  move.t = move.lead;
+  assert.match(fightReadout(fight).action, /TAP NOW · BEAT 1/);
+
+  const drift = GOOPS.find((g) => g.pattern === 'drift');
+  fight = quiet(drift); move = startMove(fight, 'current'); move.inZone = 1.8;
+  assert.equal(fightReadout(fight).action, 'KEEP THE NEEDLE IN GREEN');
+  assert.ok(Math.abs(fightReadout(fight).ratio - 0.5) < 1e-9);
+
+  const wild = GOOPS.find((g) => g.pattern === 'wild');
+  fight = quiet(wild); move = startMove(fight, 'thrash'); move.steps = ['L', 'T']; move.idx = 1; move.stepT = 0.1;
+  assert.equal(fightReadout(fight).title, 'THRASH · STEP 2/2');
+  assert.equal(fightReadout(fight).action, 'TAP REEL');
+
+  fight = quiet(dart); fight.warn = true; fight.nextLunge = 0.2;
+  cue = fightReadout(fight);
+  assert.equal(cue.kind, 'lunge');
+  assert.equal(cue.action, 'RELEASE REEL');
+  assert.equal(cue.time, 0.2);
+
+  fight.tension = 0.95;
+  assert.match(fightReadout(fight).action, /RELEASE REEL/);
+  fight.tension = 0.1;
+  assert.match(fightReadout(fight).action, /REEL TO LIFT/);
+  fight.breakT = BREAK_TIME / 2;
+  cue = fightReadout(fight);
+  assert.equal(cue.kind, 'break');
+  assert.equal(cue.action, 'RECOVER — THE NEXT STAGE IS COMING');
+  assert.equal(cue.ratio, 0.5);
+});
 
 test('every fighting style has a signature move', () => {
   for (const p of ['steady', 'pulse', 'dart', 'drift', 'sleepy', 'wild']) assert.ok(MOVE_INFO[SIGNATURE[p]], p);
