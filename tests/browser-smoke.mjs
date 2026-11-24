@@ -140,6 +140,14 @@ try {
     await page.keyboard.press('Escape');
     await page.waitForFunction(() => document.querySelector('#mapDlg')?.open === false);
 
+    // Map activation intentionally starts shore movement; stop the test avatar before
+    // exercising cast input so movement cannot correctly reject a moving-player cast.
+    await page.evaluate(() => {
+      const walker = window.__goop.walker;
+      walker.target = walker.x;
+      walker.v = 0;
+    });
+
     if (viewport.name === 'mobile') {
       const dimensions = await page.evaluate(() => ({
         viewport: document.documentElement.clientWidth,
