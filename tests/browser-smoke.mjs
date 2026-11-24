@@ -134,8 +134,19 @@ try {
       }
     }
 
-    // Verify the actual cast -> bite -> hook -> fight transition using player controls.
-    await page.locator('#castBtn').click();
+    // Check the primary fishing controls expose usable accessible names and live status regions.
+    assert.ok(await page.getByRole('button', { name: /CAST LINE/i }).count() === 1);
+    assert.ok(await page.getByRole('button', { name: /REEL \/ HOOK/i }).count() === 1);
+    for (const selector of ['#message', '#movePrompt', '#eventTag', '#catchCard', '#sessionNotice']) {
+      assert.ok(
+        await page.locator(selector).getAttribute('aria-live'),
+        `${viewport.name}: ${selector} should announce status changes`,
+      );
+    }
+
+    // Verify the actual cast -> bite -> hook -> fight transition using both input paths.
+    if (viewport.name === 'desktop') await page.keyboard.press('c');
+    else await page.locator('#castBtn').click();
     await page.waitForFunction(() => window.__goop?.game.phase === 'cast', undefined, { timeout: 3000 });
     await page.waitForFunction(
       () => document.querySelector('#exportSessionBtn')?.disabled === false,
@@ -149,7 +160,8 @@ try {
     assert.match(sessionDownload.suggestedFilename(), /^goop-fishing-session-.*\.json$/);
     assert.equal(await sessionDownload.failure(), null);
     await page.waitForFunction(() => window.__goop?.game.phase === 'bite', undefined, { timeout: 15000 });
-    await page.locator('#reelBtn').click();
+    if (viewport.name === 'desktop') await page.keyboard.press('Space');
+    else await page.locator('#reelBtn').click();
     await page.waitForFunction(() => window.__goop?.game.phase === 'fight', undefined, { timeout: 3000 });
 
     const hooked = await page.evaluate(() => ({
