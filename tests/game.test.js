@@ -97,6 +97,33 @@ test('Slime Boulders narrow the fight tension window without changing ordinary h
     'the rocky-current modifier produces a narrower playable tension band');
 });
 
+test('Waterfall Inlet locks a periodic current surge into its fight context', () => {
+  const falls = newGame();
+  falls.state.dex = Object.fromEntries(GOOPS.slice(0, 12).map((goop) => [goop.id, { count: 1 }]));
+  falls.state.shore = SPOT_BY.falls.pos;
+  assert.equal(falls.zone().spot.id, 'falls', 'twelve GoopDex entries unlock Waterfall Inlet');
+  assert.equal(falls.cast(), true);
+  assert.equal(falls.castCtx.fightMods.currentFlow, true, 'the falls current is captured when the line is cast');
+  const dock = newGame();
+  assert.equal(dock.cast(), true);
+  assert.equal(dock.castCtx.fightMods.currentFlow, false, 'ordinary water does not gain current surges');
+
+  const waterfallFight = makeFight(GOOPS[0], {}, { rng: () => 0, currentFlow: true });
+  const stillWaterFight = makeFight(GOOPS[0], {}, { rng: () => 0, currentFlow: false });
+  for (const fight of [waterfallFight, stillWaterFight]) {
+    fight.elapsed = 4.6;
+    fight.phase = 1.2;
+    fight.nextMove = Infinity;
+    fight.nextLunge = null;
+  }
+  tickFight(waterfallFight, { reel: false }, 0.05);
+  tickFight(stillWaterFight, { reel: false }, 0.05);
+  assert.equal(waterfallFight.flowSurge, true, 'the scheduled surge is active in its six-second window');
+  assert.equal(stillWaterFight.flowSurge, false, 'the same timer does not affect other habitats');
+  assert.ok(waterfallFight.tension > stillWaterFight.tension,
+    'the waterfall surge adds a distinct 35% pull pulse during normal fight control');
+});
+
 test('Fish Finder forecast responds to live feeding activity', () => {
   const quiet = newGame();
   const active = newGame();
