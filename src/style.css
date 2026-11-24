@@ -137,6 +137,10 @@ body:has(.loader:not(.gone)) { overflow: hidden; }
 .cc-copy { min-width: 0; text-align: left; }
 .catch-card h3 { margin: 2px 0 6px; font-family: var(--display); font-weight: 400; font-size: clamp(26px, 4vw, 40px); line-height: 1; color: #fff; text-shadow: 0 3px 0 rgba(0, 0, 0, .5), 0 0 18px var(--rc, #8df28a); }
 .cc-rarity { display: inline-block; font-size: 11px; font-weight: 900; letter-spacing: .24em; color: var(--rc, var(--lime)); }
+.cc-quality { display: block; width: fit-content; margin: 4px 0 3px; padding: 3px 7px; border-radius: 7px; background: rgba(255,255,255,.08); color: #d9e7e3; font-size: 9px; line-height: 1.25; font-weight: 1000; letter-spacing: .13em; }
+.catch-card[data-quality="sound"] .cc-quality { background: rgba(111,190,255,.16); color: #9bd6ff; }
+.catch-card[data-quality="prized"] .cc-quality { background: rgba(255,205,92,.16); color: #ffdc87; }
+.catch-card[data-quality="flawless"] .cc-quality { background: rgba(181,146,255,.2); color: #d5bdff; box-shadow: 0 0 14px rgba(181,146,255,.22); }
 .cc-stats { display: flex; justify-content: flex-start; flex-wrap: wrap; gap: 8px 14px; font-weight: 900; font-size: 13px; }
 .cc-stats span:first-child { color: var(--lime-hot); }
 .cc-stats span:last-child { color: var(--muted); }

@@ -227,6 +227,8 @@ try {
         dexCount: game.state.dex[game.goop.id]?.count || 0,
         researchSpot: habitatId,
         researchText: document.querySelector('#ccProgress')?.textContent || '',
+        quality: game.lastCatch?.quality || null,
+        qualityText: document.querySelector('#ccQuality')?.textContent || '',
         saved: JSON.parse(localStorage.getItem('goop-fishing-save') || 'null'),
       };
     });
@@ -234,6 +236,9 @@ try {
     assert.equal(await page.locator('#fightUi').getAttribute('aria-hidden'), 'true');
     assert.ok(landed.dexCount > 0, 'a landed Goop is added to the GoopDex');
     assert.match(landed.researchText, /FIELD RESEARCH/, 'the reveal explains the habitat research earned');
+    assert.ok(landed.quality && landed.quality.score >= 0 && landed.quality.score <= 100, 'the landed specimen receives an execution score');
+    assert.match(landed.qualityText, /SPECIMEN · \d+\/100/, 'the catch card shows specimen quality');
+    assert.equal(landed.saved?.dex?.[landed.goopId]?.lastQuality, landed.quality.score, 'quality persists in the GoopDex');
     assert.ok(landed.saved?.dex?.[landed.goopId]?.count > 0, 'the GoopDex update is persisted');
     assert.ok(landed.saved?.research?.[landed.researchSpot]?.catches > 0, 'habitat research is persisted');
 

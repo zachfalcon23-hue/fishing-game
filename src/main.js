@@ -115,7 +115,7 @@ function renderDex() {
     const e = d[g.id];
     const seen = game.state.seen.includes(g.id);
     const n = GOOPS.indexOf(g) + 1;
-    const status = e ? `×${e.count}${e.best ? ` · ${e.best} cm` : ''}` : seen ? 'Seen — not caught' : 'Undiscovered';
+    const status = e ? `×${e.count}${e.best ? ` · ${e.best} cm` : ''}${e.qualityGrade ? ` · ${e.qualityGrade}` : ''}` : seen ? 'Seen — not caught' : 'Undiscovered';
     const buddy = game.state.buddy === g.id ? '<span class="buddy-tag" title="Your buddy">BUDDY</span>' : '';
     return `<button class="dex-entry r-${g.rarity} ${e ? '' : 'locked'} ${seen && !e ? 'seen' : ''} ${newDex.has(g.id) ? 'new' : ''}" data-goop="${g.id}">`
       + `<span class="num">#${String(n).padStart(2, '0')}</span>${e?.shiny ? '<span class="shiny" title="Shiny caught">✦</span>' : ''}${buddy}`
@@ -141,7 +141,7 @@ function openDexDetail(id) {
   $('ddWhere').textContent = knows ? conditionText(g) : seen ? `Lives at ${g.spots.map(spotName).join(' & ')}` : 'Habitat unknown — keep exploring and look for field notes.';
   const bait = BAITS[tasteBait(g.taste)];
   $('ddStats').innerHTML = e
-    ? `<div><span>CAUGHT</span><b>${e.count}</b></div><div><span>BIGGEST</span><b>${e.best ?? '—'} cm</b></div><div><span>FASTEST</span><b>${e.fastest != null ? `${e.fastest.toFixed(1)}s` : '—'}</b></div><div><span>SHINY</span><b>${e.shiny ? `✦ ${e.shiny}` : '—'}</b></div>`
+    ? `<div><span>CAUGHT</span><b>${e.count}</b></div><div><span>BIGGEST</span><b>${e.best ?? '—'} cm</b></div><div><span>FASTEST</span><b>${e.fastest != null ? `${e.fastest.toFixed(1)}s` : '—'}</b></div><div><span>BEST QUALITY</span><b>${e.qualityGrade ? `${e.qualityGrade} · ${e.qualityBest}/100` : '—'}</b></div><div><span>SHINY</span><b>${e.shiny ? `✦ ${e.shiny}` : '—'}</b></div>`
     : `<div><span>SIZE RANGE</span><b>${knows ? `${g.size[0]}–${g.size[1]} cm` : '???'}</b></div><div><span>FIGHT</span><b>${seen ? g.pattern[0].toUpperCase() + g.pattern.slice(1) : '???'}</b></div>`;
   $('ddBait').innerHTML = e || knows ? `Favourite food: <b>${TASTES[g.taste]}</b> — try ${bait.icon} <b>${bait.name}</b>` : '';
   $('ddHint').textContent = e || seen ? g.hint : '';
@@ -551,6 +551,9 @@ function showCatchCard(c) {
   card.dataset.rarity = g.rarity.toLowerCase();
   $('ccName').textContent = `${c.shiny ? '✦ ' : ''}${g.name}`;
   $('ccRarity').textContent = `${c.shiny ? 'SHINY · ' : ''}${g.rarity.toUpperCase()}`;
+  const specimen = c.quality || { score: 0, grade: 'Rough' };
+  $('ccQuality').textContent = `${specimen.grade.toUpperCase()} SPECIMEN · ${specimen.score}/100`;
+  card.dataset.quality = specimen.grade.toLowerCase();
   $('ccReward').textContent = `+${c.reward} Essence`;
   $('ccSize').textContent = `${c.size} cm${c.record ? ' · RECORD!' : ''}`;
   $('ccTime').textContent = `${c.time.toFixed(1)}s`;
@@ -568,10 +571,11 @@ function showCatchCard(c) {
   }
   if (c.bonusEssence > 0) progression.push(`BONUS +${c.bonusEssence} ESSENCE`);
   if (c.progressMilestones?.length) progression.push(...c.progressMilestones.map((item) => item.toUpperCase()));
+  if (c.qualityRecord) progression.push(`NEW ${specimen.grade.toUpperCase()} QUALITY RECORD · ${specimen.score}/100`);
   $('ccProgress').textContent = progression.join(' · ');
   const badge = $('ccNew');
-  badge.hidden = !(c.firstTime || c.record || c.shiny);
-  badge.textContent = c.firstTime ? 'NEW!' : c.shiny ? 'SHINY!' : 'RECORD!';
+  badge.hidden = !(c.firstTime || c.record || c.shiny || c.qualityRecord);
+  badge.textContent = c.firstTime ? 'NEW!' : c.shiny ? 'SHINY!' : c.qualityRecord ? 'QUALITY!' : 'RECORD!';
   const habitatId = c.research?.spot && SPOT_BY[c.research.spot] ? c.research.spot : game.spot.id;
   const habitat = SPOT_BY[habitatId] || game.spot;
   const p = game.spotProgress(habitatId);
