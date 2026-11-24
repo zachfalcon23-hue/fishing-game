@@ -1299,10 +1299,13 @@ test('habitat rare-rank bonus changes forecast encounter weighting without bypas
   assert.ok(Math.abs(researchedRatio / baseRatio - 1.05) < 1e-9,
     'Naturalist rank raises eligible rare encounter weight by 5% relative to common Goops');
 
+  game.state.timeIndex = 0;
+  const dawn = encounterPool({ spot: SPOT_BY.dock, weather: 'clear', time: 'Dawn', mods: game.mods() });
   game.state.timeIndex = 1;
   const before = encounterPool({ spot: SPOT_BY.dock, weather: 'clear', time: 'Day', mods: game.mods() });
   game.state.timeIndex = 3;
   const night = encounterPool({ spot: SPOT_BY.dock, weather: 'clear', time: 'Night', mods: game.mods() });
+  assert.equal(dawn.some((g) => g.id === 'kinggloop'), true, 'the habitat still respects the species preferred window');
   assert.equal(before.some((g) => g.id === 'kinggloop'), false, 'time-gated legends remain unavailable outside Dawn');
   assert.equal(night.some((g) => g.id === 'kinggloop'), false, 'habitat mastery does not bypass a species hard gate');
 });
