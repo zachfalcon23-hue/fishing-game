@@ -970,10 +970,10 @@ function renderFinder() {
   // Forecast weights also depend on local feeding activity, tracked targets, visitors,
   // habitat research and bait inventory. Include them so the display never goes stale.
   const sig = JSON.stringify([
-    Math.round(s.shore * 10), s.spot, s.bait, s.baits, s.timeIndex, s.weather,
+    Math.round(s.shore * 100), s.spot, s.bait, s.baits, s.timeIndex, s.weather,
     s.equip.lure, s.equip.rod, s.frenzy, s.visitor, s.seen.length, game.dexCount,
-    s.discovered.length, s.activity, s.trackedGoop, s.research,
-    zone.mix.map(([spot, share]) => [spot.id, Math.round(share * 100)]),
+    s.discovered, s.seen, s.dex, s.activity, s.trackedGoop, s.research,
+    zone.mix.map(([spot, share]) => [spot.id, Number(share.toFixed(4))]),
   ]);
   if (sig === finderSig) return;
   finderSig = sig;
