@@ -547,11 +547,22 @@ function showCatchCard(c) {
   if (c.combo > 1) extras.push(`BEST STREAK ×${c.combo.toFixed(2).replace(/0$/, '')}`);
   if (c.skillBonus > 0) extras.push(`SKILL BONUS +${Math.round(c.skillBonus * 100)}%`);
   $('ccExtra').textContent = extras.join(' · ');
+  const progression = [];
+  if (c.research) {
+    progression.push(c.research.rank > c.research.previousRank
+      ? `FIELD RESEARCH +${c.research.earned} RP · ${c.research.title.toUpperCase()} RANK ${c.research.rank}`
+      : `FIELD RESEARCH +${c.research.earned} RP · ${c.research.total} RP TOTAL`);
+  }
+  if (c.bonusEssence > 0) progression.push(`BONUS +${c.bonusEssence} ESSENCE`);
+  if (c.progressMilestones?.length) progression.push(...c.progressMilestones.map((item) => item.toUpperCase()));
+  $('ccProgress').textContent = progression.join(' · ');
   const badge = $('ccNew');
   badge.hidden = !(c.firstTime || c.record || c.shiny);
   badge.textContent = c.firstTime ? 'NEW!' : c.shiny ? 'SHINY!' : 'RECORD!';
-  const p = game.spotProgress(game.spot.id);
-  $('ccHint').textContent = `${game.spot.name}: ${p.found}/${p.total} found · cast again or walk on`;
+  const habitatId = c.research?.spot && SPOT_BY[c.research.spot] ? c.research.spot : game.spot.id;
+  const habitat = SPOT_BY[habitatId] || game.spot;
+  const p = game.spotProgress(habitatId);
+  $('ccHint').textContent = `${habitat.name}: ${p.found}/${p.total} found · cast again or walk on`;
   card.hidden = false;
   card.style.animation = 'none'; void card.offsetWidth; card.style.animation = '';
 }
@@ -566,6 +577,12 @@ function markBoardSeen() { try { localStorage.setItem('goop-board-seen', `${game
 // ---------- events ----------
 
 let pendingCatch = null;
+function addCatchProgress(amount, milestone) {
+  if (!pendingCatch) return;
+  const bonus = Math.max(0, Math.floor(Number(amount) || 0));
+  pendingCatch.bonusEssence = (pendingCatch.bonusEssence || 0) + bonus;
+  if (milestone) pendingCatch.progressMilestones.push(milestone);
+}
 function handleEvents() {
   for (const e of game.events.splice(0)) {
     scene?.onEvent(e, game);
@@ -589,13 +606,16 @@ function handleEvents() {
       case 'combo': sfx.combo(d.combo); break;
       case 'catch':
         if (d.firstTime) newDex.add(d.goop);
-        lastLists = ''; pendingCatch = d; sfx.splash(true); scene?.cheer(); tank?.sync(game.state, tankIdx);
+        lastLists = '';
+        pendingCatch = { ...d, bonusEssence: 0, progressMilestones: [], research: null };
+        sfx.splash(true); scene?.cheer(); tank?.sync(game.state, tankIdx);
         if (d.firstTime) {
           const nm = goopName(d.goop);
           setTimeout(() => notify(d.tank >= 0 ? `🐠 ${nm} moved into ${game.state.tank.tanks[d.tank].name}.` : `🐠 Your tanks are full — ${nm} is waiting in storage at the Aquarium.`, 2600), 3800);
         }
         break;
       case 'research':
+        if (pendingCatch && d) pendingCatch.research = d;
         lastLists = '';
         if (d.rank > d.previousRank) {
           const tier = HABITAT_RESEARCH_TIERS[d.rank - 1];
@@ -625,9 +645,18 @@ function handleEvents() {
       case 'secret': sfx.secret(); lastLists = ''; walker.target = SPOT_X[d.spot]; navigator.vibrate?.([30, 50, 30, 50, 90]); break;
       case 'travel': lastLists = ''; if (!snaps[d.spot]) setTimeout(() => { if (scene && game.here) { snaps[game.state.spot] = scene.snapshot(360); lastLists = ''; } }, 1600); break;
       case 'unlock': setTimeout(() => { notify(`The path to ${spotName(d.spot)} is clear! Walk on to explore.`, 3200); sfx.discover(); }, 2400); lastLists = ''; break;
-      case 'spotComplete': setTimeout(() => { notify(`${spotName(d.spot)} complete! +${d.bonus} Essence bonus`); sfx.coin(); }, 3000); break;
-      case 'set': setTimeout(() => { notify(`🏆 Collection complete: ${SETS.find((x) => x.id === d.set).name}! +${d.reward} Essence`, 3400); sfx.fanfare(); }, 3200); lastLists = ''; break;
-      case 'bounty': setTimeout(() => { notify(`📜 Bounty done: ${d.text}! +${d.essence}${d.bait ? ` and ${BAITS[d.bait].icon}×${d.baitN}` : ''}`, 3400); sfx.fanfare(); }, 2600); lastLists = ''; break;
+      case 'spotComplete':
+        addCatchProgress(d.bonus, `${spotName(d.spot)} completed`);
+        setTimeout(() => { notify(`${spotName(d.spot)} complete! +${d.bonus} Essence bonus`); sfx.coin(); }, 3000);
+        break;
+      case 'set': {
+        const completedSet = SETS.find((x) => x.id === d.set);
+        addCatchProgress(d.reward, completedSet ? `Collection: ${completedSet.name}` : 'Collection completed');
+        setTimeout(() => { notify(`🏆 Collection complete: ${completedSet?.name || 'set'}! +${d.reward} Essence`, 3400); sfx.fanfare(); }, 3200);
+        lastLists = '';
+        break;
+      }
+      case 'bounty': addCatchProgress(d.essence, 'Bounty completed'); setTimeout(() => { notify(`📜 Bounty done: ${d.text}! +${d.essence}${d.bait ? ` and ${BAITS[d.bait].icon}×${d.baitN}` : ''}`, 3400); sfx.fanfare(); }, 2600); lastLists = ''; break;
       case 'newDay':
         if (d.day > 1) notify(`☀️ Day ${d.day}: new bounties on the board${d.fullMoon ? ' · full moon tonight!' : ''}`, 3200);
         lastLists = '';
