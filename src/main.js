@@ -1,7 +1,7 @@
 import {
   MOVE_INFO, fightReadout, GOOPS, SPOTS, SPOT_BY, UPGRADES, NOTES, PHASES, BAITS, SETS, TASTES, MOON, REROLL_COST, WEATHER,
   RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, buddyBonus, QUESTS, DECOR, THEMES, TANK_CAP, DECOR_SLOTS,
-  HABITAT_RESEARCH_TIERS, FishingGame, conditionText, tasteBait,
+  HABITAT_RESEARCH_TIERS, FishingGame, conditionText, tasteBait, WEATHER,
 } from './game.js';
 import { Scene, loadAssets, GOOP_ART, SPOT_X, SPOT_GAP, WORLD_MIN, WORLD_MAX, CLUE_X, toShore, fromShore } from './scene.js';
 import { Sfx } from './audio.js';
@@ -189,10 +189,26 @@ function renderSpots() {
       nextStudyTier ? `Next rank: ${nextStudyTier.name} — ${nextStudyTier.benefit}` : 'Habitat fully surveyed.',
     ].join(' ');
     const studyStatus = !study ? '' : study.rank === HABITAT_RESEARCH_TIERS.length ? 'MASTERED' : `${study.points}/${study.next} RP`;
+    const evidenceChips = (items, label, format = (value) => value) => items.length
+      ? `<span class="research-evidence"><b>${label}</b> ${items.slice(0, 4).map((value) => `<i>${esc(format(value))}</i>`).join('')}${items.length > 4 ? `<i>+${items.length - 4}</i>` : ''}</span>`
+      : '';
+    const speciesEvidence = study?.species?.map((id) => GOOPS.find((g) => g.id === id)?.name || 'Unknown species') || [];
+    const evidenceHTML = study ? [
+      evidenceChips(speciesEvidence, 'SPECIES'),
+      evidenceChips(study.times, 'LIGHT'),
+      evidenceChips(study.weather, 'WEATHER', (key) => WEATHER[key]?.label || key),
+      evidenceChips(study.baits, 'BAIT', (key) => BAITS[key]?.name || key),
+      evidenceChips(study.qualityGrades || [], 'SPECIMENS'),
+    ].filter(Boolean).join('') : '';
+    const nextResearchHTML = nextStudyTier
+      ? `<small class="spot-research-next">NEXT: ${esc(nextStudyTier.name)} · ${Math.max(0, nextStudyTier.points - study.points)} RP TO GO — ${esc(nextStudyTier.benefit)}</small>`
+      : '<small class="spot-research-next mastered">ALL FOUR FIELD RANKS MASTERED · THIS HABITAT IS FULLY SURVEYED</small>';
     const researchHTML = study ? `<div class="spot-research" title="${esc(studyHint)}">
-      <div class="spot-research-head"><span>FIELD RESEARCH</span><b>${study.rank ? `RANK ${study.rank} · ${study.title}` : 'UNSURVEYED'}</b></div>
-      <div class="spot-research-track"><i style="width:${Math.round(study.progress * 100)}%"></i></div>
-      <small>${studyStatus} · ${study.catches} samples · ${study.speciesCount} species · ${study.timeCount}/4 times · ${study.weatherCount}/4 weather · ${study.baitCount}/7 baits · ${study.perfect} perfect</small>
+      <div class="spot-research-head"><span>FIELD JOURNAL</span><b>${study.rank ? `RANK ${study.rank} · ${study.title}` : 'UNSURVEYED'}</b></div>
+      <div class="spot-research-track" role="progressbar" aria-label="${esc(sp.name)} field research" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(study.progress * 100)}"><i style="width:${Math.round(study.progress * 100)}%"></i></div>
+      <div class="spot-research-summary"><b>${studyStatus}</b><span>${study.catches} landed samples</span><span>${study.perfect} perfect hooks</span></div>
+      ${nextResearchHTML}
+      ${evidenceHTML ? `<div class="spot-evidence" aria-label="Recorded field evidence">${evidenceHTML}</div>` : '<small class="spot-research-empty">Land your first catch here to begin recording local evidence.</small>'}
     </div>` : '';
     return `<div class="spot ${here ? 'current' : ''} ${open ? '' : 'locked'} ${done ? 'done' : ''}" ${bg}><div class="spot-copy"><b>${open || found ? sp.name : '???'} ${tags}</b><small>${sub}</small>`
       + `<div class="spot-bar"><i style="width:${(p.found / p.total) * 100}%"></i></div><div class="spot-meta">${activityHTML}${rosterHTML}</div>${researchHTML}</div>${btn}</div>`;
