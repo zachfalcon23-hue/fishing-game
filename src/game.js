@@ -1149,7 +1149,7 @@ export class SaveStore {
     s.research = {};
     if (p.research && typeof p.research === 'object' && !Array.isArray(p.research)) {
       for (const [spotId, record] of Object.entries(p.research)) {
-        if (!SPOT_BY[spotId] || !record || typeof record !== 'object' || Array.isArray(record)) continue;
+        if (!Object.prototype.hasOwnProperty.call(SPOT_BY, spotId) || !record || typeof record !== 'object' || Array.isArray(record)) continue;
         s.research[spotId] = {
           points: Math.floor(Math.min(1000000, num(record.points, 0))),
           catches: Math.floor(Math.min(1000000, num(record.catches, 0))),
@@ -1314,7 +1314,10 @@ export class FishingGame {
 
   /** Current survey state for one habitat. Rank is derived from points, never trusted from a save. */
   habitatResearch(spotId) {
-    const record = this.state.research?.[spotId] || { points: 0, catches: 0, species: [], times: [], weather: [], baits: [], perfect: 0 };
+    const validSpot = Object.prototype.hasOwnProperty.call(SPOT_BY, spotId);
+    const record = validSpot && Object.prototype.hasOwnProperty.call(this.state.research || {}, spotId)
+      ? this.state.research[spotId]
+      : { points: 0, catches: 0, species: [], times: [], weather: [], baits: [], perfect: 0 };
     const points = Math.max(0, Math.floor(Number(record.points) || 0));
     const rank = HABITAT_RESEARCH_TIERS.filter((tier) => points >= tier.points).length;
     const previous = rank ? HABITAT_RESEARCH_TIERS[rank - 1].points : 0;
@@ -1780,7 +1783,8 @@ export class FishingGame {
    * for species, light, weather and bait is worth more, rewarding exploration.
    */
   recordHabitatResearch(ctx, goop, fight = this.fight) {
-    const spotId = SPOT_BY[ctx?.researchSpot] ? ctx.researchSpot : SPOT_BY[ctx?.spot] ? ctx.spot : this.state.spot;
+    const hasSpot = (id) => Object.prototype.hasOwnProperty.call(SPOT_BY, id);
+    const spotId = hasSpot(ctx?.researchSpot) ? ctx.researchSpot : hasSpot(ctx?.spot) ? ctx.spot : this.state.spot;
     const species = GOOPS.find((item) => item.id === goop?.id);
     if (!SPOT_BY[spotId] || !species) return null;
 
@@ -1798,7 +1802,7 @@ export class FishingGame {
       reasons.push(label);
     };
 
-    record.catches += 1;
+    record.catches = Math.min(1000000, record.catches + 1);
     const firstLocalSpecies = !record.species.includes(species.id);
     addEvidence('species', species.id, 5, 'new species');
     addEvidence('times', TIMES.includes(ctx?.time) ? ctx.time : this.timeOfDay, 2, 'new time of day');
@@ -1810,12 +1814,12 @@ export class FishingGame {
       reasons.push('rare specimen');
     }
     if (fight?.hookGrade === 'perfect') {
-      record.perfect += 1;
+      record.perfect = Math.min(1000000, record.perfect + 1);
       earned += 1;
       reasons.push('perfect hook');
     }
 
-    record.points += earned;
+    record.points = Math.min(1000000, record.points + earned);
     const next = this.habitatResearch(spotId);
     return {
       spot: spotId, goop: species.id, earned, total: next.points,
