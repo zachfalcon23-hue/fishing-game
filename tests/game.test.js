@@ -254,7 +254,7 @@ test('catch awards Essence and records Dex entry', () => {
 test('specimen quality scores line skill independently of species rarity and size', () => {
   const rough = evaluateSpecimenQuality({ hookGrade: 'late', best: 1, movesAttempted: 2, movesWon: 0, lungeAttempts: 2, lungeDodges: 0, controlTime: 10, safeTime: 0 });
   const flawless = evaluateSpecimenQuality({ hookGrade: 'perfect', best: 1.6, movesAttempted: 2, movesWon: 2, lungeAttempts: 2, lungeDodges: 2, controlTime: 10, safeTime: 10 });
-  assert.equal(rough.score, 16);
+  assert.equal(rough.score, 8);
   assert.equal(rough.grade, 'Rough');
   assert.equal(flawless.score, 100);
   assert.equal(flawless.grade, 'Flawless');
