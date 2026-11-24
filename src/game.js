@@ -744,7 +744,10 @@ export function fightReadout(fight) {
       return { kind: 'move', title: 'WAKE WINDOW', action: 'REEL NOW', time, ratio: clamp01(m.surgeT / m.window), urgent: true };
     }
     if (m.type === 'rhythm') {
-      const index = m.judged.findIndex((result) => result == null);
+      let index = -1;
+      for (let i = 0; i < m.n; i++) {
+        if (m.judged[i] == null) { index = i; break; }
+      }
       if (index < 0) {
         const time = Math.max(0, m.lead + (m.n - 1) * m.gap + m.win + 0.05 - m.t);
         return { kind: 'move', title: 'RHYTHM', action: 'HOLD FOR RESULT', time, ratio: clamp01(m.hits / m.n), urgent: false };

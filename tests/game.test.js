@@ -1064,6 +1064,7 @@ test('fight readout turns every live signature tell into an actionable cue', () 
   assert.equal(cue.action, 'RELEASE REEL');
   assert.equal(cue.time, 0.2);
 
+  fight.warn = false;
   fight.tension = 0.95;
   assert.match(fightReadout(fight).action, /RELEASE REEL/);
   fight.tension = 0.1;
