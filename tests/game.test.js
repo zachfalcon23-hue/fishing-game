@@ -1459,4 +1459,9 @@ test('save v5 migrates to an empty recent-catch log and v6 sanitizes bounded ent
   assert.equal(clean.catchLog[0].qualityGrade, 'Flawless');
   assert.equal(clean.catchLog[0].qualityScore, 96);
   assert.equal(clean.catchLog[0].bait, 'mud');
+
+  const many = Array.from({ length: 45 }, (_, index) => ({ goop: 'gloop', spot: 'dock', at: index + 1 }));
+  const capped = store.sanitize({ version: 6, catchLog: many });
+  assert.equal(capped.catchLog.length, 40, 'history is capped at 40 validated entries');
+  assert.equal(capped.catchLog[0].at, 1, 'the newest-first save order is preserved');
 });
