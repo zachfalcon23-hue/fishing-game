@@ -1538,8 +1538,13 @@ export class FishingGame {
     wait *= 1 - activity * 0.045;
     wait *= mods.bite;
     this.biteAt = Math.max(0.6, wait);
+    const researchCandidates = z.mix
+      .filter(([spot, share]) => share > 0 && (spot.goops.includes(this.goop.id)
+        || (ev.visitor?.goop === this.goop.id && ev.visitor.spot === spot.id)))
+      .sort((a, b) => b[1] - a[1]);
+    const researchSpot = researchCandidates[0]?.[0].id || z.spot.id;
     this.castCtx = {
-      spot: z.spot.id, hot: z.hot, bait, frenzy, essenceMul: st.essenceMul, weather: s.weather, time: this.timeOfDay,
+      spot: z.spot.id, researchSpot, hot: z.hot, bait, frenzy, essenceMul: st.essenceMul, weather: s.weather, time: this.timeOfDay,
       habitatMods,
       // Lock fight handling to the conditions that selected this encounter, even if the clock rolls over.
       fightMods: { forceMul: this.weather.forceMul * mods.force, reel: mods.reel, zone: mods.zone, lunge: mods.lunge, sizeExp: mods.sizeExp },
@@ -1775,7 +1780,7 @@ export class FishingGame {
    * for species, light, weather and bait is worth more, rewarding exploration.
    */
   recordHabitatResearch(ctx, goop, fight = this.fight) {
-    const spotId = SPOT_BY[ctx?.spot] ? ctx.spot : this.state.spot;
+    const spotId = SPOT_BY[ctx?.researchSpot] ? ctx.researchSpot : SPOT_BY[ctx?.spot] ? ctx.spot : this.state.spot;
     const species = GOOPS.find((item) => item.id === goop?.id);
     if (!SPOT_BY[spotId] || !species) return null;
 
