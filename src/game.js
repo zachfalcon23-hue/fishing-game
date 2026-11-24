@@ -1823,6 +1823,7 @@ export class FishingGame {
     const next = this.habitatResearch(spotId);
     return {
       spot: spotId, goop: species.id, earned, total: next.points,
+      samples: next.catches, firstSample: next.catches === 1,
       previousRank, rank: next.rank, title: next.title, reasons,
     };
   }
