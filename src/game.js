@@ -317,6 +317,17 @@ export const WEATHER = {
 
 export const TIMES = ['Dawn', 'Day', 'Dusk', 'Night'];
 export const CASTS_PER_TIME = 3;
+
+/**
+ * Per-habitat field research. Points come from catches plus new local evidence;
+ * bonuses are deliberately small and apply only to the habitat being studied.
+ */
+export const HABITAT_RESEARCH_TIERS = Object.freeze([
+  { points: 20, name: 'Surveyor', benefit: 'Bites arrive 3% sooner.', modifiers: { bite: 0.97 } },
+  { points: 52, name: 'Naturalist', benefit: 'Rare and better Goops gain 5% encounter weight.', modifiers: { rare: 1.05 } },
+  { points: 96, name: 'Habitat Expert', benefit: 'Catches here earn 4% more Essence.', modifiers: { essence: 1.04 } },
+  { points: 148, name: 'Pond Guardian', benefit: 'Shiny odds here improve by 8%.', modifiers: { shiny: 1.08 } },
+]);
 export const SHINY_ODDS = 1 / 48;
 export const PERFECT_HOOK = 0.4; // seconds after the bite for a perfect hook
 export const CLEAN_HOOK = 1.2; // clean hooks still earn a smaller head start
@@ -978,7 +989,7 @@ export function bountyMatches(b, c) {
 
 // ---------- persistence ----------
 
-const SAVE_VERSION = 3;
+const SAVE_VERSION = 4;
 const OLD_SPOT = { pond: 'dock', reeds: 'reeds', deep: 'deep' };
 const OLD_SPOT_COST = { reeds: 200, deep: 600 };
 
@@ -1003,7 +1014,7 @@ export class SaveStore {
       owned: { rods: ['twig'], skins: ['factory'], bobbers: ['classic'], lines: ['classic'], lures: {} },
       equip: { rod: 'twig', skin: 'factory', bobber: 'classic', line: 'classic', lure: 'none' },
       quest: { i: 0, have: 0 }, tank: { tanks: [newTank(1)], decor: [], themes: ['pond'], tipDay: 0 },
-      bounties: [], bountyDay: 0, frenzy: null, visitor: null, rumors: [], trackedGoop: null, activity: {},
+      bounties: [], bountyDay: 0, frenzy: null, visitor: null, rumors: [], trackedGoop: null, activity: {}, research: {},
     };
   }
 
@@ -1012,7 +1023,7 @@ export class SaveStore {
     const parseSave = (raw) => {
       const value = JSON.parse(raw || 'null');
       if (!value || typeof value !== 'object' || Array.isArray(value)
-        || ![1, 2, SAVE_VERSION].includes(value.version)) {
+        || ![1, 2, 3, SAVE_VERSION].includes(value.version)) {
         throw new Error('Unrecognized or damaged save structure');
       }
       return value;
@@ -1132,6 +1143,22 @@ export class SaveStore {
       for (const [id, value] of Object.entries(p.activity)) if (SPOT_BY[id]) {
         const level = Math.max(0, Math.min(3, Math.floor(num(value, 0))));
         if (level) s.activity[id] = level;
+      }
+    }
+    // Habitat research is additive to older saves and constrained to known pond data.
+    s.research = {};
+    if (p.research && typeof p.research === 'object' && !Array.isArray(p.research)) {
+      for (const [spotId, record] of Object.entries(p.research)) {
+        if (!Object.prototype.hasOwnProperty.call(SPOT_BY, spotId) || !record || typeof record !== 'object' || Array.isArray(record)) continue;
+        s.research[spotId] = {
+          points: Math.floor(Math.min(1000000, num(record.points, 0))),
+          catches: Math.floor(Math.min(1000000, num(record.catches, 0))),
+          species: list(record.species, (id) => ids.has(id)),
+          times: list(record.times, (id) => TIMES.includes(id)),
+          weather: list(record.weather, (id) => !!WEATHER[id]),
+          baits: list(record.baits, (id) => !!BAITS[id]),
+          perfect: Math.floor(Math.min(1000000, num(record.perfect, 0))),
+        };
       }
     }
     // tackle box
@@ -1285,7 +1312,53 @@ export class FishingGame {
     return { found: s.goops.filter((g) => this.state.dex[g]).length, total: s.goops.length };
   }
 
-  // ----- the shore -----
+  /** Current survey state for one habitat. Rank is derived from points, never trusted from a save. */
+  habitatResearch(spotId) {
+    const validSpot = Object.prototype.hasOwnProperty.call(SPOT_BY, spotId);
+    const record = validSpot && Object.prototype.hasOwnProperty.call(this.state.research || {}, spotId)
+      ? this.state.research[spotId]
+      : { points: 0, catches: 0, species: [], times: [], weather: [], baits: [], perfect: 0 };
+    const points = Math.max(0, Math.floor(Number(record.points) || 0));
+    const rank = HABITAT_RESEARCH_TIERS.filter((tier) => points >= tier.points).length;
+    const previous = rank ? HABITAT_RESEARCH_TIERS[rank - 1].points : 0;
+    const nextTier = HABITAT_RESEARCH_TIERS[rank] || null;
+    return {
+      points,
+      catches: record.catches || 0,
+      speciesCount: record.species?.length || 0,
+      timeCount: record.times?.length || 0,
+      weatherCount: record.weather?.length || 0,
+      baitCount: record.baits?.length || 0,
+      perfect: record.perfect || 0,
+      rank,
+      title: rank ? HABITAT_RESEARCH_TIERS[rank - 1].name : 'Unsurveyed',
+      next: nextTier?.points ?? null,
+      nextTitle: nextTier?.name ?? null,
+      progress: nextTier ? Math.max(0, Math.min(1, (points - previous) / (nextTier.points - previous))) : 1,
+    };
+  }
+
+  /** Blend habitat perks by the same shore-distance weights used by the encounter pool. */
+  habitatModifiers(zone = this.zone()) {
+    const neutral = { bite: 1, rare: 1, essence: 1, shiny: 1 };
+    const totals = { bite: 0, rare: 0, essence: 0, shiny: 0 };
+    let weight = 0;
+    for (const [spot, share] of zone.mix) {
+      if (!spot || !Number.isFinite(share) || share <= 0) continue;
+      const rank = this.habitatResearch(spot.id).rank;
+      const local = { ...neutral };
+      for (let i = 0; i < rank; i++) {
+        for (const [key, value] of Object.entries(HABITAT_RESEARCH_TIERS[i].modifiers)) local[key] *= value;
+      }
+      for (const key of Object.keys(totals)) totals[key] += local[key] * share;
+      weight += share;
+    }
+    if (!weight) return neutral;
+    for (const key of Object.keys(totals)) totals[key] /= weight;
+    return totals;
+  }
+
+  /** ----- the shore ----- */
 
   zone(pos = this.state.shore) { return shoreZone(pos, this.openSpots()); }
 
@@ -1451,7 +1524,8 @@ export class FishingGame {
     const s = this.state;
     const bait = BAITS[s.bait] && (s.bait === 'worm' || s.baits[s.bait] > 0) ? s.bait : 'worm';
     const ev = this.event;
-    const mods = this.mods();
+    const habitatMods = this.habitatModifiers(z);
+    const mods = this.mods({ weather: s.weather, time: this.timeOfDay, habitatMods }, z);
     const pool = zonePool(z, { weather: s.weather, time: this.timeOfDay, lure: s.gear.lure, bait, event: { ...ev, activity: s.activity }, mods, trackedGoop: s.trackedGoop });
     const picked = weightedPick(pool, this.rng);
     this.goop = picked ? GOOPS.find((g) => g.id === picked.id) : GOOPS[0];
@@ -1467,8 +1541,14 @@ export class FishingGame {
     wait *= 1 - activity * 0.045;
     wait *= mods.bite;
     this.biteAt = Math.max(0.6, wait);
+    const researchCandidates = z.mix
+      .filter(([spot, share]) => share > 0 && (spot.goops.includes(this.goop.id)
+        || (ev.visitor?.goop === this.goop.id && ev.visitor.spot === spot.id)))
+      .sort((a, b) => b[1] - a[1]);
+    const researchSpot = researchCandidates[0]?.[0].id || z.spot.id;
     this.castCtx = {
-      spot: z.spot.id, hot: z.hot, bait, frenzy, essenceMul: st.essenceMul, weather: s.weather, time: this.timeOfDay,
+      spot: z.spot.id, researchSpot, hot: z.hot, bait, frenzy, essenceMul: st.essenceMul, weather: s.weather, time: this.timeOfDay,
+      habitatMods,
       // Lock fight handling to the conditions that selected this encounter, even if the clock rolls over.
       fightMods: { forceMul: this.weather.forceMul * mods.force, reel: mods.reel, zone: mods.zone, lunge: mods.lunge, sizeExp: mods.sizeExp },
     };
@@ -1652,6 +1732,7 @@ export class FishingGame {
     this.message = `${shiny ? '✦ Shiny ' : ''}${g.name} caught! +${reward} Essence`;
     if (firstTime) this.lastCatch.tank = this.houseGoop(id);
     this.emit('catch', this.lastCatch);
+    this.emit('research', this.recordHabitatResearch(ctx, g, this.fight));
     this.questTick('catch');
     if (ctx.bait && ctx.bait !== 'worm') this.questTick('bait');
     if (ctx.frenzy) this.questTick('frenzy');
@@ -1694,6 +1775,57 @@ export class FishingGame {
     const after = this.dexCount;
     for (const sp of SPOTS) if (!sp.secret && sp.unlockAt > before && sp.unlockAt <= after) this.emit('unlock', { spot: sp.id });
     this.saveStore.save(s);
+  }
+
+  /**
+   * Log one landed specimen against the habitat used for the cast.
+   * Repeated catches always contribute a small base sample; first-time evidence
+   * for species, light, weather and bait is worth more, rewarding exploration.
+   */
+  recordHabitatResearch(ctx, goop, fight = this.fight) {
+    const hasSpot = (id) => Object.prototype.hasOwnProperty.call(SPOT_BY, id);
+    const spotId = hasSpot(ctx?.researchSpot) ? ctx.researchSpot : hasSpot(ctx?.spot) ? ctx.spot : this.state.spot;
+    const species = GOOPS.find((item) => item.id === goop?.id);
+    if (!SPOT_BY[spotId] || !species) return null;
+
+    const records = this.state.research || (this.state.research = {});
+    const record = records[spotId] || (records[spotId] = {
+      points: 0, catches: 0, species: [], times: [], weather: [], baits: [], perfect: 0,
+    });
+    const previousRank = this.habitatResearch(spotId).rank;
+    const reasons = [];
+    let earned = 3;
+    const addEvidence = (field, value, points, label) => {
+      if (!value || record[field].includes(value)) return;
+      record[field].push(value);
+      earned += points;
+      reasons.push(label);
+    };
+
+    record.catches = Math.min(1000000, record.catches + 1);
+    const firstLocalSpecies = !record.species.includes(species.id);
+    addEvidence('species', species.id, 5, 'new species');
+    addEvidence('times', TIMES.includes(ctx?.time) ? ctx.time : this.timeOfDay, 2, 'new time of day');
+    addEvidence('weather', WEATHER[ctx?.weather] ? ctx.weather : this.state.weather, 2, 'new weather');
+    addEvidence('baits', BAITS[ctx?.bait] ? ctx.bait : 'worm', 1, 'new bait');
+    if (firstLocalSpecies && RANK[species.rarity] >= RANK.Rare) {
+      // New rare specimens are especially valuable field evidence.
+      earned += 2;
+      reasons.push('rare specimen');
+    }
+    if (fight?.hookGrade === 'perfect') {
+      record.perfect = Math.min(1000000, record.perfect + 1);
+      earned += 1;
+      reasons.push('perfect hook');
+    }
+
+    record.points = Math.min(1000000, record.points + earned);
+    const next = this.habitatResearch(spotId);
+    return {
+      spot: spotId, goop: species.id, earned, total: next.points,
+      samples: next.catches, firstSample: next.catches === 1,
+      previousRank, rank: next.rank, title: next.title, reasons,
+    };
   }
 
   /** Pick up a field note found on the shore at the current spot. */
@@ -1748,8 +1880,18 @@ export class FishingGame {
 
   // ----- tackle box -----
 
-  /** Rod + lure effects for the current (or given) conditions. */
-  mods(ctx = { weather: this.state.weather, time: this.timeOfDay }) { return tackleMods(this.state.equip, this.state.owned, ctx); }
+  /** Rod, lure and local field-study effects for the current (or given) conditions. */
+  mods(ctx = { weather: this.state.weather, time: this.timeOfDay }, zone = this.zone()) {
+    const base = tackleMods(this.state.equip, this.state.owned, ctx);
+    const habitat = ctx.habitatMods || this.habitatModifiers(zone);
+    return {
+      ...base,
+      bite: base.bite * habitat.bite,
+      rare: base.rare * habitat.rare,
+      essence: base.essence * habitat.essence,
+      shiny: base.shiny * habitat.shiny,
+    };
+  }
 
   /** Buy (if needed) and equip a rod, skin, bobber or line. kind: 'rods' | 'skins' | 'bobbers' | 'lines'. */
   buyTackle(kind, id) {

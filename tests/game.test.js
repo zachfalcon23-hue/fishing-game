@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fightReactionPose } from '../src/scene.js';
 import {
-  GOOPS, SPOTS, UPGRADES, NOTES, NOTE_REWARD, weightedPick, encounterPool, makeFight, tickFight, pullForce,
+  GOOPS, SPOTS, UPGRADES, NOTES, NOTE_REWARD, HABITAT_RESEARCH_TIERS, weightedPick, encounterPool, makeFight, tickFight, pullForce,
   FishingGame, SaveStore, PHASES, CASTS_PER_TIME, conditionsMet, conditionText,
   SPOT_BY, BAITS, SETS, RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, tackleMods, QUESTS, DECOR, THEMES, tankTips, TANK_CAP, TANK_COSTS, DECOR_SLOTS, startMove, SIGNATURE, MOVE_INFO, stagesFor, BREAK_TIME, shoreZone, zonePool, makeBounties, bountyMatches, comboFor, LUNGE_PROFILE, PERFECT_HOOK, CLEAN_HOOK, hookTiming, isFullMoon, rollGoopSize, TRACK_WEIGHT_MULT,
 } from '../src/game.js';
@@ -245,6 +245,9 @@ test('catch awards Essence and records Dex entry', () => {
   assert.equal(g.state.essence, 8);
   assert.equal(g.state.dex.gloop.count, 1);
   assert.equal(g.state.stats.caught, 1);
+  assert.equal(g.state.research.dock.points, 13, 'the landed specimen is logged against the cast habitat');
+  assert.equal(g.state.research.dock.catches, 1);
+  assert.equal(JSON.parse(mem.v).research.dock.points, 13, 'field research persists in the same catch save');
   assert.ok(mem.v, 'catch is saved');
 });
 
@@ -641,7 +644,7 @@ test('field notes are picked up once, at their own spot, and teach the Goop', ()
 test('save storage recovers from malformed data and version mismatch', () => {
   const mem = { v: 'bad', getItem() { return this.v; }, setItem(k, v) { this.v = v; }, removeItem() { this.v = null; } };
   const store = new SaveStore(mem);
-  assert.equal(store.load().version, 3);
+  assert.equal(store.load().version, 4);
   mem.v = JSON.stringify({ version: 99, essence: 999 });
   assert.equal(store.load().essence, 0);
 });
@@ -669,7 +672,7 @@ test('version-2 saves load with new fields filled in and bad new fields are drop
     version: 2, essence: 30, dex: { gloop: { count: 1 } }, discovered: ['dock', 'sandbar'], spot: 'dock',
   }));
   const s = store.load();
-  assert.equal(s.version, 3);
+  assert.equal(s.version, 4);
   assert.equal(s.baits.sugar, 3, 'returning players get starter bait');
   assert.equal(s.bait, 'worm');
   assert.ok(s.discovered.includes('sandbar'), 'found secrets are kept');
@@ -693,7 +696,7 @@ test('version-1 saves migrate: GoopDex kept, old lake purchases refunded', () =>
     caughtToday: 1, spot: 'reeds', unlocked: ['pond', 'reeds'], gear: { rod: 1 },
   }));
   const s = store.load();
-  assert.equal(s.version, 3);
+  assert.equal(s.version, 4);
   assert.equal(s.essence, 240, 'the 200 paid for Reed Shallows comes back');
   assert.equal(s.dex.gloop.count, 2);
   assert.equal(s.dex.gloop.fastest, 3.1);
@@ -1154,4 +1157,166 @@ test('fight outcome reactions are bounded, directional, and expire deterministic
   assert.equal(fightReactionPose({ type: 'win', at: start, duration: 0 }, start + 100, 300, 500, 500), null);
   assert.equal(fightReactionPose({ type: 'win', at: start, duration: 1 }, start + 100, Number.NaN, 500, 500), null);
   assert.equal(fightReactionPose(null, start + 100, 300, 500, 500), null);
+});
+
+
+test('habitat research upgrades v3 saves safely and sanitizes malformed v4 research', () => {
+  const legacy = memStore(JSON.stringify({
+    version: 3,
+    essence: 415,
+    day: 4,
+    dex: { gloop: { count: 2, best: 18 } },
+    discovered: ['dock'],
+    spot: 'dock',
+  })).store.load();
+
+  assert.equal(legacy.version, 4);
+  assert.equal(legacy.essence, 415);
+  assert.equal(legacy.dex.gloop.count, 2);
+  assert.deepEqual(legacy.research, {}, 'old saves gain an empty research ledger without losing progress');
+
+  const migrated = memStore(JSON.stringify({
+    version: 4,
+    essence: 90,
+    research: {
+      dock: {
+        points: 72.8,
+        catches: 9,
+        species: ['gloop', 'drowsy', 'invalid', 'gloop'],
+        times: ['Night', 'bad'],
+        weather: ['storm', 'meteors'],
+        baits: ['worm', 'not-a-bait'],
+        perfect: 2,
+      },
+      nowhere: { points: 9999, species: ['sleeper'] },
+      constructor: { points: 999999, species: ['sleeper'] },
+      lily: null,
+    },
+  })).store.load();
+
+  assert.deepEqual(migrated.research.dock, {
+    points: 72,
+    catches: 9,
+    species: ['gloop', 'drowsy'],
+    times: ['Night'],
+    weather: ['storm'],
+    baits: ['worm'],
+    perfect: 2,
+  });
+  assert.equal(migrated.research.nowhere, undefined, 'unknown habitats are discarded');
+  assert.equal(Object.hasOwn(migrated.research, 'constructor'), false, 'inherited object keys are not treated as real habitats');
+  assert.equal(migrated.research.lily, undefined, 'malformed records are discarded');
+  const survey = new FishingGame({ rng: () => 0, saveStore: memStore(JSON.stringify({
+    version: 4,
+    research: { dock: { points: 72, species: ['gloop'] } },
+  })).store });
+  assert.equal(survey.habitatResearch('dock').rank, 2);
+  assert.equal(survey.habitatResearch('dock').title, HABITAT_RESEARCH_TIERS[1].name);
+});
+
+test('habitat research rewards first local evidence, rare specimens and perfect hooks once', () => {
+  const game = newGame();
+  const dockGloop = GOOPS.find((g) => g.id === 'gloop');
+  const dockRare = GOOPS.find((g) => g.id === 'drowsy');
+
+  const first = game.recordHabitatResearch({
+    spot: 'dock', time: 'Day', weather: 'clear', bait: 'worm',
+  }, dockGloop, { hookGrade: 'perfect' });
+
+  assert.equal(first.earned, 14, 'base sample + new species + new time + new weather + new bait + perfect hook');
+  assert.equal(first.total, 14);
+  assert.equal(first.rank, 0);
+  assert.deepEqual(first.reasons, ['new species', 'new time of day', 'new weather', 'new bait', 'perfect hook']);
+
+  const rare = game.recordHabitatResearch({
+    spot: 'dock', time: 'Night', weather: 'storm', bait: 'mud',
+  }, dockRare, { hookGrade: 'late' });
+
+  assert.equal(rare.earned, 15, 'a first local rare species earns additional evidence');
+  assert.equal(rare.total, 29);
+  assert.equal(rare.rank, 1);
+  assert.equal(rare.title, 'Surveyor');
+  assert.ok(rare.reasons.includes('rare specimen'));
+
+  const repeat = game.recordHabitatResearch({
+    spot: 'dock', time: 'Night', weather: 'storm', bait: 'mud',
+  }, dockRare, { hookGrade: 'late' });
+
+  assert.equal(repeat.earned, 3, 'repeat samples earn only the base field notes');
+  assert.equal(repeat.total, 32);
+  assert.equal(game.habitatResearch('dock').catches, 3);
+  assert.equal(game.habitatResearch('dock').speciesCount, 2);
+  assert.equal(game.habitatResearch('dock').timeCount, 2);
+  assert.equal(game.habitatResearch('dock').weatherCount, 2);
+  assert.equal(game.habitatResearch('dock').baitCount, 2);
+  assert.equal(game.habitatResearch('dock').perfect, 1);
+  assert.equal(game.habitatResearch('lily').points, 0, 'research is isolated per habitat');
+
+  const coveSample = game.recordHabitatResearch({
+    spot: 'dock', researchSpot: 'lily', time: 'Dusk', weather: 'fog', bait: 'sugar',
+  }, GOOPS.find((g) => g.id === 'blushkoi'), { hookGrade: 'late' });
+  assert.equal(coveSample.spot, 'lily', 'a blended cast credits the actual resident habitat, not just the nearest pin');
+  assert.equal(game.habitatResearch('lily').catches, 1);
+});
+
+test('habitat mastery perks compose with tackle and blend smoothly between neighboring spots', () => {
+  const game = newGame();
+  const empty = game.mods({ weather: 'clear', time: 'Day' });
+  assert.equal(empty.bite, 0.92, 'the starter Clear Mono line keeps its native bite bonus');
+  assert.equal(empty.rare, 1);
+  assert.equal(empty.essence, 1);
+  assert.equal(empty.shiny, 1);
+
+  game.state.research.dock = {
+    points: 148, catches: 24, species: [], times: [], weather: [], baits: [], perfect: 0,
+  };
+  const full = game.mods({ weather: 'clear', time: 'Day' }, {
+    spot: SPOT_BY.dock, hot: true, mix: [[SPOT_BY.dock, 1]],
+  });
+  assert.ok(Math.abs(full.bite / empty.bite - 0.97) < 1e-12);
+  assert.ok(Math.abs(full.rare / empty.rare - 1.05) < 1e-12);
+  assert.ok(Math.abs(full.essence / empty.essence - 1.04) < 1e-12);
+  assert.ok(Math.abs(full.shiny / empty.shiny - 1.08) < 1e-12);
+
+  const blended = game.habitatModifiers({
+    spot: SPOT_BY.dock, hot: false, mix: [[SPOT_BY.dock, 0.5], [SPOT_BY.lily, 0.5]],
+  });
+  assert.ok(Math.abs(blended.bite - 0.985) < 1e-12);
+  assert.ok(Math.abs(blended.rare - 1.025) < 1e-12);
+  assert.ok(Math.abs(blended.essence - 1.02) < 1e-12);
+  assert.ok(Math.abs(blended.shiny - 1.04) < 1e-12);
+
+  assert.ok(game.cast());
+  const castResearch = { ...game.castCtx.habitatMods };
+  assert.equal(castResearch.essence, 1.04, 'a cast snapshots the habitat rank at line-out');
+  game.state.research.dock.points = 0;
+  const locked = game.mods(game.castCtx);
+  const tackleOnly = tackleMods(game.state.equip, game.state.owned, game.castCtx);
+  assert.ok(Math.abs(locked.essence / tackleOnly.essence - castResearch.essence) < 1e-12,
+    'the caught specimen keeps the cast-time habitat bonus even if research state changes later');
+});
+
+test('habitat rare-rank bonus changes forecast encounter weighting without bypassing ecology gates', () => {
+  const game = newGame();
+  const baseline = game.forecast(GOOPS.length);
+  const chanceOf = (rows, id) => rows.find((row) => row.id === id)?.chance || 0;
+  const baseRatio = chanceOf(baseline, 'drowsy') / chanceOf(baseline, 'gloop');
+
+  game.state.research.dock = {
+    points: 52, catches: 20, species: [], times: [], weather: [], baits: [], perfect: 0,
+  };
+  const researched = game.forecast(GOOPS.length);
+  const researchedRatio = chanceOf(researched, 'drowsy') / chanceOf(researched, 'gloop');
+  assert.ok(Math.abs(researchedRatio / baseRatio - 1.05) < 1e-9,
+    'Naturalist rank raises eligible rare encounter weight by 5% relative to common Goops');
+
+  game.state.timeIndex = 0;
+  const dawn = encounterPool({ spot: SPOT_BY.dock, weather: 'clear', time: 'Dawn', mods: game.mods() });
+  game.state.timeIndex = 1;
+  const before = encounterPool({ spot: SPOT_BY.dock, weather: 'clear', time: 'Day', mods: game.mods() });
+  game.state.timeIndex = 3;
+  const night = encounterPool({ spot: SPOT_BY.dock, weather: 'clear', time: 'Night', mods: game.mods() });
+  assert.equal(dawn.some((g) => g.id === 'kinggloop'), true, 'the habitat still respects the species preferred window');
+  assert.equal(before.some((g) => g.id === 'kinggloop'), false, 'time-gated legends remain unavailable outside Dawn');
+  assert.equal(night.some((g) => g.id === 'kinggloop'), false, 'habitat mastery does not bypass a species hard gate');
 });
