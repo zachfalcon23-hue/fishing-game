@@ -275,7 +275,7 @@ const SPOT_DEFS = [
   { id: 'dock', name: 'The Old Dock', pos: 0, unlockAt: 0, essenceMul: 1, rareMul: 1, biteMin: 1.0, biteMax: 3.0, desc: 'Lantern-lit planks over open water. Every journey starts here.' },
   { id: 'lily', name: 'Lily Cove', pos: 1, unlockAt: 0, essenceMul: 1.1, rareMul: 1.05, biteMin: 1.0, biteMax: 2.8, desc: 'A sheltered cove of lily pads and pink blooms.' },
   { id: 'reeds', name: 'Cattail Reeds', pos: 2, unlockAt: 3, essenceMul: 1.2, rareMul: 1.1, biteMin: 0.9, biteMax: 2.6, stirMultiplier: 2, desc: 'Cattails, moss and murky shallows. Dense cover shelters feeding schools, so each cast builds water activity twice as fast.' },
-  { id: 'boulder', name: 'Slime Boulders', pos: 3, unlockAt: 7, essenceMul: 1.3, rareMul: 1.15, biteMin: 1.1, biteMax: 3.0, desc: 'Slime-streaked boulders where tough Goops lurk.' },
+  { id: 'boulder', name: 'Slime Boulders', pos: 3, unlockAt: 7, essenceMul: 1.3, rareMul: 1.15, biteMin: 1.1, biteMax: 3.0, desc: 'Slime-streaked boulders where tough Goops lurk. Rocky eddies tug at your line, narrowing the safe tension window during fights.' },
   { id: 'falls', name: 'Waterfall Inlet', pos: 4, unlockAt: 12, essenceMul: 1.4, rareMul: 1.25, biteMin: 1.0, biteMax: 2.8, desc: 'Cold, churning water under the falls.' },
   {
     id: 'cave', name: 'Hidden Falls Cave', pos: 5, essenceMul: 1.6, rareMul: 1.4, biteMin: 1.1, biteMax: 3.0,
@@ -1682,11 +1682,13 @@ export class FishingGame {
         || (ev.visitor?.goop === this.goop.id && ev.visitor.spot === spot.id)))
       .sort((a, b) => b[1] - a[1]);
     const researchSpot = researchCandidates[0]?.[0].id || z.spot.id;
+    const rockyCurrent = z.mix.some(([spot, share]) => spot.id === 'boulder' && share >= 0.65);
     this.castCtx = {
       spot: z.spot.id, researchSpot, hot: z.hot, bait, frenzy, essenceMul: st.essenceMul, weather: s.weather, time: this.timeOfDay,
       habitatMods,
       // Lock fight handling to the conditions that selected this encounter, even if the clock rolls over.
-      fightMods: { forceMul: this.weather.forceMul * mods.force, reel: mods.reel, zone: mods.zone, lunge: mods.lunge, sizeExp: mods.sizeExp },
+      // Rocky eddies compress the safe tension band; line upgrades still offset part of the penalty.
+      fightMods: { forceMul: this.weather.forceMul * mods.force, reel: mods.reel, zone: mods.zone - (rockyCurrent ? 0.035 : 0), lunge: mods.lunge, sizeExp: mods.sizeExp },
     };
     if (bait !== 'worm') {
       s.baits[bait] -= 1;
