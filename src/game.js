@@ -274,7 +274,7 @@ const SPOT_DEFS = [
   },
   { id: 'dock', name: 'The Old Dock', pos: 0, unlockAt: 0, essenceMul: 1, rareMul: 1, biteMin: 1.0, biteMax: 3.0, desc: 'Lantern-lit planks over open water. Every journey starts here.' },
   { id: 'lily', name: 'Lily Cove', pos: 1, unlockAt: 0, essenceMul: 1.1, rareMul: 1.05, biteMin: 1.0, biteMax: 2.8, desc: 'A sheltered cove of lily pads and pink blooms.' },
-  { id: 'reeds', name: 'Cattail Reeds', pos: 2, unlockAt: 3, essenceMul: 1.2, rareMul: 1.1, biteMin: 0.9, biteMax: 2.6, desc: 'Cattails, moss and murky shallows.' },
+  { id: 'reeds', name: 'Cattail Reeds', pos: 2, unlockAt: 3, essenceMul: 1.2, rareMul: 1.1, biteMin: 0.9, biteMax: 2.6, stirMultiplier: 2, desc: 'Cattails, moss and murky shallows. Dense cover shelters feeding schools, so each cast builds water activity twice as fast.' },
   { id: 'boulder', name: 'Slime Boulders', pos: 3, unlockAt: 7, essenceMul: 1.3, rareMul: 1.15, biteMin: 1.1, biteMax: 3.0, desc: 'Slime-streaked boulders where tough Goops lurk.' },
   { id: 'falls', name: 'Waterfall Inlet', pos: 4, unlockAt: 12, essenceMul: 1.4, rareMul: 1.25, biteMin: 1.0, biteMax: 2.8, desc: 'Cold, churning water under the falls.' },
   {
@@ -1518,7 +1518,7 @@ export class FishingGame {
   stirWater(zone = this.zone()) {
     for (const [spot, share] of zone.mix) {
       if (share <= 0) continue;
-      const gain = share >= 0.65 ? 1 : 0;
+      const gain = share >= 0.65 ? Math.max(1, Math.round(spot.stirMultiplier ?? 1)) : 0;
       if (!gain) continue;
       this.state.activity[spot.id] = Math.min(3, this.activityAt(spot.id) + gain);
     }
