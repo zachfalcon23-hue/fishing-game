@@ -183,9 +183,11 @@ function renderSpots() {
     const rosterHTML = open ? `<div class="spot-roster" aria-label="Resident species">${roster}${extra ? `<span class="spot-more">+${extra}</span>` : ''}</div>` : '';
     const study = found && open ? game.habitatResearch(sp.id) : null;
     const nextStudyTier = study ? HABITAT_RESEARCH_TIERS[study.rank] : null;
-    const studyHint = nextStudyTier
-      ? `Next rank: ${nextStudyTier.name} — ${nextStudyTier.benefit}`
-      : 'Habitat fully surveyed. All local field-study benefits are active.';
+    const activeStudyBenefits = study ? HABITAT_RESEARCH_TIERS.slice(0, study.rank).map((tier) => tier.benefit) : [];
+    const studyHint = [
+      activeStudyBenefits.length ? `Active: ${activeStudyBenefits.join(' ')}` : 'No local research perks active yet.',
+      nextStudyTier ? `Next rank: ${nextStudyTier.name} — ${nextStudyTier.benefit}` : 'Habitat fully surveyed.',
+    ].join(' ');
     const studyStatus = !study ? '' : study.rank === HABITAT_RESEARCH_TIERS.length ? 'MASTERED' : `${study.points}/${study.next} RP`;
     const researchHTML = study ? `<div class="spot-research" title="${esc(studyHint)}">
       <div class="spot-research-head"><span>FIELD RESEARCH</span><b>${study.rank ? `RANK ${study.rank} · ${study.title}` : 'UNSURVEYED'}</b></div>
