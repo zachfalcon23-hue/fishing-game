@@ -702,6 +702,7 @@ export function makeFight(goop, gear = {}, env = {}) {
     currentFlow: !!env.currentFlow, flowWarning: false, flowSurge: false,
     crystalShift: !!env.crystalShift, crystalWarning: false, crystalOffset: 0,
     sporeBloom: !!env.sporeBloom, sporeWarning: false, sporeActive: false,
+    deepPressure: !!env.deepPressure, pressureWarning: false, pressureActive: false,
   };
 }
 
@@ -811,6 +812,16 @@ export function fightReadout(fight) {
     const phase = fight.elapsed % 8;
     const time = Math.max(0, 7.2 - phase);
     return { kind: 'spore', title: 'LUMINOUS WINDOW', action: 'REEL IN THE GREEN · THE GOOP IS EASIER TO CONTROL', time, ratio: clamp01(1 - time / 1.2), urgent: true };
+  }
+  if (!m && fight.deepPressure && fight.pressureWarning) {
+    const phase = fight.elapsed % 9;
+    const time = Math.max(0, 6.6 - phase);
+    return { kind: 'pressure', title: 'ABYSSAL PRESSURE', action: 'PRESSURE DROP INCOMING · PREPARE TO REEL', time, ratio: clamp01(1 - time / 0.8), urgent: false };
+  }
+  if (!m && fight.deepPressure && fight.pressureActive) {
+    const phase = fight.elapsed % 9;
+    const time = Math.max(0, 7.8 - phase);
+    return { kind: 'pressure', title: 'PRESSURE DROP', action: 'REEL THROUGH THE SINK · KEEP THE LINE OUT OF SLACK', time, ratio: clamp01((phase - 6.6) / 1.2), urgent: true };
   }
   if (!m && fight.crystalShift && fight.crystalWarning) {
     const phase = fight.elapsed % 5;
@@ -993,6 +1004,9 @@ export function tickFight(fight, input, dt) {
   const sporePhase = fight.elapsed % 8;
   fight.sporeWarning = !!fight.sporeBloom && sporePhase >= 5.5 && sporePhase < 6;
   fight.sporeActive = !!fight.sporeBloom && sporePhase >= 6 && sporePhase < 7.2;
+  const pressurePhase = fight.elapsed % 9;
+  fight.pressureWarning = !!fight.deepPressure && pressurePhase >= 5.8 && pressurePhase < 6.6;
+  fight.pressureActive = !!fight.deepPressure && pressurePhase >= 6.6 && pressurePhase < 7.8;
 
   // signature moves
   let paused = false;
@@ -1007,7 +1021,7 @@ export function tickFight(fight, input, dt) {
   if (!paused) {
     // Reeling winds tension up, releasing lets it fall; the Goop pulls against you (but not while it plays dead).
     const still = fight.move?.type === 'fakeout' && fight.move.state === 'still';
-    const pull = still ? -0.1 : pullForce(fight.goop.pattern, fight.phase) * (fight.forceMul ?? 1) * (fight.flowSurge ? 1.35 : 1) * (fight.sporeActive ? 0.75 : 1);
+    const pull = still ? -0.1 : pullForce(fight.goop.pattern, fight.phase) * (fight.forceMul ?? 1) * (fight.flowSurge ? 1.35 : 1) * (fight.sporeActive ? 0.75 : 1) - (fight.pressureActive ? 0.38 : 0);
     fight.tension += (reeling ? 0.62 : -0.55) * d + pull * d;
 
     // Lunges: a warning, then a surge. Easing off when it hits dodges most of it.
@@ -1725,13 +1739,15 @@ export class FishingGame {
     const rockyCurrent = z.mix.some(([spot, share]) => spot.id === 'boulder' && share >= 0.65);
     const waterfallCurrent = z.mix.some(([spot, share]) => spot.id === 'falls' && share >= 0.65);
     const glowshroomBloom = z.mix.some(([spot, share]) => spot.id === 'grotto' && share >= 0.65);
+    const deepPressure = z.mix.some(([spot, share]) => spot.id === 'deep' && share >= 0.65);
     this.castCtx = {
       spot: z.spot.id, researchSpot, hot: z.hot, bait, frenzy, essenceMul: st.essenceMul, weather: s.weather, time: this.timeOfDay,
       habitatMods,
       // Lock fight handling to the conditions that selected this encounter, even if the clock rolls over.
       // Rocky eddies compress the safe tension band; waterfall surges periodically increase line pull.
       // Glowshroom spores create a short, predictable window of reduced pull and stronger reeling.
-      fightMods: { forceMul: this.weather.forceMul * mods.force, reel: mods.reel, zone: mods.zone - (rockyCurrent ? 0.035 : 0), lunge: mods.lunge, sizeExp: mods.sizeExp, currentFlow: waterfallCurrent, crystalShift: z.mix.some(([spot, share]) => spot.id === 'cave' && share >= 0.65), sporeBloom: glowshroomBloom },
+      // Deep Drop pressure periodically sinks the line; reeling through it prevents slack.
+      fightMods: { forceMul: this.weather.forceMul * mods.force, reel: mods.reel, zone: mods.zone - (rockyCurrent ? 0.035 : 0), lunge: mods.lunge, sizeExp: mods.sizeExp, currentFlow: waterfallCurrent, crystalShift: z.mix.some(([spot, share]) => spot.id === 'cave' && share >= 0.65), sporeBloom: glowshroomBloom, deepPressure }, 
     };
     if (bait !== 'worm') {
       s.baits[bait] -= 1;
@@ -1819,7 +1835,7 @@ export class FishingGame {
         this.phase = PHASES.FIGHT;
         const m = this.castCtx?.fightMods || this.mods();
         const specimenSize = rollGoopSize(this.goop, this.rng, m.sizeExp);
-        this.fight = makeFight(this.goop, this.state.gear, { forceMul: m.forceMul ?? this.weather.forceMul * m.force, rng: this.rng, reel: m.reel, zone: m.zone, lunge: m.lunge, snapGuard: m.snapGuard, size: specimenSize, currentFlow: !!m.currentFlow, crystalShift: !!m.crystalShift, sporeBloom: !!m.sporeBloom });
+        this.fight = makeFight(this.goop, this.state.gear, { forceMul: m.forceMul ?? this.weather.forceMul * m.force, rng: this.rng, reel: m.reel, zone: m.zone, lunge: m.lunge, snapGuard: m.snapGuard, size: specimenSize, currentFlow: !!m.currentFlow, crystalShift: !!m.crystalShift, sporeBloom: !!m.sporeBloom, deepPressure: !!m.deepPressure });
         const timing = hookTiming(this.timer);
         const perfect = timing.grade === 'perfect';
         this.fight.perfect = perfect;
