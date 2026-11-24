@@ -348,6 +348,7 @@ function renderFight() {
   const active = game.phase === PHASES.FIGHT && fight;
   const hud = $('fightUi');
   hud.classList.toggle('dim', !active);
+  hud.setAttribute('aria-hidden', active ? 'false' : 'true');
   renderMove(active ? fight : null);
   const cue = active ? fightReadout(fight) : null;
   const cueEl = $('fightCue');

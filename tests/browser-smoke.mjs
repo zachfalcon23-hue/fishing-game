@@ -158,6 +158,7 @@ try {
       pattern: window.__goop.game.goop?.pattern,
     }));
     assert.equal(hooked.phase, 'fight');
+    assert.equal(await page.locator('#fightUi').getAttribute('aria-hidden'), 'false');
     assert.ok(typeof hooked.goopId === 'string' && hooked.goopId.length > 0);
     assert.ok(['steady', 'pulse', 'dart', 'drift', 'sleepy', 'wild'].includes(hooked.pattern));
 
@@ -230,6 +231,7 @@ try {
       };
     });
     assert.equal(landed.phase, 'caught');
+    assert.equal(await page.locator('#fightUi').getAttribute('aria-hidden'), 'true');
     assert.ok(landed.dexCount > 0, 'a landed Goop is added to the GoopDex');
     assert.match(landed.researchText, /FIELD RESEARCH/, 'the reveal explains the habitat research earned');
     assert.ok(landed.saved?.dex?.[landed.goopId]?.count > 0, 'the GoopDex update is persisted');
