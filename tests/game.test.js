@@ -1351,6 +1351,13 @@ test('habitat research rewards first local evidence, rare specimens and perfect 
   assert.equal(game.habitatResearch('dock').weatherCount, 2);
   assert.equal(game.habitatResearch('dock').baitCount, 2);
   assert.equal(game.habitatResearch('dock').perfect, 1);
+  const journal = game.habitatResearch('dock');
+  assert.deepEqual(journal.species, ['gloop', 'drowsy']);
+  assert.deepEqual(journal.times, ['Day', 'Night']);
+  assert.deepEqual(journal.weather, ['clear', 'storm']);
+  assert.deepEqual(journal.baits, ['worm', 'mud']);
+  journal.species.push('tampered');
+  assert.deepEqual(game.habitatResearch('dock').species, ['gloop', 'drowsy'], 'journal evidence is returned as a defensive copy');
   assert.equal(game.habitatResearch('lily').points, 0, 'research is isolated per habitat');
 
   const coveSample = game.recordHabitatResearch({
