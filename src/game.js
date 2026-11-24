@@ -286,7 +286,7 @@ const SPOT_DEFS = [
   { id: 'deep', name: 'The Deep Drop', pos: 7, unlockAt: 26, essenceMul: 1.8, rareMul: 1.6, biteMin: 1.3, biteMax: 3.6, desc: 'The pond floor drops away. Every nine seconds, abyssal pressure sinks your line—reel through the brief drop before slack takes hold.' },
   {
     id: 'wreck', name: 'Sunken Wreck', pos: 8, essenceMul: 2, rareMul: 1.7, biteMin: 1.3, biteMax: 3.4,
-    desc: 'An old boat on the pond floor, past the Deep Drop.',
+    desc: 'An old boat on the pond floor, past the Deep Drop. Every eight seconds, loose rigging snags your line—watch the warning and cut away in the called direction.' ,
     secret: { when: { weather: ['storm', 'fog'] }, requires: 'deep', rumor: '“Storms and fog churn the water past the Deep Drop. That’s when the old mast shows.”', clue: 'A broken mast pokes out of the churning water…' },
   },
 ];
@@ -703,6 +703,7 @@ export function makeFight(goop, gear = {}, env = {}) {
     crystalShift: !!env.crystalShift, crystalWarning: false, crystalOffset: 0,
     sporeBloom: !!env.sporeBloom, sporeWarning: false, sporeActive: false,
     deepPressure: !!env.deepPressure, pressureWarning: false, pressureActive: false,
+    wreckSnags: !!env.wreckSnags, wreckSnagWarning: false, wreckSnagActive: false, wreckSnagResolved: false, wreckSnagCycle: -1, wreckSnagDirection: -1,
   };
 }
 
@@ -822,6 +823,18 @@ export function fightReadout(fight) {
     const phase = fight.elapsed % 9;
     const time = Math.max(0, 7.8 - phase);
     return { kind: 'pressure', title: 'PRESSURE DROP', action: 'REEL THROUGH THE SINK · KEEP THE LINE OUT OF SLACK', time, ratio: clamp01((phase - 6.6) / 1.2), urgent: true };
+  }
+  if (!m && fight.wreckSnags && fight.wreckSnagWarning) {
+    const phase = fight.elapsed % 8;
+    const direction = fight.wreckSnagDirection < 0 ? 'LEFT' : 'RIGHT';
+    const time = Math.max(0, 6 - phase);
+    return { kind: 'snag', title: 'RIGGING SNAG INCOMING', action: `CUT ${direction} WHEN THE LINE CATCHES`, time, ratio: clamp01(1 - time / 0.8), urgent: false };
+  }
+  if (!m && fight.wreckSnags && fight.wreckSnagActive) {
+    const phase = fight.elapsed % 8;
+    const direction = fight.wreckSnagDirection < 0 ? 'LEFT' : 'RIGHT';
+    const time = Math.max(0, 7 - phase);
+    return { kind: 'snag', title: 'LINE CAUGHT!', action: `STEER ${direction} TO CUT FREE`, time, ratio: clamp01((phase - 6) / 1), urgent: true };
   }
   if (!m && fight.crystalShift && fight.crystalWarning) {
     const phase = fight.elapsed % 5;
@@ -1018,7 +1031,37 @@ export function tickFight(fight, input, dt) {
   if (fight.move && fight.move.type === 'swerve') fight.swing = fight.move.dir;
   else fight.swing = 0;
 
+  const wreckCycle = Math.floor(fight.elapsed / 8);
+  if (wreckCycle !== fight.wreckSnagCycle) {
+    fight.wreckSnagCycle = wreckCycle;
+    fight.wreckSnagResolved = false;
+    fight.wreckSnagDirection = wreckCycle % 2 === 0 ? -1 : 1;
+  }
+  const wreckPhase = fight.elapsed % 8;
+  const snagAvailable = !!fight.wreckSnags && !fight.move && !fight.warn && !paused;
+  fight.wreckSnagWarning = snagAvailable && wreckPhase >= 5.2 && wreckPhase < 6;
+  fight.wreckSnagActive = snagAvailable && wreckPhase >= 6 && wreckPhase < 7 && !fight.wreckSnagResolved;
+
   if (!paused) {
+    if (fight.wreckSnagActive && input.steer) {
+      fight.wreckSnagResolved = true;
+      fight.wreckSnagActive = false;
+      if (input.steer === fight.wreckSnagDirection) {
+        fight.tension = Math.max(0, fight.tension - 0.08);
+        fight.progress = Math.min(fight.stageCap, fight.progress + 0.035);
+        fight.log.push('snagCut');
+      } else {
+        fight.tension = clamp01(fight.tension + 0.22);
+        fight.streak = 0;
+        fight.log.push('snagHit');
+      }
+    } else if (fight.wreckSnags && snagAvailable && wreckPhase >= 7 && !fight.wreckSnagResolved) {
+      fight.wreckSnagResolved = true;
+      fight.wreckSnagActive = false;
+      fight.tension = clamp01(fight.tension + 0.22);
+      fight.streak = 0;
+      fight.log.push('snagHit');
+    }
     // Reeling winds tension up, releasing lets it fall; the Goop pulls against you (but not while it plays dead).
     const still = fight.move?.type === 'fakeout' && fight.move.state === 'still';
     const pull = still ? -0.1 : pullForce(fight.goop.pattern, fight.phase) * (fight.forceMul ?? 1) * (fight.flowSurge ? 1.35 : 1) * (fight.sporeActive ? 0.75 : 1) - (fight.pressureActive ? 0.38 : 0);
@@ -1740,6 +1783,7 @@ export class FishingGame {
     const waterfallCurrent = z.mix.some(([spot, share]) => spot.id === 'falls' && share >= 0.65);
     const glowshroomBloom = z.mix.some(([spot, share]) => spot.id === 'grotto' && share >= 0.65);
     const deepPressure = z.mix.some(([spot, share]) => spot.id === 'deep' && share >= 0.65);
+    const wreckSnags = z.mix.some(([spot, share]) => spot.id === 'wreck' && share >= 0.65);
     this.castCtx = {
       spot: z.spot.id, researchSpot, hot: z.hot, bait, frenzy, essenceMul: st.essenceMul, weather: s.weather, time: this.timeOfDay,
       habitatMods,
@@ -1747,7 +1791,7 @@ export class FishingGame {
       // Rocky eddies compress the safe tension band; waterfall surges periodically increase line pull.
       // Glowshroom spores create a short, predictable window of reduced pull and stronger reeling.
       // Deep Drop pressure periodically sinks the line; reeling through it prevents slack.
-      fightMods: { forceMul: this.weather.forceMul * mods.force, reel: mods.reel, zone: mods.zone - (rockyCurrent ? 0.035 : 0), lunge: mods.lunge, sizeExp: mods.sizeExp, currentFlow: waterfallCurrent, crystalShift: z.mix.some(([spot, share]) => spot.id === 'cave' && share >= 0.65), sporeBloom: glowshroomBloom, deepPressure }, 
+      fightMods: { forceMul: this.weather.forceMul * mods.force, reel: mods.reel, zone: mods.zone - (rockyCurrent ? 0.035 : 0), lunge: mods.lunge, sizeExp: mods.sizeExp, currentFlow: waterfallCurrent, crystalShift: z.mix.some(([spot, share]) => spot.id === 'cave' && share >= 0.65), sporeBloom: glowshroomBloom, deepPressure, wreckSnags }, 
     };
     if (bait !== 'worm') {
       s.baits[bait] -= 1;
@@ -1835,7 +1879,7 @@ export class FishingGame {
         this.phase = PHASES.FIGHT;
         const m = this.castCtx?.fightMods || this.mods();
         const specimenSize = rollGoopSize(this.goop, this.rng, m.sizeExp);
-        this.fight = makeFight(this.goop, this.state.gear, { forceMul: m.forceMul ?? this.weather.forceMul * m.force, rng: this.rng, reel: m.reel, zone: m.zone, lunge: m.lunge, snapGuard: m.snapGuard, size: specimenSize, currentFlow: !!m.currentFlow, crystalShift: !!m.crystalShift, sporeBloom: !!m.sporeBloom, deepPressure: !!m.deepPressure });
+        this.fight = makeFight(this.goop, this.state.gear, { forceMul: m.forceMul ?? this.weather.forceMul * m.force, rng: this.rng, reel: m.reel, zone: m.zone, lunge: m.lunge, snapGuard: m.snapGuard, size: specimenSize, currentFlow: !!m.currentFlow, crystalShift: !!m.crystalShift, sporeBloom: !!m.sporeBloom, deepPressure: !!m.deepPressure, wreckSnags: !!m.wreckSnags });
         const timing = hookTiming(this.timer);
         const perfect = timing.grade === 'perfect';
         this.fight.perfect = perfect;

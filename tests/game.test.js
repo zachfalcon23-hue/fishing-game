@@ -1361,6 +1361,48 @@ test('Deep Drop pressure warns before a timed line-sink that rewards reeling', (
   assert.equal(makeFight(goop, {}, { deepPressure: false }).pressureActive, false, 'other habitats do not inherit the pressure cycle');
 });
 
+test('Sunken Wreck rigging snag warns, requires the called steer, and punishes a miss', () => {
+  const goop = GOOPS.find((x) => x.rarity === 'Common');
+  const snagFight = () => {
+    const f = makeFight(goop, {}, { rng: () => 0.3, moves: false, wreckSnags: true });
+    f.nextLunge = null; f.nextMove = Infinity; f.tension = 0.5;
+    return f;
+  };
+  const f = snagFight();
+  f.elapsed = 5.5;
+  step(f);
+  assert.equal(f.wreckSnagWarning, true);
+  assert.equal(fightReadout(f).title, 'RIGGING SNAG INCOMING');
+
+  f.elapsed = 6.2;
+  step(f);
+  assert.equal(f.wreckSnagActive, true);
+  assert.equal(fightReadout(f).title, 'LINE CAUGHT!');
+  const direction = f.wreckSnagDirection;
+  const before = f.tension;
+  step(f, { steer: direction });
+  assert.ok(f.log.includes('snagCut'));
+  assert.ok(f.tension < before);
+  assert.ok(f.progress > 0);
+
+  const missed = snagFight();
+  missed.elapsed = 6.2;
+  step(missed);
+  const baseline = makeFight(goop, {}, { rng: () => 0.3, moves: false });
+  baseline.nextLunge = null; baseline.nextMove = Infinity; baseline.elapsed = 7.01; baseline.tension = 0.5;
+  missed.elapsed = 7.01;
+  step(missed); step(baseline);
+  assert.ok(missed.log.includes('snagHit'));
+  assert.ok(missed.tension > baseline.tension + 0.15);
+
+  const wrong = snagFight();
+  wrong.elapsed = 6.2;
+  step(wrong);
+  step(wrong, { steer: -wrong.wreckSnagDirection });
+  assert.ok(wrong.log.includes('snagHit'), 'steering the wrong way fails the cut');
+  assert.equal(makeFight(goop, {}, { wreckSnags: false }).wreckSnagActive, false, 'other habitats do not inherit wreck rigging');
+});
+
 test('current: the zone drifts and you must follow it', () => {
   const g = GOOPS.find((x) => x.pattern === 'drift');
   let f = quiet(g); startMove(f, 'current');
