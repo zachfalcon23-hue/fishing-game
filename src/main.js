@@ -508,6 +508,11 @@ function showCatchCard(c) {
   if (!g) return;
   const card = $('catchCard');
   card.style.setProperty('--rc', c.shiny ? '#fff27a' : `var(--r-${g.rarity.toLowerCase()})`);
+  const art = $('ccArt');
+  art.src = GOOP_ART(g.id);
+  art.alt = `${c.shiny ? 'Shiny ' : ''}${g.name} caught`;
+  card.classList.toggle('is-shiny', Boolean(c.shiny));
+  card.dataset.rarity = g.rarity.toLowerCase();
   $('ccName').textContent = `${c.shiny ? '✦ ' : ''}${g.name}`;
   $('ccRarity').textContent = `${c.shiny ? 'SHINY · ' : ''}${g.rarity.toUpperCase()}`;
   $('ccReward').textContent = `+${c.reward} Essence`;
