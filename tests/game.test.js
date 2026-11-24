@@ -4,7 +4,7 @@ import { fightReactionPose } from '../src/scene.js';
 import {
   GOOPS, SPOTS, UPGRADES, NOTES, NOTE_REWARD, HABITAT_RESEARCH_TIERS, weightedPick, encounterPool, makeFight, tickFight, pullForce,
   FishingGame, SaveStore, PHASES, CASTS_PER_TIME, conditionsMet, conditionText,
-  SPOT_BY, BAITS, SETS, RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, tackleMods, QUESTS, DECOR, THEMES, tankTips, TANK_CAP, TANK_COSTS, DECOR_SLOTS, startMove, SIGNATURE, MOVE_INFO, fightReadout, stagesFor, BREAK_TIME, shoreZone, zonePool, makeBounties, bountyMatches, comboFor, LUNGE_PROFILE, PERFECT_HOOK, CLEAN_HOOK, hookTiming, isFullMoon, rollGoopSize, TRACK_WEIGHT_MULT, evaluateSpecimenQuality, SPECIMEN_GRADE_RANK,
+  SPOT_BY, BAITS, SETS, RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, tackleMods, QUESTS, DECOR, THEMES, tankTips, TANK_CAP, TANK_COSTS, DECOR_SLOTS, startMove, SIGNATURE, MOVE_INFO, fightReadout, stagesFor, BREAK_TIME, shoreZone, zonePool, makeBounties, bountyMatches, comboFor, LUNGE_PROFILE, PERFECT_HOOK, CLEAN_HOOK, hookTiming, isFullMoon, rollGoopSize, TRACK_WEIGHT_MULT, evaluateSpecimenQuality, SPECIMEN_GRADE_RANK, moonTideSizeExponent,
 } from '../src/game.js';
 
 function memStore(initial = null) {
@@ -30,6 +30,19 @@ test('weighted selection respects deterministic ranges', () => {
   assert.equal(weightedPick(pool, () => 0).id, 'a');
   assert.equal(weightedPick(pool, () => 0.5).id, 'b');
   assert.equal(weightedPick(pool, () => 0.9999).id, 'b');
+});
+
+test('Moonlit Sandbar full-moon tide improves specimen size only inside its habitat window', () => {
+  const sandbar = { mix: [[SPOT_BY.sandbar, 1]] };
+  const mixed = { mix: [[SPOT_BY.sandbar, 0.65], [SPOT_BY.dock, 0.35]] };
+  const dock = { mix: [[SPOT_BY.dock, 1]] };
+  assert.equal(moonTideSizeExponent(2, sandbar, 'Night', true), 1.5);
+  assert.equal(moonTideSizeExponent(1.2, sandbar, 'Night', true), 1);
+  assert.equal(moonTideSizeExponent(2, mixed, 'Night', true), 1.5);
+  assert.equal(moonTideSizeExponent(2, { mix: [[SPOT_BY.sandbar, 0.64], [SPOT_BY.dock, 0.36]] }, 'Night', true), 2);
+  assert.equal(moonTideSizeExponent(2, sandbar, 'Dusk', true), 2);
+  assert.equal(moonTideSizeExponent(2, sandbar, 'Night', false), 2);
+  assert.equal(moonTideSizeExponent(1.4, dock, 'Night', true), 1.4);
 });
 
 test('every spot only lists real Goops and every Goop is catchable somewhere', () => {
