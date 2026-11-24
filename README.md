@@ -28,6 +28,8 @@ The report is a neutral diagnostic baseline. It does not claim Essence/hour or c
 The game is published with GitHub Pages (Settings → Pages → Deploy from a branch → `main` / root): https://zachfalcon23-hue.github.io/fishing-game/
 
 ## How to play
+New players are shown a five-step **Old Wiggs’ Field Lessons** guide on their first start. Reopen it any time with the `?` button in the top bar.
+
 1. **Roam the shore.** Hold `◀ ▶`, `A / D` or the arrow keys (or drag the scene) to walk; let go and you stop right there. A quick tap or flick hops to the next stop (a spot, or a clue). Tap a pin on the minimap or open the full map (`M`, or the map button) to walk somewhere.
 2. **Cast anywhere** (`C`, the button, or tap the scene). Standing at a spot gives you its full bonuses; between spots you fish a blend of both neighbours' Goops for a little less Essence.
 3. **Hook** with a fresh press of **Reel** (`Space`, or the button). Hook within 0.4 s of the `!` for a **perfect hook** (+12% fight progress), within 1.2 s for a **clean hook** (+6%), or later for a normal start.
