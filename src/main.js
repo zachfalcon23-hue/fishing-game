@@ -182,12 +182,15 @@ function renderSpots() {
     const extra = Math.max(0, sp.goops.length - 6);
     const rosterHTML = open ? `<div class="spot-roster" aria-label="Resident species">${roster}${extra ? `<span class="spot-more">+${extra}</span>` : ''}</div>` : '';
     const study = found && open ? game.habitatResearch(sp.id) : null;
-    const studyTier = study?.rank ? HABITAT_RESEARCH_TIERS[study.rank - 1] : null;
+    const nextStudyTier = study ? HABITAT_RESEARCH_TIERS[study.rank] : null;
+    const studyHint = nextStudyTier
+      ? `Next rank: ${nextStudyTier.name} — ${nextStudyTier.benefit}`
+      : 'Habitat fully surveyed. All local field-study benefits are active.';
     const studyStatus = !study ? '' : study.rank === HABITAT_RESEARCH_TIERS.length ? 'MASTERED' : `${study.points}/${study.next} RP`;
-    const researchHTML = study ? `<div class="spot-research" title="${esc(studyTier?.benefit || 'Catch local Goops under varied conditions to build your survey.')}">
+    const researchHTML = study ? `<div class="spot-research" title="${esc(studyHint)}">
       <div class="spot-research-head"><span>FIELD RESEARCH</span><b>${study.rank ? `RANK ${study.rank} · ${study.title}` : 'UNSURVEYED'}</b></div>
       <div class="spot-research-track"><i style="width:${Math.round(study.progress * 100)}%"></i></div>
-      <small>${studyStatus} · ${study.catches} samples · ${study.speciesCount} species · ${study.timeCount}/4 times · ${study.weatherCount}/4 weather</small>
+      <small>${studyStatus} · ${study.catches} samples · ${study.speciesCount} species · ${study.timeCount}/4 times · ${study.weatherCount}/4 weather · ${study.baitCount}/7 baits · ${study.perfect} perfect</small>
     </div>` : '';
     return `<div class="spot ${here ? 'current' : ''} ${open ? '' : 'locked'} ${done ? 'done' : ''}" ${bg}><div class="spot-copy"><b>${open || found ? sp.name : '???'} ${tags}</b><small>${sub}</small>`
       + `<div class="spot-bar"><i style="width:${(p.found / p.total) * 100}%"></i></div><div class="spot-meta">${activityHTML}${rosterHTML}</div>${researchHTML}</div>${btn}</div>`;
