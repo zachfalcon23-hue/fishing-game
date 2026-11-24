@@ -78,7 +78,7 @@ test('Fish Finder forecast responds to live feeding activity', () => {
   active.state.activity.dock = 3;
   const after = active.forecast(GOOPS.length);
   const chance = (rows, id) => rows.find((row) => row.id === id)?.chance || 0;
-  assert.ok(chance(after, rareId) > chance(before, rareId), 'feeding activity raises the rare Goop forecast');
+  assert.ok(chance(after, rareId) > chance(before, rareId), 'feeding activity raises the non-common Goop forecast');
   assert.ok(chance(after, commonId) < chance(before, commonId), 'common Goops lose relative forecast share');
 });
 
