@@ -404,7 +404,7 @@ function renderFight() {
   hud.classList.toggle('paused', !!paused);
   hud.classList.toggle('in-zone', fight.tension >= lo && fight.tension <= hi);
   hud.classList.toggle('danger', !paused && (fight.tension > 0.88 || fight.tension < 0.15));
-  hud.classList.toggle('warn', !!fight.warn);
+  hud.classList.toggle('warn', !!fight.warn || !!fight.flowSurge);
   hud.classList.toggle('drifting', m?.type === 'current');
   $('tensionBar').style.width = `${fight.tension * 100}%`;
   $('needle').style.left = `${fight.tension * 100}%`;
@@ -419,7 +419,7 @@ function renderFight() {
   setText('heftText', `${fight.sizeClass || 'AVERAGE'} SIZE`);
   hud.classList.toggle('size-heavy', fight.sizeClass === 'HEAVY');
   hud.classList.toggle('size-light', fight.sizeClass === 'LIGHT');
-  setText('tensionLbl', fight.warn ? 'EASE OFF!' : paused ? 'HOLD ON' : m?.type === 'current' ? 'FOLLOW' : 'TENSION');
+  setText('tensionLbl', fight.warn ? 'EASE OFF!' : fight.flowSurge ? 'CURRENT!' : fight.flowWarning ? 'SURGE SOON' : paused ? 'HOLD ON' : m?.type === 'current' ? 'FOLLOW' : 'TENSION');
   const c = fight.combo || 1;
   const combo = $('combo');
   combo.classList.toggle('show', c > 1 && !paused);
@@ -543,6 +543,9 @@ function render(dt) {
   }
   if (z.mix.some(([spot, share]) => spot.id === 'boulder' && share >= 0.65)) {
     evs.push('<span class="ev" title="Rocky eddies narrow the safe tension window during fights. Better line upgrades can offset the strain.">🪨 ROCKY CURRENT · TIGHTER LINE WINDOW</span>');
+  }
+  if (z.mix.some(([spot, share]) => spot.id === 'falls' && share >= 0.65)) {
+    evs.push('<span class="ev" title="The waterfall current pulses every six seconds during fights. Watch for CURRENT BUILDING, then manage the stronger pull during the surge.">💧 FALLS CURRENT · SURGE CYCLES</span>');
   }
   const sighting = view === 'pond' ? scene?.currentSighting : null;
   if (sighting) {
