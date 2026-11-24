@@ -276,7 +276,7 @@ const SPOT_DEFS = [
   { id: 'lily', name: 'Lily Cove', pos: 1, unlockAt: 0, essenceMul: 1.1, rareMul: 1.05, biteMin: 1.0, biteMax: 2.8, desc: 'A sheltered cove of lily pads and pink blooms.' },
   { id: 'reeds', name: 'Cattail Reeds', pos: 2, unlockAt: 3, essenceMul: 1.2, rareMul: 1.1, biteMin: 0.9, biteMax: 2.6, stirMultiplier: 2, desc: 'Cattails, moss and murky shallows. Dense cover shelters feeding schools, so each cast builds water activity twice as fast.' },
   { id: 'boulder', name: 'Slime Boulders', pos: 3, unlockAt: 7, essenceMul: 1.3, rareMul: 1.15, biteMin: 1.1, biteMax: 3.0, desc: 'Slime-streaked boulders where tough Goops lurk. Rocky eddies tug at your line, narrowing the safe tension window during fights.' },
-  { id: 'falls', name: 'Waterfall Inlet', pos: 4, unlockAt: 12, essenceMul: 1.4, rareMul: 1.25, biteMin: 1.0, biteMax: 2.8, desc: 'Cold, churning water under the falls.' },
+  { id: 'falls', name: 'Waterfall Inlet', pos: 4, unlockAt: 12, essenceMul: 1.4, rareMul: 1.25, biteMin: 1.0, biteMax: 2.8, desc: 'Cold, churning water under the falls. Every six seconds, a current surge pulls harder against your line; watch for the warning and manage the extra tension.' },
   {
     id: 'cave', name: 'Hidden Falls Cave', pos: 5, essenceMul: 1.6, rareMul: 1.4, biteMin: 1.1, biteMax: 3.0,
     desc: 'A crystal cave tucked behind the waterfall.',
@@ -699,6 +699,7 @@ export function makeFight(goop, gear = {}, env = {}) {
     lungePower: (0.3 + 0.05 * rank) * (LUNGE_PROFILE[goop.pattern]?.power ?? 1) * (env.lunge ?? 1), log: [],
     rank, move: null, nextMove: (env.moves === false ? Infinity : 2.2 + rng() * 1.4), moveCount: 0, movesWon: 0,
     stages: stagesFor(goop), stage: 1, breakT: 0, zoneShift: 0,
+    currentFlow: !!env.currentFlow, flowWarning: false, flowSurge: false,
   };
 }
 
@@ -797,6 +798,16 @@ export function fightReadout(fight) {
   if (fight.warn && fight.nextLunge != null) {
     const time = Math.max(0, fight.nextLunge);
     return { kind: 'lunge', title: 'LUNGE INCOMING', action: 'RELEASE REEL', time, ratio: clamp01(1 - time / fight.lungeWarn), urgent: true };
+  }
+
+  if (!m && fight.currentFlow && fight.flowSurge) {
+    const phase = fight.elapsed % 6;
+    return { kind: 'current', title: 'WATERFALL SURGE', action: 'THE FLOW IS PULLING HARDER · MANAGE TENSION', time: Math.max(0, 5.7 - phase), ratio: clamp01((phase - 4.5) / 1.2), urgent: true };
+  }
+  if (!m && fight.currentFlow && fight.flowWarning) {
+    const phase = fight.elapsed % 6;
+    const time = Math.max(0, 4.5 - phase);
+    return { kind: 'current', title: 'CURRENT BUILDING', action: 'SURGE INCOMING · PREPARE TO EASE OFF', time, ratio: clamp01(1 - time / 0.9), urgent: false };
   }
 
   const tension = fight.tension ?? 0.5;
@@ -953,6 +964,9 @@ export function tickFight(fight, input, dt) {
     return fight;
   }
   if (fight.stageCap == null) fight.stageCap = fight.stages > 1 ? 1 / fight.stages : 1;
+  const flowPhase = fight.elapsed % 6;
+  fight.flowWarning = !!fight.currentFlow && flowPhase >= 3.6 && flowPhase < 4.5;
+  fight.flowSurge = !!fight.currentFlow && flowPhase >= 4.5 && flowPhase < 5.7;
 
   // signature moves
   let paused = false;
@@ -967,7 +981,7 @@ export function tickFight(fight, input, dt) {
   if (!paused) {
     // Reeling winds tension up, releasing lets it fall; the Goop pulls against you (but not while it plays dead).
     const still = fight.move?.type === 'fakeout' && fight.move.state === 'still';
-    const pull = still ? -0.1 : pullForce(fight.goop.pattern, fight.phase) * (fight.forceMul ?? 1);
+    const pull = still ? -0.1 : pullForce(fight.goop.pattern, fight.phase) * (fight.forceMul ?? 1) * (fight.flowSurge ? 1.35 : 1);
     fight.tension += (reeling ? 0.62 : -0.55) * d + pull * d;
 
     // Lunges: a warning, then a surge. Easing off when it hits dodges most of it.
@@ -1683,12 +1697,13 @@ export class FishingGame {
       .sort((a, b) => b[1] - a[1]);
     const researchSpot = researchCandidates[0]?.[0].id || z.spot.id;
     const rockyCurrent = z.mix.some(([spot, share]) => spot.id === 'boulder' && share >= 0.65);
+    const waterfallCurrent = z.mix.some(([spot, share]) => spot.id === 'falls' && share >= 0.65);
     this.castCtx = {
       spot: z.spot.id, researchSpot, hot: z.hot, bait, frenzy, essenceMul: st.essenceMul, weather: s.weather, time: this.timeOfDay,
       habitatMods,
       // Lock fight handling to the conditions that selected this encounter, even if the clock rolls over.
-      // Rocky eddies compress the safe tension band; line upgrades still offset part of the penalty.
-      fightMods: { forceMul: this.weather.forceMul * mods.force, reel: mods.reel, zone: mods.zone - (rockyCurrent ? 0.035 : 0), lunge: mods.lunge, sizeExp: mods.sizeExp },
+      // Rocky eddies compress the safe tension band; waterfall surges periodically increase line pull.
+      fightMods: { forceMul: this.weather.forceMul * mods.force, reel: mods.reel, zone: mods.zone - (rockyCurrent ? 0.035 : 0), lunge: mods.lunge, sizeExp: mods.sizeExp, currentFlow: waterfallCurrent },
     };
     if (bait !== 'worm') {
       s.baits[bait] -= 1;
@@ -1776,7 +1791,7 @@ export class FishingGame {
         this.phase = PHASES.FIGHT;
         const m = this.castCtx?.fightMods || this.mods();
         const specimenSize = rollGoopSize(this.goop, this.rng, m.sizeExp);
-        this.fight = makeFight(this.goop, this.state.gear, { forceMul: m.forceMul ?? this.weather.forceMul * m.force, rng: this.rng, reel: m.reel, zone: m.zone, lunge: m.lunge, snapGuard: m.snapGuard, size: specimenSize });
+        this.fight = makeFight(this.goop, this.state.gear, { forceMul: m.forceMul ?? this.weather.forceMul * m.force, rng: this.rng, reel: m.reel, zone: m.zone, lunge: m.lunge, snapGuard: m.snapGuard, size: specimenSize, currentFlow: !!m.currentFlow });
         const timing = hookTiming(this.timer);
         const perfect = timing.grade === 'perfect';
         this.fight.perfect = perfect;
