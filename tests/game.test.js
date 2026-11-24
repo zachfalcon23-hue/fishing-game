@@ -245,6 +245,9 @@ test('catch awards Essence and records Dex entry', () => {
   assert.equal(g.state.essence, 8);
   assert.equal(g.state.dex.gloop.count, 1);
   assert.equal(g.state.stats.caught, 1);
+  assert.equal(g.state.research.dock.points, 13, 'the landed specimen is logged against the cast habitat');
+  assert.equal(g.state.research.dock.catches, 1);
+  assert.equal(JSON.parse(mem.v).research.dock.points, 13, 'field research persists in the same catch save');
   assert.ok(mem.v, 'catch is saved');
 });
 
@@ -1251,7 +1254,7 @@ test('habitat research rewards first local evidence, rare specimens and perfect 
 test('habitat mastery perks compose with tackle and blend smoothly between neighboring spots', () => {
   const game = newGame();
   const empty = game.mods({ weather: 'clear', time: 'Day' });
-  assert.equal(empty.bite, 1);
+  assert.equal(empty.bite, 0.92, 'the starter Clear Mono line keeps its native bite bonus');
   assert.equal(empty.rare, 1);
   assert.equal(empty.essence, 1);
   assert.equal(empty.shiny, 1);
@@ -1262,10 +1265,10 @@ test('habitat mastery perks compose with tackle and blend smoothly between neigh
   const full = game.mods({ weather: 'clear', time: 'Day' }, {
     spot: SPOT_BY.dock, hot: true, mix: [[SPOT_BY.dock, 1]],
   });
-  assert.ok(Math.abs(full.bite - 0.97) < 1e-12);
-  assert.ok(Math.abs(full.rare - 1.05) < 1e-12);
-  assert.ok(Math.abs(full.essence - 1.04) < 1e-12);
-  assert.ok(Math.abs(full.shiny - 1.08) < 1e-12);
+  assert.ok(Math.abs(full.bite / empty.bite - 0.97) < 1e-12);
+  assert.ok(Math.abs(full.rare / empty.rare - 1.05) < 1e-12);
+  assert.ok(Math.abs(full.essence / empty.essence - 1.04) < 1e-12);
+  assert.ok(Math.abs(full.shiny / empty.shiny - 1.08) < 1e-12);
 
   const blended = game.habitatModifiers({
     spot: SPOT_BY.dock, hot: false, mix: [[SPOT_BY.dock, 0.5], [SPOT_BY.lily, 0.5]],
