@@ -21,6 +21,8 @@ These are documented features, not a claim that every release check below has pa
 
 ## Integration notes — 2026-11-23
 
+- Mainline commit `643183dd50e139f809cddfedd45ebde905bd42a0` passed the complete `Goop Fishing CI` workflow on 2026-11-23. The successful run includes syntax validation, the full Node regression suite, economy audit generation, and desktop/mobile Playwright browser smoke tests. See [workflow run #675](https://github.com/zachfalcon23-hue/fishing-game/actions/runs/45252904677). The checked automated gates below refer to this exact commit; they must be re-run for any later release candidate.
+
 - PR #32, autonomous ambient pond wildlife, is merged into main.
 - PR #33, species-aware ambient wildlife, is merged into main. Its validation passed: syntax check, 84 Node tests, and Playwright desktop/mobile smoke tests.
 - The older `feature/maximal-one-shot-v0-2` branch is not a safe wholesale merge target. Its base is substantially behind current main and its snapshot omits current mainline scene, aquarium, audio, wildlife, and art assets. Its game-engine, HTML, browser-smoke, telemetry, and economy files target an older interface and require selective porting or replacement.
@@ -32,18 +34,18 @@ These are documented features, not a claim that every release check below has pa
 
 Run these against the exact candidate commit:
 
-- [ ] `npm run check` passes.
-- [ ] `npm test` passes with zero failures.
-- [ ] The GitHub Actions validation workflow passes on the candidate commit.
-- [ ] The test run includes the species-aware wildlife, session telemetry and economy-audit suites on the candidate commit.
-- [ ] `npm run economy:audit` executes successfully and its current source-derived output is reviewed when balancing changes are made. Regenerate `ECONOMY_AUDIT.md` after any balancing change that affects its inputs.
+- [x] `npm run check` passes on main commit `643183dd50e139f809cddfedd45ebde905bd42a0` (2026-11-23).
+- [x] `npm test` passes with zero failures on the same commit.
+- [x] The GitHub Actions validation workflow passes on the same commit: [run #675](https://github.com/zachfalcon23-hue/fishing-game/actions/runs/45252904677).
+- [x] The test run includes the species-aware wildlife, session telemetry, save-recovery and economy-audit suites on the candidate commit.
+- [x] `npm run economy:audit` executes successfully and generates the current source-derived report. Review the output when balancing changes are made; regenerate `ECONOMY_AUDIT.md` after any balancing change that affects its inputs.
 - [x] A current-mainline Playwright browser smoke suite is committed at `tests/browser-smoke.mjs` and wired into GitHub Actions.
-- [ ] The browser smoke suite passes on desktop and mobile viewports using the supported Ubuntu 24.04 runner.
+- [x] The browser smoke suite passes on desktop and mobile viewports using the supported Ubuntu 24.04 runner (run #675).
 - [x] Browser smoke coverage exercises startup, all three views, casting, bite/hook/fight transitions, uncaught errors, console errors, missing local assets, and mobile layout/touch-control sizing.
 - [ ] Extend browser coverage to catch resolution, reload/save behavior, keyboard-only controls, and accessibility announcements.
 - [ ] Any failed or skipped check is explained; runner-allocation failures are not counted as passing tests.
-- [ ] Session telemetry accurately captures catch, miss and escape outcomes, uses current-mainline fields, and exports no player identifiers. The browser smoke test verifies manual JSON download.
-- [ ] Primary/backup save recovery, repair, reset, and storage-failure behavior pass the regression suite and browser reload smoke test.
+- [x] Session telemetry accurately captures catch, miss and escape outcomes, uses current-mainline fields, and exports no player identifiers. Unit tests and the browser smoke test verify the manual JSON download.
+- [x] Primary/backup save recovery, repair, reset, and storage-failure behavior pass the regression suite; the browser reload smoke test verifies recovery and repair of both save slots.
 
 ## Core gameplay validation
 
