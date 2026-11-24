@@ -68,6 +68,20 @@ test('pond activity rises where the player fishes, changes rare encounter weight
   assert.equal(g.ecosystemStatus().label, 'FEEDING ACTIVITY');
 });
 
+test('Fish Finder forecast responds to live feeding activity', () => {
+  const quiet = newGame();
+  const active = newGame();
+  const spot = SPOTS.find((s) => s.id === 'dock');
+  const rareId = spot.goops.find((id) => GOOPS.find((x) => x.id === id).rarity !== 'Common');
+  const commonId = spot.goops.find((id) => GOOPS.find((x) => x.id === id).rarity === 'Common');
+  const before = quiet.forecast(GOOPS.length);
+  active.state.activity.dock = 3;
+  const after = active.forecast(GOOPS.length);
+  const chance = (rows, id) => rows.find((row) => row.id === id)?.chance || 0;
+  assert.ok(chance(after, rareId) > chance(before, rareId), 'feeding activity raises the rare Goop forecast');
+  assert.ok(chance(after, commonId) < chance(before, commonId), 'common Goops lose relative forecast share');
+});
+
 test('pond activity save data is bounded and ignores unknown habitats', () => {
   const { store } = memStore(JSON.stringify({ version: 3, activity: { dock: 9, nowhere: 2, lily: -4 } }));
   const state = store.load();
