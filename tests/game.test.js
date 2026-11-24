@@ -1043,7 +1043,7 @@ test('fight readout turns every live signature tell into an actionable cue', () 
   assert.equal(fightReadout(fight).action, 'REEL NOW');
 
   const pulse = GOOPS.find((g) => g.pattern === 'pulse');
-  fight = quiet(pulse); move = startMove(fight, 'rhythm'); move.t = move.lead - 0.1;
+  fight = quiet(pulse); move = startMove(fight, 'rhythm'); move.t = move.lead - 0.3;
   assert.match(fightReadout(fight).action, /PREPARE FOR BEAT 1/);
   move.t = move.lead;
   assert.match(fightReadout(fight).action, /TAP NOW · BEAT 1/);
