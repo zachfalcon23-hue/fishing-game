@@ -1794,13 +1794,15 @@ export class FishingGame {
     };
 
     record.catches += 1;
+    const firstLocalSpecies = !record.species.includes(species.id);
     addEvidence('species', species.id, 5, 'new species');
     addEvidence('times', TIMES.includes(ctx?.time) ? ctx.time : this.timeOfDay, 2, 'new time of day');
     addEvidence('weather', WEATHER[ctx?.weather] ? ctx.weather : this.state.weather, 2, 'new weather');
     addEvidence('baits', BAITS[ctx?.bait] ? ctx.bait : 'worm', 1, 'new bait');
-    if (!record.species.includes(species.id)) {
+    if (firstLocalSpecies && RANK[species.rarity] >= RANK.Rare) {
       // New rare specimens are especially valuable field evidence.
-      if (RANK[species.rarity] >= RANK.Rare) { earned += 2; reasons.push('rare specimen'); }
+      earned += 2;
+      reasons.push('rare specimen');
     }
     if (fight?.hookGrade === 'perfect') {
       record.perfect += 1;
