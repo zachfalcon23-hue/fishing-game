@@ -1,7 +1,7 @@
 import {
   MOVE_INFO, fightReadout, GOOPS, SPOTS, SPOT_BY, UPGRADES, NOTES, PHASES, BAITS, SETS, TASTES, MOON, REROLL_COST, WEATHER,
   RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, buddyBonus, QUESTS, DECOR, THEMES, TANK_CAP, DECOR_SLOTS,
-  HABITAT_RESEARCH_TIERS, FishingGame, conditionText, tasteBait, WEATHER,
+  HABITAT_RESEARCH_TIERS, FishingGame, conditionText, tasteBait,
 } from './game.js';
 import { Scene, loadAssets, GOOP_ART, SPOT_X, SPOT_GAP, WORLD_MIN, WORLD_MAX, CLUE_X, toShore, fromShore } from './scene.js';
 import { Sfx } from './audio.js';
