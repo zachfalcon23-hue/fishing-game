@@ -1249,6 +1249,12 @@ test('habitat research rewards first local evidence, rare specimens and perfect 
   assert.equal(game.habitatResearch('dock').baitCount, 2);
   assert.equal(game.habitatResearch('dock').perfect, 1);
   assert.equal(game.habitatResearch('lily').points, 0, 'research is isolated per habitat');
+
+  const coveSample = game.recordHabitatResearch({
+    spot: 'dock', researchSpot: 'lily', time: 'Dusk', weather: 'fog', bait: 'sugar',
+  }, GOOPS.find((g) => g.id === 'blushkoi'), { hookGrade: 'late' });
+  assert.equal(coveSample.spot, 'lily', 'a blended cast credits the actual resident habitat, not just the nearest pin');
+  assert.equal(game.habitatResearch('lily').catches, 1);
 });
 
 test('habitat mastery perks compose with tackle and blend smoothly between neighboring spots', () => {
