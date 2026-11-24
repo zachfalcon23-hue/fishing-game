@@ -247,6 +247,15 @@ test('catch awards Essence and records Dex entry', () => {
   assert.equal(g.state.stats.caught, 1);
   assert.equal(g.state.research.dock.points, 13, 'the landed specimen is logged against the cast habitat');
   assert.equal(g.state.research.dock.catches, 1);
+  assert.equal(g.state.catchLog.length, 1);
+  assert.deepEqual(g.state.catchLog[0], {
+    goop: 'gloop', spot: 'dock', rarity: 'Common', at: g.state.catchLog[0].at, day: 1,
+    size: g.state.catchLog[0].size, reward: 8, time: 'Day', weather: 'clear', bait: 'worm',
+    qualityGrade: g.lastCatch.quality.grade, qualityScore: g.lastCatch.quality.score,
+    shiny: false, firstTime: true, hookGrade: 'late',
+  });
+  assert.ok(g.state.catchLog[0].at > 0, 'the catch receives a timestamp');
+  assert.equal(JSON.parse(mem.v).catchLog.length, 1, 'the catch log persists with the normal save');
   assert.equal(JSON.parse(mem.v).research.dock.points, 13, 'field research persists in the same catch save');
   assert.ok(mem.v, 'catch is saved');
 });
@@ -1427,4 +1436,32 @@ test('habitat rare-rank bonus changes forecast encounter weighting without bypas
   assert.equal(dawn.some((g) => g.id === 'kinggloop'), true, 'the habitat still respects the species preferred window');
   assert.equal(before.some((g) => g.id === 'kinggloop'), false, 'time-gated legends remain unavailable outside Dawn');
   assert.equal(night.some((g) => g.id === 'kinggloop'), false, 'habitat mastery does not bypass a species hard gate');
+});
+
+
+test('save v5 migrates to an empty recent-catch log and v6 sanitizes bounded entries', () => {
+  const legacy = new SaveStore({
+    getItem() { return JSON.stringify({ version: 5, essence: 75, stats: { caught: 4 } }); },
+    setItem() {}, removeItem() {},
+  }, 'legacy');
+  const migrated = legacy.load();
+  assert.equal(migrated.version, 6);
+  assert.deepEqual(migrated.catchLog, []);
+  assert.equal(migrated.essence, 75);
+
+  const store = new SaveStore(null, 'sanitize');
+  const clean = store.sanitize({ version: 6, catchLog: [
+    { goop: 'gloop', spot: 'dock', rarity: 'Common', at: 1234, day: 2, size: 19.5, reward: 8, time: 'Night', weather: 'storm', bait: 'mud', qualityGrade: 'Flawless', qualityScore: 96, shiny: true, firstTime: true, hookGrade: 'perfect' },
+    { goop: 'not-a-goop', spot: 'dock' },
+    { goop: 'gloop', spot: 'not-a-spot' },
+  ] });
+  assert.equal(clean.catchLog.length, 1, 'unknown species and habitats are discarded');
+  assert.equal(clean.catchLog[0].qualityGrade, 'Flawless');
+  assert.equal(clean.catchLog[0].qualityScore, 96);
+  assert.equal(clean.catchLog[0].bait, 'mud');
+
+  const many = Array.from({ length: 45 }, (_, index) => ({ goop: 'gloop', spot: 'dock', at: index + 1 }));
+  const capped = store.sanitize({ version: 6, catchLog: many });
+  assert.equal(capped.catchLog.length, 40, 'history is capped at 40 validated entries');
+  assert.equal(capped.catchLog[0].at, 1, 'the newest-first save order is preserved');
 });
