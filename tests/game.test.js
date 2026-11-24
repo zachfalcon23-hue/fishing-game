@@ -68,6 +68,18 @@ test('pond activity rises where the player fishes, changes rare encounter weight
   assert.equal(g.ecosystemStatus().label, 'FEEDING ACTIVITY');
 });
 
+test('Cattail Reeds build feeding activity twice as fast as ordinary habitats', () => {
+  const g = newGame();
+  const reeds = SPOT_BY.reeds;
+  const dock = SPOT_BY.dock;
+  g.stirWater({ mix: [[reeds, 1]] });
+  g.stirWater({ mix: [[dock, 1]] });
+  assert.equal(g.activityAt('reeds'), 2, 'the first cast stirs two activity levels in the sheltered reed bed');
+  assert.equal(g.activityAt('dock'), 1, 'ordinary habitats keep the standard one-level increase');
+  g.stirWater({ mix: [[reeds, 1]] });
+  assert.equal(g.activityAt('reeds'), 3, 'reed activity still respects the shared maximum of three');
+});
+
 test('Fish Finder forecast responds to live feeding activity', () => {
   const quiet = newGame();
   const active = newGame();
