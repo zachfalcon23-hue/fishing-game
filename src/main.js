@@ -1,5 +1,5 @@
 import {
-  MOVE_INFO, GOOPS, SPOTS, SPOT_BY, UPGRADES, NOTES, PHASES, BAITS, SETS, TASTES, MOON, REROLL_COST, WEATHER,
+  MOVE_INFO, fightReadout, GOOPS, SPOTS, SPOT_BY, UPGRADES, NOTES, PHASES, BAITS, SETS, TASTES, MOON, REROLL_COST, WEATHER,
   RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, buddyBonus, QUESTS, DECOR, THEMES, TANK_CAP, DECOR_SLOTS,
   HABITAT_RESEARCH_TIERS, FishingGame, conditionText, tasteBait,
 } from './game.js';
@@ -348,7 +348,20 @@ function renderFight() {
   const active = game.phase === PHASES.FIGHT && fight;
   const hud = $('fightUi');
   hud.classList.toggle('dim', !active);
+  hud.setAttribute('aria-hidden', active ? 'false' : 'true');
   renderMove(active ? fight : null);
+  const cue = active ? fightReadout(fight) : null;
+  const cueEl = $('fightCue');
+  cueEl.hidden = !cue;
+  if (cue) {
+    cueEl.dataset.kind = cue.kind;
+    cueEl.classList.toggle('urgent', !!cue.urgent);
+    setText('fightCueTitle', cue.title);
+    setText('fightCueAction', cue.action);
+    setText('fightCueTime', cue.time == null ? '' : `${cue.time.toFixed(1)}s`);
+    cueEl.classList.toggle('metered', cue.ratio != null);
+    $('fightCueFill').style.width = `${Math.round((cue.ratio ?? 0) * 100)}%`;
+  }
   if (!active) return;
   const pct = (v) => Math.round(Math.max(0, Math.min(1, v)) * 100);
   const shift = fight.zoneShift || 0;

@@ -712,6 +712,82 @@ export const comboFor = (streak) => 1 + Math.min(4, Math.floor(streak / 1.2)) * 
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 
+/**
+ * Translate the active fight state into one concise, actionable player cue.
+ * This is presentation data only: it never changes timing, difficulty, or rewards.
+ */
+export function fightReadout(fight) {
+  if (!fight) return null;
+  if (fight.breakT > 0) {
+    return {
+      kind: 'break', title: 'STAGE BREAK', action: 'RECOVER — THE NEXT STAGE IS COMING',
+      time: fight.breakT, ratio: clamp01(1 - fight.breakT / BREAK_TIME), urgent: false,
+    };
+  }
+
+  const m = fight.move;
+  if (m) {
+    if (m.type === 'swerve') {
+      const time = Math.max(0, m.window - m.t);
+      return { kind: 'move', title: 'SWERVE', action: `STEER ${m.dir < 0 ? 'LEFT' : 'RIGHT'}`, time, ratio: clamp01(m.t / m.window), urgent: time <= 0.35 };
+    }
+    if (m.type === 'tug') {
+      const time = Math.max(0, m.dur - m.t);
+      return { kind: 'move', title: 'TUG OF WAR', action: 'TAP REEL', time, ratio: clamp01((m.pos + 1) / 2), urgent: m.pos < -0.55 };
+    }
+    if (m.type === 'fakeout') {
+      if (m.state === 'still') {
+        const time = Math.max(0, m.still - m.t);
+        return { kind: 'move', title: 'FAKE-OUT', action: fight.tell ? 'GET READY TO REEL' : 'HANDS OFF THE REEL', time, ratio: clamp01(m.t / m.still), urgent: !!fight.tell };
+      }
+      const time = Math.max(0, m.window - m.surgeT);
+      return { kind: 'move', title: 'WAKE WINDOW', action: 'REEL NOW', time, ratio: clamp01(m.surgeT / m.window), urgent: true };
+    }
+    if (m.type === 'rhythm') {
+      let index = -1;
+      for (let i = 0; i < m.n; i++) {
+        if (m.judged[i] == null) { index = i; break; }
+      }
+      if (index < 0) {
+        const time = Math.max(0, m.lead + (m.n - 1) * m.gap + m.win + 0.05 - m.t);
+        return { kind: 'move', title: 'RHYTHM', action: 'HOLD FOR RESULT', time, ratio: clamp01(m.hits / m.n), urgent: false };
+      }
+      const delta = m.lead + index * m.gap - m.t;
+      const inWindow = delta <= m.win && delta >= -m.win;
+      const time = inWindow ? Math.max(0, m.win + delta) : Math.max(0, delta);
+      return {
+        kind: 'move', title: 'RHYTHM',
+        action: inWindow ? `TAP NOW · BEAT ${index + 1}/${m.n}` : `PREPARE FOR BEAT ${index + 1}/${m.n}`,
+        time, ratio: clamp01(m.hits / m.n), urgent: inWindow,
+      };
+    }
+    if (m.type === 'current') {
+      const time = Math.max(0, m.dur - m.t);
+      return { kind: 'move', title: 'FOLLOW THE CURRENT', action: 'KEEP THE NEEDLE IN GREEN', time, ratio: clamp01(m.inZone / m.dur), urgent: time <= 0.4 };
+    }
+    if (m.type === 'thrash') {
+      const step = m.steps[m.idx];
+      const action = step === 'T' ? 'TAP REEL' : `STEER ${step === 'L' ? 'LEFT' : 'RIGHT'}`;
+      const time = Math.max(0, m.window - m.stepT);
+      return { kind: 'move', title: `THRASH · STEP ${m.idx + 1}/${m.steps.length}`, action, time, ratio: clamp01(m.idx / m.steps.length), urgent: time <= 0.3 };
+    }
+  }
+
+  if (fight.warn && fight.nextLunge != null) {
+    const time = Math.max(0, fight.nextLunge);
+    return { kind: 'lunge', title: 'LUNGE INCOMING', action: 'RELEASE REEL', time, ratio: clamp01(1 - time / fight.lungeWarn), urgent: true };
+  }
+
+  const tension = fight.tension ?? 0.5;
+  const low = fight.safeLo ?? 0.38, high = fight.safeHi ?? 0.78;
+  const action = tension > high
+    ? 'RELEASE REEL TO LOWER TENSION'
+    : tension < low
+      ? 'REEL TO LIFT TENSION'
+      : 'REEL IN THE GREEN TO BUILD A STREAK';
+  return { kind: 'steady', title: 'LINE CONTROL', action, time: null, ratio: null, urgent: tension > 0.88 || tension < 0.15 };
+}
+
 /** Begin a signature move. `type` defaults to the Goop's own; final stages mix in a second one. */
 export function startMove(fight, type) {
   const rng = fight.rng || Math.random, rank = fight.rank;
