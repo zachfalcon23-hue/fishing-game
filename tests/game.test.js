@@ -4,7 +4,7 @@ import { fightReactionPose } from '../src/scene.js';
 import {
   GOOPS, SPOTS, UPGRADES, NOTES, NOTE_REWARD, HABITAT_RESEARCH_TIERS, weightedPick, encounterPool, makeFight, tickFight, pullForce,
   FishingGame, SaveStore, PHASES, CASTS_PER_TIME, conditionsMet, conditionText,
-  SPOT_BY, BAITS, SETS, RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, tackleMods, QUESTS, DECOR, THEMES, tankTips, TANK_CAP, TANK_COSTS, DECOR_SLOTS, startMove, SIGNATURE, MOVE_INFO, fightReadout, stagesFor, BREAK_TIME, shoreZone, zonePool, makeBounties, bountyMatches, comboFor, LUNGE_PROFILE, PERFECT_HOOK, CLEAN_HOOK, hookTiming, isFullMoon, rollGoopSize, TRACK_WEIGHT_MULT, evaluateSpecimenQuality, SPECIMEN_GRADE_RANK, moonTideSizeExponent,
+  SPOT_BY, BAITS, SETS, RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, tackleMods, QUESTS, DECOR, THEMES, tankTips, TANK_CAP, TANK_COSTS, DECOR_SLOTS, startMove, SIGNATURE, MOVE_INFO, fightReadout, stagesFor, BREAK_TIME, shoreZone, zonePool, makeBounties, bountyMatches, comboFor, LUNGE_PROFILE, PERFECT_HOOK, CLEAN_HOOK, hookTiming, isFullMoon, rollGoopSize, TRACK_WEIGHT_MULT, evaluateSpecimenQuality, SPECIMEN_GRADE_RANK, moonTideSizeExponent, lilyPetalDriftMultiplier,
 } from '../src/game.js';
 
 function memStore(initial = null) {
@@ -43,6 +43,15 @@ test('Moonlit Sandbar full-moon tide improves specimen size only inside its habi
   assert.equal(moonTideSizeExponent(2, sandbar, 'Dusk', true), 2);
   assert.equal(moonTideSizeExponent(2, sandbar, 'Night', false), 2);
   assert.equal(moonTideSizeExponent(1.4, dock, 'Night', true), 1.4);
+});
+
+test('Lily Cove petal drift favours rare drift-pattern Goops only at dawn and dusk', () => {
+  assert.equal(lilyPetalDriftMultiplier(SPOT_BY.lily, 'Dawn', 'Rare', 'drift'), 1.35);
+  assert.equal(lilyPetalDriftMultiplier(SPOT_BY.lily, 'Dusk', 'Epic', 'drift'), 1.35);
+  assert.equal(lilyPetalDriftMultiplier(SPOT_BY.lily, 'Dawn', 'Common', 'drift'), 1);
+  assert.equal(lilyPetalDriftMultiplier(SPOT_BY.lily, 'Night', 'Rare', 'drift'), 1);
+  assert.equal(lilyPetalDriftMultiplier(SPOT_BY.lily, 'Dusk', 'Rare', 'dart'), 1);
+  assert.equal(lilyPetalDriftMultiplier(SPOT_BY.reeds, 'Dawn', 'Rare', 'drift'), 1);
 });
 
 test('every spot only lists real Goops and every Goop is catchable somewhere', () => {
