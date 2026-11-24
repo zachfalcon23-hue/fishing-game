@@ -9,7 +9,7 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='34' r='26' fill='%2359e04a'/%3E%3Ccircle cx='24' cy='28' r='7' fill='%23fff'/%3E%3Ccircle cx='25' cy='29' r='3.5' fill='%23062a10'/%3E%3Cpath d='M14 46q4 12 6 0M38 50q3 10 5 0' fill='%2359e04a'/%3E%3C/svg%3E">
   <link rel="preload" as="font" type="font/woff2" href="assets/fonts/lilita-one.woff2" crossorigin>
   <link rel="preload" as="image" href="assets/ui/title.webp">
-  <link rel="stylesheet" href="src/style.css?v=0.18">
+  <link rel="stylesheet" href="src/style.css?v=0.22">
 </head>
 <body>
 <div class="loader" id="loader">
@@ -29,6 +29,7 @@
     <div class="top-right">
       <div class="dexpill" title="GoopDex"><span>GOOPDEX</span><strong id="dexPill">0/86</strong></div>
       <div class="wallet" title="Essence"><span class="orb" aria-hidden="true"></span><div><span>ESSENCE</span><strong id="essence">0</strong></div></div>
+      <button id="guideBtn" class="icon-btn guide-icon" aria-label="How to play" title="How to play">?</button>
       <button id="muteBtn" class="icon-btn" aria-label="Toggle sound" aria-pressed="false"></button>
     </div>
   </header>
@@ -278,7 +279,7 @@
     </div>
   </section>
 
-  <footer><span>GOOP FISHING · BUILD 0.21 · SPORE BLOOM</span><button id="resetBtn" class="ghost">RESET SAVE</button></footer>
+  <footer><span>GOOP FISHING · BUILD 0.22 · FIELD GUIDE</span><button id="resetBtn" class="ghost">RESET SAVE</button></footer>
 </main>
 
 <dialog id="dexDetail" class="dex-detail">
@@ -313,6 +314,43 @@
   <div class="card-foot"><small>Bounties pay out the moment you finish them. New ones every morning.</small><button id="rerollBtn2" class="mini-btn">NEW BOUNTIES</button></div>
 </dialog>
 
-<script type="module" src="src/main.js?v=0.21"></script>
+<dialog id="guideDlg" class="sheet guide-sheet" aria-labelledby="guideTitle" aria-describedby="guideIntro">
+  <button class="close" data-close="guideDlg" aria-label="Close guide">✕</button>
+  <div class="guide-head"><span class="guide-eyebrow">OLD WIGGS’ FIELD LESSONS</span><span id="guideCount" class="guide-count">1 / 5</span></div>
+  <h3 id="guideTitle">YOUR FIRST CAST</h3>
+  <p id="guideIntro" class="guide-intro">Five quick lessons to get you fishing with confidence.</p>
+  <div class="guide-track" aria-hidden="true"><i id="guideProgress"></i></div>
+  <div id="guideSteps" class="guide-steps" aria-live="polite">
+    <section class="guide-step" data-guide-step="0">
+      <div class="guide-illustration">🧭</div><h4>1. PICK YOUR WATER</h4>
+      <p>Move along the shore to explore North Pond. Hold the left or right controls, use <kbd>A</kbd>/<kbd>D</kbd> or the arrow keys, or tap a pin on the pond map.</p>
+      <p>Fishing directly from a named spot gives you its full habitat bonuses. Casting between spots blends the neighboring habitats.</p>
+    </section>
+    <section class="guide-step" data-guide-step="1" hidden>
+      <div class="guide-illustration">🎣</div><h4>2. CAST AND SET THE HOOK</h4>
+      <p>Press <b>CAST LINE</b> or <kbd>C</kbd>. Watch the bobber. When it dips and the bite marker appears, make a fresh press of <b>REEL</b>.</p>
+      <p>React within <b>0.4 seconds</b> for a perfect hook and a 12% fight head start. Within <b>1.2 seconds</b> earns a clean hook and a 6% head start.</p>
+    </section>
+    <section class="guide-step" data-guide-step="2" hidden>
+      <div class="guide-illustration">🟩</div><h4>3. CONTROL THE FIGHT</h4>
+      <p>Hold <b>REEL</b> to build tension; release it to let tension fall. Keep the white needle inside the moving green safe zone to gain catch progress.</p>
+      <p>Too much tension can snap your line. Letting the line go slack loses progress. Short, controlled reel bursts are safer than holding forever.</p>
+    </section>
+    <section class="guide-step" data-guide-step="3" hidden>
+      <div class="guide-illustration">⚡</div><h4>4. READ THE GOOP</h4>
+      <p>Every Goop has a pull style and signature move. Follow the on-screen prompt: steer in the indicated direction, tap REEL on beats, or let go when a lunge warning flashes red.</p>
+      <p>Watch the water and the fight cue. Winning moves, dodging lunges, keeping control and landing clean hooks all help improve your catch grade.</p>
+    </section>
+    <section class="guide-step" data-guide-step="4" hidden>
+      <div class="guide-illustration">📖</div><h4>5. BUILD YOUR COLLECTION</h4>
+      <p>Use the <b>GoopDex</b> and <b>Fish Finder</b> to learn what lives nearby and what conditions help it bite. Time, weather, habitat and bait all matter.</p>
+      <p>Visit the <b>Bait Shack</b> to buy bait and improve your tackle. Complete bounties, survey habitats, discover secret places and grow your Aquarium.</p>
+      <p class="guide-tip">TIP FROM WIGGS: Match bait to a Goop’s favorite taste for a much better chance of attracting it.</p>
+    </section>
+  </div>
+  <div class="guide-actions"><button id="guidePrev" class="mini-btn" disabled>BACK</button><button id="guideNext" class="mini-btn guide-next">NEXT LESSON →</button><button id="guideFinish" class="slime-btn small" hidden>LET’S FISH</button></div>
+</dialog>
+
+<script type="module" src="src/main.js?v=0.22"></script>
 </body>
 </html>
