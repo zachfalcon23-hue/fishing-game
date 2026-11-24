@@ -171,8 +171,19 @@ function renderSpots() {
     const sub = !open ? `GoopDex ${game.dexCount}/${sp.unlockAt} to clear the path` : !found ? 'Not yet visited' : `${p.found}/${p.total} Goops${done ? ' · ✓ complete' : ''} · Essence ×${sp.essenceMul}`;
     const btn = here ? '<button class="here" disabled>HERE</button>' : open ? `<button class="go" data-walk="${sp.id}" ${game.busy ? 'disabled' : ''}>WALK</button>` : '<button disabled>🔒</button>';
     const tags = `${s.frenzy === sp.id ? '<em class="tag frenzy">✦ FRENZY</em>' : ''}${s.visitor?.spot === sp.id ? '<em class="tag visitor">VISITOR</em>' : ''}${sp.secret ? '<em class="tag secret">SECRET</em>' : ''}`;
-    return `<div class="spot ${here ? 'current' : ''} ${open ? '' : 'locked'} ${done ? 'done' : ''}" ${bg}><div><b>${open || found ? sp.name : '???'} ${tags}</b><small>${sub}</small>`
-      + `<div class="spot-bar"><i style="width:${(p.found / p.total) * 100}%"></i></div></div>${btn}</div>`;
+    const activity = open ? game.activityAt(sp.id) : 0;
+    const activityNames = ['QUIET', 'RIPPLES', 'FEEDING', 'FRENZY'];
+    const activityHTML = open ? `<span class="spot-activity a-${activity}" title="Local feeding activity: ${activityNames[activity]}"><i></i><i></i><i></i><b>${activityNames[activity]}</b></span>` : '';
+    const roster = sp.goops.slice(0, 6).map((id) => {
+      const known = s.dex[id] || s.seen.includes(id);
+      const g = GOOPS.find((x) => x.id === id);
+      const label = known ? g.name : 'Undiscovered Goop';
+      return `<span class="spot-resident ${known ? 'known' : 'unknown'}" title="${known ? esc(g.name) : 'Undiscovered species'}">${known ? `<button data-goop="${id}" aria-label="Open ${esc(g.name)} field guide"><img src="${GOOP_ART(id)}" alt="" loading="lazy"></button>` : `<img src="${GOOP_ART(id)}" alt="" loading="lazy">`}</span>`;
+    }).join('');
+    const extra = Math.max(0, sp.goops.length - 6);
+    const rosterHTML = open ? `<div class="spot-roster" aria-label="Resident species">${roster}${extra ? `<span class="spot-more">+${extra}</span>` : ''}</div>` : '';
+    return `<div class="spot ${here ? 'current' : ''} ${open ? '' : 'locked'} ${done ? 'done' : ''}" ${bg}><div class="spot-copy"><b>${open || found ? sp.name : '???'} ${tags}</b><small>${sub}</small>`
+      + `<div class="spot-bar"><i style="width:${(p.found / p.total) * 100}%"></i></div><div class="spot-meta">${activityHTML}${rosterHTML}</div></div>${btn}</div>`;
   }).join('');
 }
 
@@ -313,7 +324,7 @@ let lastLists = '';
 function renderLists(force) {
   const s = game.state;
   const sig = JSON.stringify([s.essence, s.spot, game.here, s.discovered, s.gear, game.dexCount, s.stats.caught, s.notes.length, s.completed, game.busy, dexFilter,
-    Object.keys(snaps).length, s.seen.length, s.bait, s.baits, s.buddy, s.buddyLv, s.equip, s.owned, s.finder, s.tips.length, s.sets, s.bounties.map((b) => b.have + b.id), s.frenzy, s.visitor, s.timeIndex, s.weather, SECRETS.map((id) => game.secretVisible(id))]);
+    Object.keys(snaps).length, s.seen.length, s.bait, s.baits, s.buddy, s.buddyLv, s.equip, s.owned, s.finder, s.tips.length, s.sets, s.bounties.map((b) => b.have + b.id), s.frenzy, s.visitor, s.timeIndex, s.weather, s.activity, SECRETS.map((id) => game.secretVisible(id))]);
   if (!force && sig === lastLists) return;
   lastLists = sig;
   renderDex(); renderSpots(); renderShop(); renderNotes(); renderMinimap(); renderBounties(); renderSets();
