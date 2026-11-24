@@ -644,7 +644,7 @@ test('field notes are picked up once, at their own spot, and teach the Goop', ()
 test('save storage recovers from malformed data and version mismatch', () => {
   const mem = { v: 'bad', getItem() { return this.v; }, setItem(k, v) { this.v = v; }, removeItem() { this.v = null; } };
   const store = new SaveStore(mem);
-  assert.equal(store.load().version, 3);
+  assert.equal(store.load().version, 4);
   mem.v = JSON.stringify({ version: 99, essence: 999 });
   assert.equal(store.load().essence, 0);
 });
@@ -672,7 +672,7 @@ test('version-2 saves load with new fields filled in and bad new fields are drop
     version: 2, essence: 30, dex: { gloop: { count: 1 } }, discovered: ['dock', 'sandbar'], spot: 'dock',
   }));
   const s = store.load();
-  assert.equal(s.version, 3);
+  assert.equal(s.version, 4);
   assert.equal(s.baits.sugar, 3, 'returning players get starter bait');
   assert.equal(s.bait, 'worm');
   assert.ok(s.discovered.includes('sandbar'), 'found secrets are kept');
@@ -696,7 +696,7 @@ test('version-1 saves migrate: GoopDex kept, old lake purchases refunded', () =>
     caughtToday: 1, spot: 'reeds', unlocked: ['pond', 'reeds'], gear: { rod: 1 },
   }));
   const s = store.load();
-  assert.equal(s.version, 3);
+  assert.equal(s.version, 4);
   assert.equal(s.essence, 240, 'the 200 paid for Reed Shallows comes back');
   assert.equal(s.dex.gloop.count, 2);
   assert.equal(s.dex.gloop.fastest, 3.1);
