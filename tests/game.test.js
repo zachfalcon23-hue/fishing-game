@@ -1327,6 +1327,40 @@ test('rhythm: taps on the beat win, random taps lose', () => {
   assert.ok(lastLog(f, 'moveFail'));
 });
 
+test('Deep Drop pressure warns before a timed line-sink that rewards reeling', () => {
+  const goop = GOOPS.find((x) => x.rarity === 'Common');
+  const deep = makeFight(goop, {}, { rng: () => 0.3, moves: false, deepPressure: true });
+  deep.nextLunge = null;
+  deep.nextMove = Infinity;
+  deep.elapsed = 6.0;
+  step(deep);
+  assert.equal(deep.pressureWarning, true);
+  assert.equal(deep.pressureActive, false);
+  assert.equal(fightReadout(deep).title, 'ABYSSAL PRESSURE');
+
+  deep.elapsed = 6.7;
+  deep.tension = 0.5;
+  const ordinary = makeFight(goop, {}, { rng: () => 0.3, moves: false });
+  ordinary.nextLunge = null;
+  ordinary.nextMove = Infinity;
+  ordinary.elapsed = 6.7;
+  ordinary.tension = 0.5;
+  step(deep);
+  step(ordinary);
+  assert.equal(deep.pressureActive, true);
+  assert.equal(fightReadout(deep).title, 'PRESSURE DROP');
+  assert.ok(deep.tension < ordinary.tension - 0.005, 'the pressure pulse sinks tension when the player does not reel');
+
+  const held = makeFight(goop, {}, { rng: () => 0.3, moves: false, deepPressure: true });
+  held.nextLunge = null;
+  held.nextMove = Infinity;
+  held.elapsed = 6.7;
+  held.tension = 0.5;
+  step(held, { reel: true });
+  assert.ok(held.tension > deep.tension, 'reeling counters the line sink');
+  assert.equal(makeFight(goop, {}, { deepPressure: false }).pressureActive, false, 'other habitats do not inherit the pressure cycle');
+});
+
 test('current: the zone drifts and you must follow it', () => {
   const g = GOOPS.find((x) => x.pattern === 'drift');
   let f = quiet(g); startMove(f, 'current');

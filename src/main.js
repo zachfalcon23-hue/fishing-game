@@ -433,7 +433,7 @@ function renderFight() {
   hud.classList.toggle('paused', !!paused);
   hud.classList.toggle('in-zone', fight.tension >= lo && fight.tension <= hi);
   hud.classList.toggle('danger', !paused && (fight.tension > 0.88 || fight.tension < 0.15));
-  hud.classList.toggle('warn', !!fight.warn || !!fight.flowSurge || !!fight.sporeActive);
+  hud.classList.toggle('warn', !!fight.warn || !!fight.flowSurge || !!fight.sporeActive || !!fight.pressureActive);
   hud.classList.toggle('drifting', m?.type === 'current');
   $('tensionBar').style.width = `${fight.tension * 100}%`;
   $('needle').style.left = `${fight.tension * 100}%`;
@@ -448,7 +448,7 @@ function renderFight() {
   setText('heftText', `${fight.sizeClass || 'AVERAGE'} SIZE`);
   hud.classList.toggle('size-heavy', fight.sizeClass === 'HEAVY');
   hud.classList.toggle('size-light', fight.sizeClass === 'LIGHT');
-  setText('tensionLbl', fight.warn ? 'EASE OFF!' : fight.flowSurge ? 'CURRENT!' : fight.flowWarning ? 'SURGE SOON' : fight.sporeWarning ? 'BLOOM SOON' : fight.sporeActive ? 'SPORE BLOOM!' : fight.crystalWarning ? 'PRISM SHIFT' : fight.crystalOffset ? 'FOLLOW BAND' : paused ? 'HOLD ON' : m?.type === 'current' ? 'FOLLOW' : 'TENSION');
+  setText('tensionLbl', fight.warn ? 'EASE OFF!' : fight.flowSurge ? 'CURRENT!' : fight.flowWarning ? 'SURGE SOON' : fight.sporeWarning ? 'BLOOM SOON' : fight.sporeActive ? 'SPORE BLOOM!' : fight.pressureWarning ? 'DROP SOON' : fight.pressureActive ? 'PRESSURE!' : fight.crystalWarning ? 'PRISM SHIFT' : fight.crystalOffset ? 'FOLLOW BAND' : paused ? 'HOLD ON' : m?.type === 'current' ? 'FOLLOW' : 'TENSION');
   const c = fight.combo || 1;
   const combo = $('combo');
   combo.classList.toggle('show', c > 1 && !paused);
@@ -581,6 +581,9 @@ function render(dt) {
   }
   if (z.mix.some(([spot, share]) => spot.id === 'grotto' && share >= 0.65)) {
     evs.push('<span class="ev" title="Glowshroom spores bloom every eight seconds. The Goop pulls less and reeling is more effective during the short luminous window.">🍄 SPORE BLOOM · TIMED REEL WINDOW</span>');
+  }
+  if (z.mix.some(([spot, share]) => spot.id === 'deep' && share >= 0.65)) {
+    evs.push('<span class="ev" title="Abyssal pressure sinks the line every nine seconds. Watch for the warning and reel through the short pressure drop to prevent slack.">⬇️ ABYSSAL PRESSURE · REEL THROUGH THE DROP</span>');
   }
   const sighting = view === 'pond' ? scene?.currentSighting : null;
   if (sighting) {
