@@ -1094,7 +1094,7 @@ export function bountyMatches(b, c) {
 
 // ---------- persistence ----------
 
-const SAVE_VERSION = 5;
+const SAVE_VERSION = 6;
 const OLD_SPOT = { pond: 'dock', reeds: 'reeds', deep: 'deep' };
 const OLD_SPOT_COST = { reeds: 200, deep: 600 };
 
@@ -1112,7 +1112,7 @@ export class SaveStore {
 
   fresh() {
     return {
-      version: SAVE_VERSION, essence: 0, dex: {}, seen: [], notes: [], day: 1, weather: 'clear', caughtToday: 0,
+      version: SAVE_VERSION, essence: 0, dex: {}, seen: [], notes: [], catchLog: [], day: 1, weather: 'clear', caughtToday: 0,
       timeIndex: 1, casts: 0, spot: 'dock', shore: 0, discovered: ['dock'], completed: [],
       gear: { rod: 0, line: 0, lure: 0 }, stats: { caught: 0, escaped: 0, missed: 0, shiny: 0, perfect: 0, dodges: 0, bounties: 0, moves: 0 },
       bait: 'worm', baits: { sugar: 3, mud: 3 }, buddy: null, buddyLv: 0, sets: [], tips: [], finder: false,
@@ -1128,7 +1128,7 @@ export class SaveStore {
     const parseSave = (raw) => {
       const value = JSON.parse(raw || 'null');
       if (!value || typeof value !== 'object' || Array.isArray(value)
-        || ![1, 2, 3, 4, SAVE_VERSION].includes(value.version)) {
+        || ![1, 2, 3, 4, 5, SAVE_VERSION].includes(value.version)) {
         throw new Error('Unrecognized or damaged save structure');
       }
       return value;
@@ -1239,6 +1239,25 @@ export class SaveStore {
       s.gear[k] = Math.min(UPGRADES[k].cost.length, Math.floor(num(p.gear?.[k], 0)));
     }
     for (const k of Object.keys(f.stats)) s.stats[k] = Math.floor(num(p.stats?.[k], 0));
+    // Keep a small, validated recent-catch history; older saves simply start with an empty log.
+    s.catchLog = (Array.isArray(p.catchLog) ? p.catchLog : []).slice(0, 40).map((entry) => {
+      if (!entry || typeof entry !== 'object' || !ids.has(entry.goop) || !SPOT_BY[entry.spot]) return null;
+      return {
+        goop: entry.goop, spot: entry.spot,
+        rarity: RARITIES.includes(entry.rarity) ? entry.rarity : (GOOPS.find((item) => item.id === entry.goop)?.rarity || 'Common'),
+        at: Math.floor(num(entry.at, 0)), day: Math.floor(num(entry.day, 1, 1)),
+        size: Number.isFinite(entry.size) ? Math.max(0, entry.size) : 0,
+        reward: Math.floor(num(entry.reward, 0)),
+        time: TIMES.includes(entry.time) ? entry.time : 'Day',
+        weather: WEATHER[entry.weather] ? entry.weather : 'clear',
+        bait: BAITS[entry.bait] ? entry.bait : 'worm',
+        qualityGrade: Object.hasOwn(SPECIMEN_GRADE_RANK, entry.qualityGrade) ? entry.qualityGrade : 'Rough',
+        qualityScore: Number.isFinite(entry.qualityScore) ? Math.max(0, Math.min(100, Math.floor(entry.qualityScore))) : 0,
+        shiny: entry.shiny === true, firstTime: entry.firstTime === true,
+        hookGrade: ['perfect', 'clean', 'late'].includes(entry.hookGrade) ? entry.hookGrade : 'late',
+      };
+    }).filter(Boolean);
+
     // bait
     s.baits = {};
     const srcBaits = p.baits && typeof p.baits === 'object' && !Array.isArray(p.baits) ? p.baits : (p.version === SAVE_VERSION ? {} : f.baits);
@@ -1856,6 +1875,18 @@ export class FishingGame {
     if (shiny) s.stats.shiny += 1;
     const firstTime = prev.count === 0;
     this.lastCatch = { goop: id, reward, firstTime, size, record: record && !firstTime, shiny, time, combo: this.fight.best || 1, perfect: !!this.fight.perfect, hookGrade: this.fight.hookGrade || 'late', skillBonus, hookSkillBonus, quality, qualityRecord };
+    const logEntry = {
+      goop: id, spot: SPOT_BY[ctx.spot] ? ctx.spot : s.spot, rarity: g.rarity,
+      at: Date.now(), day: s.day, size, reward,
+      time: TIMES.includes(ctx.time) ? ctx.time : this.timeOfDay,
+      weather: WEATHER[ctx.weather] ? ctx.weather : s.weather,
+      bait: BAITS[ctx.bait] ? ctx.bait : 'worm',
+      qualityGrade: quality.grade, qualityScore: quality.score,
+      shiny: !!shiny, firstTime, hookGrade: this.fight.hookGrade || 'late',
+    };
+    s.catchLog.unshift(logEntry);
+    if (s.catchLog.length > 40) s.catchLog.length = 40;
+    this.lastCatch.logEntry = logEntry;
     this.message = `${shiny ? '✦ Shiny ' : ''}${g.name} caught! +${reward} Essence`;
     if (firstTime) this.lastCatch.tank = this.houseGoop(id);
     this.emit('catch', this.lastCatch);
