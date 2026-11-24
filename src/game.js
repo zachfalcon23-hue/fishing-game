@@ -1440,6 +1440,13 @@ export class FishingGame {
       weatherCount: record.weather?.length || 0,
       baitCount: record.baits?.length || 0,
       perfect: record.perfect || 0,
+      // Return defensive copies so the field journal can show discovered evidence
+      // without exposing mutable save-state arrays to the presentation layer.
+      species: [...(record.species || [])],
+      times: [...(record.times || [])],
+      weather: [...(record.weather || [])],
+      baits: [...(record.baits || [])],
+      qualityGrades: [...(record.qualityGrades || [])],
       rank,
       title: rank ? HABITAT_RESEARCH_TIERS[rank - 1].name : 'Unsurveyed',
       next: nextTier?.points ?? null,
