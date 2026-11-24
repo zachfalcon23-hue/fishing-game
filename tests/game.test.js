@@ -124,6 +124,32 @@ test('Waterfall Inlet locks a periodic current surge into its fight context', ()
     'the waterfall surge adds a distinct 35% pull pulse during normal fight control');
 });
 
+test('Hidden Falls Cave shifts the safe line window in alternating prism pulses', () => {
+  const cave = newGame();
+  cave.state.discovered.push('cave');
+  cave.state.shore = SPOT_BY.cave.pos;
+  assert.equal(cave.zone().spot.id, 'cave', 'the discovered secret cave is a valid fishing habitat');
+  assert.equal(cave.cast(), true);
+  assert.equal(cave.castCtx.fightMods.crystalShift, true, 'the cave effect is captured when casting');
+  const dock = newGame();
+  assert.equal(dock.cast(), true);
+  assert.equal(dock.castCtx.fightMods.crystalShift, false, 'ordinary water has no prism refraction');
+
+  const fight = makeFight(GOOPS[0], {}, { rng: () => 0, crystalShift: true });
+  fight.elapsed = 4.2;
+  fight.phase = 1.2;
+  fight.nextMove = Infinity;
+  fight.nextLunge = null;
+  tickFight(fight, { reel: false }, 0.05);
+  assert.equal(fight.crystalWarning, false, 'the warning window has passed');
+  assert.ok(fight.crystalOffset > 0, 'the first refraction shifts the safe band upward');
+  const firstOffset = fight.crystalOffset;
+  fight.elapsed = 9.2;
+  tickFight(fight, { reel: false }, 0.05);
+  assert.ok(fight.crystalOffset < 0, 'the next refraction shifts the safe band in the opposite direction');
+  assert.equal(Math.abs(fight.crystalOffset), firstOffset, 'both prism shifts have equal magnitude');
+});
+
 test('Fish Finder forecast responds to live feeding activity', () => {
   const quiet = newGame();
   const active = newGame();
