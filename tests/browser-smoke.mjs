@@ -115,6 +115,31 @@ try {
     await page.locator('#viewNav [data-view="pond"]').click();
     assert.equal(await page.locator('#pondView').isVisible(), true);
 
+    // The full pond map must expose only unlocked locations as keyboard-operable buttons.
+    await page.locator('#mapBtn').click();
+    assert.equal(await page.locator('#mapDlg').evaluate(dialog => dialog.open), true);
+    const mapPin = page.locator('#mapSvg .pin.open[data-walk="lily"]');
+    assert.equal(await mapPin.getAttribute('role'), 'button');
+    assert.equal(await mapPin.getAttribute('tabindex'), '0');
+    await mapPin.focus();
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(() => document.querySelector('#mapDlg')?.open === false);
+    assert.equal(await page.evaluate(() => typeof window.__goop.walker.target), 'number');
+
+    await page.locator('#mapBtn').click();
+    const spaceMapPin = page.locator('#mapSvg .pin.open[data-walk="lily"]');
+    await spaceMapPin.focus();
+    await page.keyboard.press('Space');
+    await page.waitForFunction(() => document.querySelector('#mapDlg')?.open === false);
+
+    // Locked locations are informative graphics, not misleading disabled buttons or tab stops.
+    await page.locator('#mapBtn').click();
+    const lockedMapPin = page.locator('#mapSvg .pin.locked').first();
+    assert.equal(await lockedMapPin.getAttribute('role'), 'img');
+    assert.equal(await lockedMapPin.getAttribute('tabindex'), null);
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => document.querySelector('#mapDlg')?.open === false);
+
     if (viewport.name === 'mobile') {
       const dimensions = await page.evaluate(() => ({
         viewport: document.documentElement.clientWidth,
@@ -134,8 +159,19 @@ try {
       }
     }
 
-    // Verify the actual cast -> bite -> hook -> fight transition using player controls.
-    await page.locator('#castBtn').click();
+    // Primary fishing controls need accessible names and live announcements for important state.
+    assert.equal(await page.getByRole('button', { name: /CAST LINE/i }).count(), 1);
+    assert.equal(await page.getByRole('button', { name: /REEL \/ HOOK/i }).count(), 1);
+    for (const selector of ['#message', '#movePrompt', '#eventTag', '#catchCard', '#sessionNotice']) {
+      assert.ok(
+        await page.locator(selector).getAttribute('aria-live'),
+        `${viewport.name}: ${selector} should announce status changes`,
+      );
+    }
+
+    // Verify the actual cast -> bite -> hook -> fight transition using desktop keyboard and mobile touch.
+    if (viewport.name === 'desktop') await page.keyboard.press('c');
+    else await page.locator('#castBtn').click();
     await page.waitForFunction(() => window.__goop?.game.phase === 'cast', undefined, { timeout: 3000 });
     await page.waitForFunction(
       () => document.querySelector('#exportSessionBtn')?.disabled === false,
@@ -149,7 +185,8 @@ try {
     assert.match(sessionDownload.suggestedFilename(), /^goop-fishing-session-.*\.json$/);
     assert.equal(await sessionDownload.failure(), null);
     await page.waitForFunction(() => window.__goop?.game.phase === 'bite', undefined, { timeout: 15000 });
-    await page.locator('#reelBtn').click();
+    if (viewport.name === 'desktop') await page.keyboard.press('Space');
+    else await page.locator('#reelBtn').click();
     await page.waitForFunction(() => window.__goop?.game.phase === 'fight', undefined, { timeout: 3000 });
 
     const hooked = await page.evaluate(() => ({

@@ -387,6 +387,8 @@ img.is-shiny { filter: hue-rotate(150deg) saturate(1.3) brightness(1.08) drop-sh
 .map-news span { font-size: 11px; font-weight: 800; padding: 5px 10px; border-radius: 99px; background: rgba(3, 16, 22, .8); border: 1px solid var(--edge); color: #d8eee8; }
 .pond-map { display: block; width: 100%; height: auto; margin-top: 10px; }
 .pond-map .pin { cursor: pointer; }
+.pond-map .pin[role="button"]:focus { outline: none; }
+.pond-map .pin[role="button"]:focus-visible circle { stroke: #fff27a; stroke-width: 6; filter: drop-shadow(0 0 8px #fff27a); }
 .pond-map .pin circle { fill: #0a2430; stroke: #eaffd0; stroke-width: 3; transition: transform .15s; }
 .pond-map .pin.open circle { fill: #2f8a3a; }
 .pond-map .pin.found circle { fill: url(#pondg); stroke: #c6ff5a; }
