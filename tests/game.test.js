@@ -150,6 +150,42 @@ test('Hidden Falls Cave shifts the safe line window in alternating prism pulses'
   assert.equal(Math.abs(fight.crystalOffset), firstOffset, 'both prism shifts have equal magnitude');
 });
 
+test('Glowshroom Grotto creates a timed spore-bloom reel window', () => {
+  const grotto = newGame();
+  grotto.state.dex = Object.fromEntries(GOOPS.slice(0, 18).map((goop) => [goop.id, { count: 1 }]));
+  grotto.state.shore = SPOT_BY.grotto.pos;
+  assert.equal(grotto.zone().spot.id, 'grotto', 'eighteen GoopDex entries unlock Glowshroom Grotto');
+  assert.equal(grotto.cast(), true);
+  assert.equal(grotto.castCtx.fightMods.sporeBloom, true, 'the grotto effect is captured when casting');
+
+  const dock = newGame();
+  assert.equal(dock.cast(), true);
+  assert.equal(dock.castCtx.fightMods.sporeBloom, false, 'ordinary water does not gain spore blooms');
+
+  const warning = makeFight(GOOPS[0], {}, { rng: () => 0, sporeBloom: true });
+  warning.elapsed = 5.75;
+  warning.nextMove = Infinity;
+  warning.nextLunge = null;
+  tickFight(warning, { reel: false }, 0.05);
+  assert.equal(warning.sporeWarning, true, 'the warning appears before the bloom');
+  assert.equal(warning.sporeActive, false, 'the bloom has not started during its warning');
+
+  const blooming = makeFight(GOOPS[0], {}, { rng: () => 0, sporeBloom: true });
+  const ordinary = makeFight(GOOPS[0], {}, { rng: () => 0, sporeBloom: false });
+  for (const fight of [blooming, ordinary]) {
+    fight.elapsed = 6;
+    fight.phase = 1.2;
+    fight.nextMove = Infinity;
+    fight.nextLunge = null;
+  }
+  tickFight(blooming, { reel: true }, 0.05);
+  tickFight(ordinary, { reel: true }, 0.05);
+  assert.equal(blooming.sporeActive, true, 'the luminous window is active on schedule');
+  assert.ok(blooming.tension < ordinary.tension, 'the spores soften the Goop pull during the bloom');
+  assert.ok(blooming.progress > ordinary.progress, 'reeling in the safe zone is more effective during the bloom');
+  assert.equal(fightReadout(blooming).title, 'LUMINOUS WINDOW', 'the player receives a clear action cue during the bloom');
+});
+
 test('Fish Finder forecast responds to live feeding activity', () => {
   const quiet = newGame();
   const active = newGame();

@@ -701,6 +701,7 @@ export function makeFight(goop, gear = {}, env = {}) {
     stages: stagesFor(goop), stage: 1, breakT: 0, zoneShift: 0,
     currentFlow: !!env.currentFlow, flowWarning: false, flowSurge: false,
     crystalShift: !!env.crystalShift, crystalWarning: false, crystalOffset: 0,
+    sporeBloom: !!env.sporeBloom, sporeWarning: false, sporeActive: false,
   };
 }
 
@@ -801,6 +802,16 @@ export function fightReadout(fight) {
     return { kind: 'lunge', title: 'LUNGE INCOMING', action: 'RELEASE REEL', time, ratio: clamp01(1 - time / fight.lungeWarn), urgent: true };
   }
 
+  if (!m && fight.sporeBloom && fight.sporeWarning) {
+    const phase = fight.elapsed % 8;
+    const time = Math.max(0, 6 - phase);
+    return { kind: 'spore', title: 'GLOWSHROOM BLOOM', action: 'SPORES ARE GATHERING · GET READY TO REEL', time, ratio: clamp01(1 - time / 0.5), urgent: false };
+  }
+  if (!m && fight.sporeBloom && fight.sporeActive) {
+    const phase = fight.elapsed % 8;
+    const time = Math.max(0, 7.2 - phase);
+    return { kind: 'spore', title: 'LUMINOUS WINDOW', action: 'REEL IN THE GREEN · THE GOOP IS EASIER TO CONTROL', time, ratio: clamp01(1 - time / 1.2), urgent: true };
+  }
   if (!m && fight.crystalShift && fight.crystalWarning) {
     const phase = fight.elapsed % 5;
     return { kind: 'crystal', title: 'PRISM REFRACTION', action: 'SAFE LINE WINDOW IS ABOUT TO SHIFT', time: Math.max(0, 4 - phase), ratio: clamp01(1 - Math.max(0, 4 - phase) / 0.4), urgent: false };
@@ -976,9 +987,12 @@ export function tickFight(fight, input, dt) {
   fight.flowWarning = !!fight.currentFlow && flowPhase >= 3.6 && flowPhase < 4.5;
   fight.flowSurge = !!fight.currentFlow && flowPhase >= 4.5 && flowPhase < 5.7;
   const crystalPhase = fight.elapsed % 5;
-  fight.crystalWarning = !!fight.crystalShift && (crystalPhase >= 3.6 && crystalPhase < 4 || crystalPhase >= 8.6);
+  fight.crystalWarning = !!fight.crystalShift && (crystalPhase >= 3.6 && crystalPhase < 4);
   fight.crystalOffset = !fight.crystalShift ? 0 : crystalPhase >= 4 ? (crystalPhase < 5 ? 0.07 : 0) : 0;
   if (fight.crystalShift && fight.elapsed % 10 >= 9 && fight.elapsed % 10 < 10) fight.crystalOffset = -0.07;
+  const sporePhase = fight.elapsed % 8;
+  fight.sporeWarning = !!fight.sporeBloom && sporePhase >= 5.5 && sporePhase < 6;
+  fight.sporeActive = !!fight.sporeBloom && sporePhase >= 6 && sporePhase < 7.2;
 
   // signature moves
   let paused = false;
@@ -993,7 +1007,7 @@ export function tickFight(fight, input, dt) {
   if (!paused) {
     // Reeling winds tension up, releasing lets it fall; the Goop pulls against you (but not while it plays dead).
     const still = fight.move?.type === 'fakeout' && fight.move.state === 'still';
-    const pull = still ? -0.1 : pullForce(fight.goop.pattern, fight.phase) * (fight.forceMul ?? 1) * (fight.flowSurge ? 1.35 : 1);
+    const pull = still ? -0.1 : pullForce(fight.goop.pattern, fight.phase) * (fight.forceMul ?? 1) * (fight.flowSurge ? 1.35 : 1) * (fight.sporeActive ? 0.75 : 1);
     fight.tension += (reeling ? 0.62 : -0.55) * d + pull * d;
 
     // Lunges: a warning, then a surge. Easing off when it hits dodges most of it.
@@ -1028,7 +1042,7 @@ export function tickFight(fight, input, dt) {
     fight.best = Math.max(fight.best || 1, combo);
 
     if (!still) {
-      if (safe && reeling) fight.progress += d * 0.3 * rate * combo;
+      if (safe && reeling) fight.progress += d * 0.3 * rate * combo * (fight.sporeActive ? 1.18 : 1);
       else if (fight.tension > 0.88 || fight.tension < 0.15) fight.progress = Math.max(0, fight.progress - d * 0.1);
       else if (!reeling) fight.progress = Math.max(0, fight.progress - d * 0.02);
 
@@ -1710,12 +1724,14 @@ export class FishingGame {
     const researchSpot = researchCandidates[0]?.[0].id || z.spot.id;
     const rockyCurrent = z.mix.some(([spot, share]) => spot.id === 'boulder' && share >= 0.65);
     const waterfallCurrent = z.mix.some(([spot, share]) => spot.id === 'falls' && share >= 0.65);
+    const glowshroomBloom = z.mix.some(([spot, share]) => spot.id === 'grotto' && share >= 0.65);
     this.castCtx = {
       spot: z.spot.id, researchSpot, hot: z.hot, bait, frenzy, essenceMul: st.essenceMul, weather: s.weather, time: this.timeOfDay,
       habitatMods,
       // Lock fight handling to the conditions that selected this encounter, even if the clock rolls over.
       // Rocky eddies compress the safe tension band; waterfall surges periodically increase line pull.
-      fightMods: { forceMul: this.weather.forceMul * mods.force, reel: mods.reel, zone: mods.zone - (rockyCurrent ? 0.035 : 0), lunge: mods.lunge, sizeExp: mods.sizeExp, currentFlow: waterfallCurrent, crystalShift: z.mix.some(([spot, share]) => spot.id === 'cave' && share >= 0.65) },
+      // Glowshroom spores create a short, predictable window of reduced pull and stronger reeling.
+      fightMods: { forceMul: this.weather.forceMul * mods.force, reel: mods.reel, zone: mods.zone - (rockyCurrent ? 0.035 : 0), lunge: mods.lunge, sizeExp: mods.sizeExp, currentFlow: waterfallCurrent, crystalShift: z.mix.some(([spot, share]) => spot.id === 'cave' && share >= 0.65), sporeBloom: glowshroomBloom },
     };
     if (bait !== 'worm') {
       s.baits[bait] -= 1;
@@ -1803,7 +1819,7 @@ export class FishingGame {
         this.phase = PHASES.FIGHT;
         const m = this.castCtx?.fightMods || this.mods();
         const specimenSize = rollGoopSize(this.goop, this.rng, m.sizeExp);
-        this.fight = makeFight(this.goop, this.state.gear, { forceMul: m.forceMul ?? this.weather.forceMul * m.force, rng: this.rng, reel: m.reel, zone: m.zone, lunge: m.lunge, snapGuard: m.snapGuard, size: specimenSize, currentFlow: !!m.currentFlow, crystalShift: !!m.crystalShift });
+        this.fight = makeFight(this.goop, this.state.gear, { forceMul: m.forceMul ?? this.weather.forceMul * m.force, rng: this.rng, reel: m.reel, zone: m.zone, lunge: m.lunge, snapGuard: m.snapGuard, size: specimenSize, currentFlow: !!m.currentFlow, crystalShift: !!m.crystalShift, sporeBloom: !!m.sporeBloom });
         const timing = hookTiming(this.timer);
         const perfect = timing.grade === 'perfect';
         this.fight.perfect = perfect;

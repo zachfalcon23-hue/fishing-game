@@ -404,7 +404,7 @@ function renderFight() {
   hud.classList.toggle('paused', !!paused);
   hud.classList.toggle('in-zone', fight.tension >= lo && fight.tension <= hi);
   hud.classList.toggle('danger', !paused && (fight.tension > 0.88 || fight.tension < 0.15));
-  hud.classList.toggle('warn', !!fight.warn || !!fight.flowSurge);
+  hud.classList.toggle('warn', !!fight.warn || !!fight.flowSurge || !!fight.sporeActive);
   hud.classList.toggle('drifting', m?.type === 'current');
   $('tensionBar').style.width = `${fight.tension * 100}%`;
   $('needle').style.left = `${fight.tension * 100}%`;
@@ -419,7 +419,7 @@ function renderFight() {
   setText('heftText', `${fight.sizeClass || 'AVERAGE'} SIZE`);
   hud.classList.toggle('size-heavy', fight.sizeClass === 'HEAVY');
   hud.classList.toggle('size-light', fight.sizeClass === 'LIGHT');
-  setText('tensionLbl', fight.warn ? 'EASE OFF!' : fight.flowSurge ? 'CURRENT!' : fight.flowWarning ? 'SURGE SOON' : fight.crystalWarning ? 'PRISM SHIFT' : fight.crystalOffset ? 'FOLLOW BAND' : paused ? 'HOLD ON' : m?.type === 'current' ? 'FOLLOW' : 'TENSION');
+  setText('tensionLbl', fight.warn ? 'EASE OFF!' : fight.flowSurge ? 'CURRENT!' : fight.flowWarning ? 'SURGE SOON' : fight.sporeWarning ? 'BLOOM SOON' : fight.sporeActive ? 'SPORE BLOOM!' : fight.crystalWarning ? 'PRISM SHIFT' : fight.crystalOffset ? 'FOLLOW BAND' : paused ? 'HOLD ON' : m?.type === 'current' ? 'FOLLOW' : 'TENSION');
   const c = fight.combo || 1;
   const combo = $('combo');
   combo.classList.toggle('show', c > 1 && !paused);
@@ -549,6 +549,9 @@ function render(dt) {
   }
   if (z.mix.some(([spot, share]) => spot.id === 'cave' && share >= 0.65)) {
     evs.push('<span class="ev" title="Crystal refraction shifts the safe line window every five seconds. Watch the warning and follow the moving green band.">🔮 PRISM LIGHT · SHIFTING LINE WINDOW</span>');
+  }
+  if (z.mix.some(([spot, share]) => spot.id === 'grotto' && share >= 0.65)) {
+    evs.push('<span class="ev" title="Glowshroom spores bloom every eight seconds. The Goop pulls less and reeling is more effective during the short luminous window.">🍄 SPORE BLOOM · TIMED REEL WINDOW</span>');
   }
   const sighting = view === 'pond' ? scene?.currentSighting : null;
   if (sighting) {
