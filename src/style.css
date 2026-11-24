@@ -217,6 +217,12 @@ body:has(.loader:not(.gone)) { overflow: hidden; }
 .spot-resident button { display: block; width: 100%; height: 100%; padding: 0; border: 0; background: transparent; cursor: pointer; }
 .spot-resident.known { border-color: rgba(141,242,138,.5); }
 .spot-more { color: #d5f6b8; font-size: 9px; font-weight: 900; padding: 0 3px; }
+.spot-research { max-width: 520px; margin-top: 9px; padding: 8px 10px 7px; border: 1px solid rgba(141,242,138,.2); border-radius: 10px; background: linear-gradient(110deg, rgba(5,26,27,.84), rgba(3,17,24,.62)); box-shadow: inset 0 1px rgba(255,255,255,.035); }
+.spot-research-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; color: #93c3b5; font-size: 8px; font-weight: 900; letter-spacing: .14em; }
+.spot-research-head b { color: #d8f6be; font-family: inherit; font-size: 9px; font-weight: 900; letter-spacing: .06em; text-align: right; }
+.spot-research-track { height: 5px; margin-top: 6px; border-radius: 99px; overflow: hidden; background: rgba(255,255,255,.12); }
+.spot-research-track i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #48c4aa, #baff72); box-shadow: 0 0 8px rgba(141,242,138,.35); transition: width .35s ease; }
+.spot-research small { display: block; margin-top: 5px; color: #b7d4cd; font-size: 9px; line-height: 1.35; letter-spacing: .025em; }
 
 .option-list { display: grid; gap: 10px; margin-top: 12px; }
 .option { display: flex; align-items: center; gap: 12px; border: 1px solid var(--edge); background: rgba(3, 16, 22, .7); border-radius: 14px; padding: 10px 12px; }
