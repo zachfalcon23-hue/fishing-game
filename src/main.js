@@ -966,15 +966,32 @@ function renderFinder() {
   el.hidden = !show;
   if (!show) return;
   const s = game.state;
-  const sig = [Math.round(s.shore * 10), s.bait, s.timeIndex, s.weather, s.equip.lure, s.equip.rod, s.frenzy, s.seen.length, game.dexCount, s.discovered.length].join('|');
+  const zone = game.zone();
+  // Forecast weights also depend on local feeding activity, tracked targets, visitors,
+  // habitat research and bait inventory. Include them so the display never goes stale.
+  const sig = JSON.stringify([
+    Math.round(s.shore * 10), s.spot, s.bait, s.baits, s.timeIndex, s.weather,
+    s.equip.lure, s.equip.rod, s.frenzy, s.visitor, s.seen.length, game.dexCount,
+    s.discovered.length, s.activity, s.trackedGoop, s.research,
+    zone.mix.map(([spot, share]) => [spot.id, Math.round(share * 100)]),
+  ]);
   if (sig === finderSig) return;
   finderSig = sig;
+  const ecology = game.ecosystemStatus();
+  const bait = BAITS[s.bait] || BAITS.worm;
+  const baitCount = s.bait === 'worm' ? '∞' : (s.baits[s.bait] || 0);
+  const target = game.trackingStatus();
   const rows = game.forecast(4).map(({ id, chance }) => {
     const seen = s.seen.includes(id) || !!s.dex[id];
     const g = GOOPS.find((x) => x.id === id);
     return `<div class="f-row r-${g.rarity}"><img src="${GOOP_ART(id)}" alt="" class="${s.dex[id] ? '' : 'locked'}"><span>${seen ? esc(g.name) : '???'}</span><b>${chance < 0.01 ? '<1' : Math.round(chance * 100)}%</b></div>`;
   }).join('');
-  el.innerHTML = `<div class="f-title">📡 FISH FINDER</div>${rows}`;
+  const targetHTML = target
+    ? `<div class="f-target"><b>TRACKING · ${esc(target.goop.name)}</b><small>${esc(target.status)}</small></div>`
+    : '';
+  el.innerHTML = `<div class="f-title">📡 FISH FINDER · ${esc(zone.spot.name)}</div>
+    <div class="f-context"><span>◉ ${esc(ecology.label)}</span><span>${esc(bait.icon)} ${esc(bait.name)} · ${baitCount}</span></div>
+    ${targetHTML}<div class="f-forecast-label">LIKELY TO BITE</div>${rows}`;
 }
 
 // ---------- places: the pond, the Bait Shack and the Aquarium ----------
