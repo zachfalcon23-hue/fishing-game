@@ -201,6 +201,22 @@ body:has(.loader:not(.gone)) { overflow: hidden; }
 .spot.locked { filter: saturate(.4); }
 .spot b { display: block; font-family: var(--display); font-weight: 400; font-size: 18px; letter-spacing: .03em; }
 .spot small { display: block; color: #cde3de; font-size: 11px; margin-top: 3px; }
+.spot-copy { min-width: 0; flex: 1; }
+.spot-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin-top: 8px; }
+.spot-activity { display: inline-flex; align-items: center; gap: 3px; min-height: 18px; color: #cde3de; font-size: 8px; font-weight: 900; letter-spacing: .12em; }
+.spot-activity i { display: block; width: 4px; height: 7px; border-radius: 4px; background: rgba(255,255,255,.22); }
+.spot-activity i:nth-child(2) { height: 11px; }
+.spot-activity i:nth-child(3) { height: 15px; }
+.spot-activity b { margin-left: 4px; }
+.spot-activity.a-1 i:nth-child(-n+1), .spot-activity.a-2 i:nth-child(-n+2), .spot-activity.a-3 i { background: #8df28a; box-shadow: 0 0 7px rgba(141,242,138,.45); }
+.spot-activity.a-2 b, .spot-activity.a-3 b { color: #baff9b; }
+.spot-roster { display: inline-flex; align-items: center; gap: 3px; }
+.spot-resident { display: block; width: 24px; height: 24px; border-radius: 8px; overflow: hidden; background: rgba(3,16,22,.72); border: 1px solid rgba(255,255,255,.15); }
+.spot-resident img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.spot-resident.unknown img { opacity: .22; filter: grayscale(1) brightness(.7); }
+.spot-resident button { display: block; width: 100%; height: 100%; padding: 0; border: 0; background: transparent; cursor: pointer; }
+.spot-resident.known { border-color: rgba(141,242,138,.5); }
+.spot-more { color: #d5f6b8; font-size: 9px; font-weight: 900; padding: 0 3px; }
 
 .option-list { display: grid; gap: 10px; margin-top: 12px; }
 .option { display: flex; align-items: center; gap: 12px; border: 1px solid var(--edge); background: rgba(3, 16, 22, .7); border-radius: 14px; padding: 10px 12px; }
