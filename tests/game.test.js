@@ -1189,6 +1189,7 @@ test('habitat research upgrades v3 saves safely and sanitizes malformed v4 resea
         perfect: 2,
       },
       nowhere: { points: 9999, species: ['sleeper'] },
+      constructor: { points: 999999, species: ['sleeper'] },
       lily: null,
     },
   })).store.load();
@@ -1203,6 +1204,7 @@ test('habitat research upgrades v3 saves safely and sanitizes malformed v4 resea
     perfect: 2,
   });
   assert.equal(migrated.research.nowhere, undefined, 'unknown habitats are discarded');
+  assert.equal(Object.hasOwn(migrated.research, 'constructor'), false, 'inherited object keys are not treated as real habitats');
   assert.equal(migrated.research.lily, undefined, 'malformed records are discarded');
   const survey = new FishingGame({ rng: () => 0, saveStore: memStore(JSON.stringify({
     version: 4,
