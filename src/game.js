@@ -283,7 +283,7 @@ const SPOT_DEFS = [
     secret: { when: { time: ['Day', 'Dawn'] }, requires: 'falls', rumor: '“Sunlight hits the far side of the falls just right in the daytime. There’s a gap back there, I swear it.”', clue: 'Light is shining through a gap in the rocks…' },
   },
   { id: 'grotto', name: 'Glowshroom Grotto', pos: 6, unlockAt: 18, essenceMul: 1.5, rareMul: 1.35, biteMin: 1.2, biteMax: 3.2, desc: 'Glowing mushrooms over still, dark water.' },
-  { id: 'deep', name: 'The Deep Drop', pos: 7, unlockAt: 26, essenceMul: 1.8, rareMul: 1.6, biteMin: 1.3, biteMax: 3.6, desc: 'The pond floor drops away. Legends sleep here.' },
+  { id: 'deep', name: 'The Deep Drop', pos: 7, unlockAt: 26, essenceMul: 1.8, rareMul: 1.6, biteMin: 1.3, biteMax: 3.6, desc: 'The pond floor drops away. Every nine seconds, abyssal pressure sinks your line—reel through the brief drop before slack takes hold.' },
   {
     id: 'wreck', name: 'Sunken Wreck', pos: 8, essenceMul: 2, rareMul: 1.7, biteMin: 1.3, biteMax: 3.4,
     desc: 'An old boat on the pond floor, past the Deep Drop.',
