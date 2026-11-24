@@ -748,15 +748,6 @@ export function fightReadout(fight) {
   }
 
   const m = fight.move;
-  if (!m && fight.currentFlow && fight.flowSurge) {
-    const phase = fight.elapsed % 6;
-    return { kind: 'current', title: 'WATERFALL SURGE', action: 'THE FLOW IS PULLING HARDER · MANAGE TENSION', time: Math.max(0, 5.7 - phase), ratio: clamp01((phase - 4.5) / 1.2), urgent: true };
-  }
-  if (!m && fight.currentFlow && fight.flowWarning) {
-    const phase = fight.elapsed % 6;
-    const time = Math.max(0, 4.5 - phase);
-    return { kind: 'current', title: 'CURRENT BUILDING', action: 'SURGE INCOMING · PREPARE TO EASE OFF', time, ratio: clamp01(1 - time / 0.9), urgent: false };
-  }
   if (m) {
     if (m.type === 'swerve') {
       const time = Math.max(0, m.window - m.t);
@@ -807,6 +798,16 @@ export function fightReadout(fight) {
   if (fight.warn && fight.nextLunge != null) {
     const time = Math.max(0, fight.nextLunge);
     return { kind: 'lunge', title: 'LUNGE INCOMING', action: 'RELEASE REEL', time, ratio: clamp01(1 - time / fight.lungeWarn), urgent: true };
+  }
+
+  if (!m && fight.currentFlow && fight.flowSurge) {
+    const phase = fight.elapsed % 6;
+    return { kind: 'current', title: 'WATERFALL SURGE', action: 'THE FLOW IS PULLING HARDER · MANAGE TENSION', time: Math.max(0, 5.7 - phase), ratio: clamp01((phase - 4.5) / 1.2), urgent: true };
+  }
+  if (!m && fight.currentFlow && fight.flowWarning) {
+    const phase = fight.elapsed % 6;
+    const time = Math.max(0, 4.5 - phase);
+    return { kind: 'current', title: 'CURRENT BUILDING', action: 'SURGE INCOMING · PREPARE TO EASE OFF', time, ratio: clamp01(1 - time / 0.9), urgent: false };
   }
 
   const tension = fight.tension ?? 0.5;
