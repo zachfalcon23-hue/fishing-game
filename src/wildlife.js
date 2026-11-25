@@ -203,6 +203,29 @@ export function resolveHabitatInteraction({
 }
 
 /**
+ * Presentation profile for the water surface above an already-active habitat event.
+ * These are drawing instructions only; the event resolver remains the sole source of truth.
+ */
+export function habitatInteractionWaterCue(interaction) {
+  if (!interaction?.active) return null;
+  const profiles = {
+    'reeds-school-rise': { style: 'cluster', color: '#b9f5d2', spread: 48 },
+    'dock-lantern-baitball': { style: 'orbit', color: '#ffd78a', spread: 66 },
+    'lily-petal-drift': { style: 'drift', color: '#ffb8df', spread: 104 },
+    'boulder-eddy-break': { style: 'vortex', color: '#ffc18a', spread: 84 },
+    'falls-current-seam': { style: 'stream', color: '#8be6ff', spread: 126 },
+    'cave-prism-echo': { style: 'prism', color: '#ffe0a3', spread: 76 },
+    'grotto-spore-bloom': { style: 'bloom', color: '#c9a8ff', spread: 68 },
+    'deep-pressure-rise': { style: 'upwell', color: '#8d8aff', spread: 138 },
+    'sandbar-moon-runnel': { style: 'tide', color: '#a9c7ff', spread: 154 },
+    'wreck-ghost-wake': { style: 'wake', color: '#7affdf', spread: 92 },
+  };
+  const profile = profiles[interaction.id];
+  if (!profile) return null;
+  return { ...profile, intensity: clamp(Number.isFinite(interaction.intensity) ? interaction.intensity : 0.5, 0.2, 1) };
+}
+
+/**
  * Translate an already-resolved habitat interaction into a small, deterministic
  * motion accent for an existing ambient school. This is presentation-only:
  * it creates no entities, clocks, state, or encounter eligibility.
