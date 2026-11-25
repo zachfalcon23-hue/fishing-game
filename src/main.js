@@ -1,7 +1,7 @@
 import {
   MOVE_INFO, fightReadout, GOOPS, SPOTS, SPOT_BY, UPGRADES, NOTES, PHASES, BAITS, SETS, TASTES, MOON, REROLL_COST, WEATHER,
   RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, buddyBonus, QUESTS, DECOR, THEMES, TANK_CAP, DECOR_SLOTS,
-  HABITAT_RESEARCH_TIERS, FishingGame, conditionText, tasteBait,
+  HABITAT_RESEARCH_TIERS, HABITAT_INTERACTIONS, FishingGame, conditionText, tasteBait,
 } from './game.js';
 import { Scene, loadAssets, GOOP_ART, SPOT_X, SPOT_GAP, WORLD_MIN, WORLD_MAX, CLUE_X, toShore, fromShore } from './scene.js';
 import { Sfx } from './audio.js';
@@ -34,6 +34,7 @@ let dexFilter = 'all';
 const snaps = {};
 const SECRETS = ['sandbar', 'cave', 'wreck'];
 const SPOT_ICON = { sandbar: '🌙', dock: '⚓', lily: '🪷', reeds: '🌾', boulder: '🪨', falls: '💧', cave: '💎', grotto: '🍄', deep: '🌀', wreck: '🛶' };
+const HABITAT_EVENT_BY_ID = new Map(HABITAT_INTERACTIONS.map((interaction) => [interaction.id, interaction]));
 const WIGGS = [
   '“Bait matters, kid. Match what they like to eat and they’ll come running.”',
   '“Keep the needle in the green and don’t let go. The longer you hold it, the faster they tire.”',
@@ -228,6 +229,10 @@ function renderSpots() {
       evidenceChips(study.weather, 'WEATHER', (key) => WEATHER[key]?.label || key),
       evidenceChips(study.baits, 'BAIT', (key) => BAITS[key]?.name || key),
       evidenceChips(study.qualityGrades || [], 'SPECIMENS'),
+      evidenceChips((study.observations || []).map((entry) => {
+        const event = HABITAT_EVENT_BY_ID.get(entry.id);
+        return event ? `${event.icon} ${event.name}` : entry.id;
+      }), 'OBSERVED'),
     ].filter(Boolean).join('') : '';
     const nextResearchHTML = nextStudyTier
       ? `<small class="spot-research-next">NEXT: ${esc(nextStudyTier.name)} · ${Math.max(0, nextStudyTier.points - study.points)} RP TO GO — ${esc(nextStudyTier.benefit)}</small>`
@@ -251,6 +256,13 @@ function renderNotes() {
   $('noteList').innerHTML = found.length
     ? found.map((id) => { const n = NOTES.find((x) => x.id === id); const g = GOOPS.find((x) => x.id === n.reveals); return `<p><b>${g.name}</b> — ${conditionText(g)}</p>`; }).join('')
     : '<p class="muted">Glowing bottles wash up along the shore. Tap one to read it — each reveals where a rare Goop hides.</p>';
+  const observations = SPOTS.flatMap((spot) => game.habitatResearch(spot.id).observations.map((entry) => ({ spot, entry })))
+    .sort((a, b) => b.entry.day - a.entry.day);
+  $('observationList').innerHTML = observations.length ? observations.map(({ spot, entry }) => {
+    const event = HABITAT_EVENT_BY_ID.get(entry.id);
+    const weather = WEATHER[entry.weather]?.label || entry.weather;
+    return `<div class="observation-row"><span class="observation-icon">${event?.icon || '👁'}</span><div><b>${esc(event?.name || entry.id)}</b><small>${esc(spot.name)} · Day ${entry.day} · ${esc(entry.time)} · ${esc(weather)}</small><p>${esc(event?.description || 'A habitat interaction was recorded.')}</p></div></div>`;
+  }).join('') : '<p class="muted">Watch the water for a habitat-specific clue, then choose OBSERVE to add it to your Field Journal.</p>';
   const log = game.state.catchLog || [];
   $('catchLogList').innerHTML = log.length ? log.slice(0, 8).map((entry) => {
     const goop = GOOPS.find((item) => item.id === entry.goop);
@@ -605,6 +617,16 @@ function render(dt) {
   if (s.frenzy && z.mix.some(([sp, k]) => sp.id === s.frenzy && k >= 0.5)) evs.push('<span class="ev frenzy">✦ FRENZY HERE</span>');
   else if (s.frenzy) evs.push(`<span class="ev">✦ FRENZY · ${spotName(s.frenzy).replace(/^The /, '').toUpperCase()}</span>`);
   if (game.fullMoon && game.timeOfDay === 'Night') evs.push('<span class="ev moon">🌕 FULL MOON</span>');
+  const localInteraction = z.mix.filter(([spot, share]) => share >= 0.45)
+    .map(([spot, share]) => ({ spot, share, interaction: game.habitatInteraction(spot.id) }))
+    .filter((entry) => entry.interaction)
+    .sort((a, b) => b.share - a.share)[0];
+  if (localInteraction) {
+    const { spot, interaction } = localInteraction;
+    const logged = game.habitatResearch(spot.id).observations.some((entry) => entry.id === interaction.id);
+    evs.push(`<span class="ev interaction" title="${esc(interaction.description)}">${interaction.icon} ${esc(interaction.name.toUpperCase())} · ${esc(interaction.clue)}</span>`);
+    evs.push(`<button type="button" class="ev-observe" data-observe-interaction data-spot="${spot.id}" data-interaction-id="${interaction.id}" ${logged ? 'disabled' : ''}>${logged ? '✓ LOGGED IN FIELD JOURNAL' : '👁 OBSERVE · +8 RESEARCH'}</button>`);
+  }
   setHTML('eventTag', evs.join(''));
   $('castBtn').disabled = game.busy || walking;
   setHTML('castBtn', game.here ? 'CAST LINE <kbd>C</kbd>' : 'CAST HERE <kbd>C</kbd>');
@@ -734,6 +756,13 @@ function handleEvents() {
           notify(`📖 Field research started at ${spotName(d.spot)} · +${d.earned} RP. Study different species, times, weather and baits.`, 3900);
           sfx.note();
         }
+        break;
+      case 'observation':
+        if (d.discovered) {
+          notify(`📖 ${spotName(d.spot)} · ${d.name} recorded in the Field Journal · +${d.earned} RP`, 3600);
+          sfx.discover();
+        }
+        lastLists = '';
         break;
       case 'escaped': sfx.snap(); navigator.vibrate?.([40, 40, 80]); break;
       case 'missedBite': sfx.splash(); break;
@@ -1384,6 +1413,18 @@ $('aquariumView').addEventListener('click', (e) => {
   if (bud) { game.setBuddy(game.state.buddy === bud ? null : bud); showTankCard(bud); lastLists = ''; return; }
   const dx = e.target.closest('[data-tankdex]')?.dataset.tankdex;
   if (dx) openDexDetail(dx);
+});
+
+$('eventTag').addEventListener('click', (event) => {
+  const button = event.target.closest('[data-observe-interaction]');
+  if (!button || button.disabled) return;
+  const result = game.recordHabitatObservation(button.dataset.spot, button.dataset.interactionId);
+  if (!result) {
+    notify('The water has changed. Wait for the habitat clue to appear again.', 2400);
+    return;
+  }
+  if (result.discovered) { renderNotes(); renderSpots(); }
+  handleEvents();
 });
 
 // ---------- loop ----------
