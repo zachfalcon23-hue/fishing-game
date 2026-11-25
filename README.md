@@ -66,7 +66,7 @@ New players are shown a five-step **Old Wiggs’ Field Lessons** guide on their 
 ## Places
 The game has three places, switched with the buttons under the logo. Each has its own address, so a website can link straight to it:
 - **The Pond** (`index.html`): roam, fish and explore.
-- **Wiggs' Bait Shack** (`index.html#shack`): Old Wiggs, drawn and animated in SVG, gives you his story quests, bounties and rumours. His shop (rods, skins, bobbers, lines, lures, bait and extras, with a live preview) lives here, under a rod rack that shows every rod style.
+- **Wiggs' Bait Shack** (`index.html#shack`): Old Wiggs, drawn and animated in SVG, gives you his story quests, bounties and rumours. The room has walk-up Counter, Bait Wall and Tackle Rack stations; selecting shelves brings up contextual shopkeeper advice. Browse rods, skins, bobbers, lines, lures, bait and field tools, inspect gear in the live rig preview, and hear Old Wiggs react to purchases and equipment changes.
 - **The Aquarium** (`index.html#aquarium`): every Goop you've caught swims in a living tank.
   - Tap a Goop to say hi and see its card (make it your buddy from there).
   - Turn on FEED and tap the water to drop food; hungry Goops race for it.
