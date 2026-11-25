@@ -996,24 +996,41 @@ function previewLoop(ts) {
 
 $('shopCard').addEventListener('click', (e) => {
   const tab = e.target.closest('[data-tktab]')?.dataset.tktab;
-  if (tab) { tackleTab = tab; tryOn = null; renderTackle(); return; }
+  if (tab) { tackleTab = tab; tryOn = null; renderTackle(); shopTalk(tab); return; }
   const buy = e.target.closest('[data-tk-buy]')?.dataset.tkBuy;
-  if (buy) { const [k, id] = buy.split(':'); if (game.buyTackle(k, id)) { tryOn = null; } renderTackle(); return; }
+  if (buy) {
+    const [k, id] = buy.split(':');
+    const item = TABLE[k]?.[id];
+    const ok = game.buyTackle(k, id);
+    if (ok) { tryOn = null; shopReact(\`A fine choice. The \${item?.name || 'new piece of tackle'} is yours, and I've fitted it for you. Treat it well.\`); }
+    else shopReact(\`Not just yet. That piece may be above your GoopDex level, or your Essence purse may be a little light.\`);
+    renderTackle(); return;
+  }
   const eq = e.target.closest('[data-tk-eq]')?.dataset.tkEq;
-  if (eq) { const [k, id] = eq.split(':'); game.equipTackle(k, id); tryOn = null; renderTackle(); return; }
+  if (eq) {
+    const [k, id] = eq.split(':'); const item = TABLE[k]?.[id];
+    const ok = game.equipTackle(k, id); tryOn = null;
+    shopReact(ok ? \`There we are — \${item?.name || 'that tackle'} is on your rig. You’ll feel the difference out there.\` : \`Couldn't fit that one. Let's have another look.\`);
+    renderTackle(); return;
+  }
   const lb = e.target.closest('[data-lure-buy]')?.dataset.lureBuy;
-  if (lb) { game.buyLure(lb); tryOn = null; renderTackle(); return; }
+  if (lb) { const ok = game.buyLure(lb); tryOn = null; shopReact(ok ? \`Good lure. \${LURES[lb].name} is ready to fish — see what it wakes up.\` : \`Save a little more Essence and we'll get that lure sorted.\`); renderTackle(); return; }
   const le = e.target.closest('[data-lure-eq]')?.dataset.lureEq;
-  if (le) { game.equipLure(le); tryOn = null; renderTackle(); return; }
+  if (le) { const ok = game.equipLure(le); tryOn = null; shopReact(ok ? \`\${LURES[le].name} is tied on. Give it a fair swim.\` : \`That lure isn't in your tackle box yet.\`); renderTackle(); return; }
   const charm = e.target.closest('[data-charm]');
-  if (charm) { game.useCharm(charm.dataset.charm, charm.dataset.arg); renderTackle(); return; }
-  if (e.target.closest('[data-finder]')) { game.buyFinder(); renderTackle(); return; }
-  if (e.target.closest('[data-train]')) { game.trainBuddy(); renderTackle(); return; }
+  if (charm) { const ok = game.useCharm(charm.dataset.charm, charm.dataset.arg); shopReact(ok ? 'There — you should notice the pond respond to that.' : 'Hold onto your Essence for now. That trick can wait.'); renderTackle(); return; }
+  if (e.target.closest('[data-finder]')) { const ok = game.buyFinder(); shopReact(ok ? 'A Fish Finder! Smart investment. It reads the water before you waste a cast.' : 'The Fish Finder costs a fair bit. Come back when your purse is heavier.'); renderTackle(); return; }
+  if (e.target.closest('[data-train]')) { const ok = game.trainBuddy(); shopReact(ok ? 'A treat for your little fishing partner. Keep looking after that buddy.' : 'Your buddy can wait for a treat until you have the Essence.'); renderTackle(); return; }
   const up = e.target.closest('[data-buy]')?.dataset.buy;
-  if (up) { game.buyUpgrade(up); renderTackle(); return; }
+  if (up) { const ok = game.buyUpgrade(up); shopReact(ok ? \`\${UPGRADES[up].name} tuned up. Small improvements add up on a long day.\` : 'That upgrade will have to wait until you have enough Essence.'); renderTackle(); return; }
   if (e.target.closest('[data-bait], [data-buybait]')) { setTimeout(renderTackle, 0); return; }
   const tr = e.target.closest('[data-try]')?.dataset.try;
-  if (tr && !e.target.closest('button')) { const [k, id] = tr.split(':'); tryOn = { kind: k, id }; $('tackleList').querySelectorAll('.tk-card').forEach((n) => n.classList.toggle('trying', n.dataset.try === tr)); }
+  if (tr && !e.target.closest('button')) {
+    const [k, id] = tr.split(':'); tryOn = { kind: k, id };
+    $('tackleList').querySelectorAll('.tk-card').forEach((n) => n.classList.toggle('trying', n.dataset.try === tr));
+    const item = (TABLE[k] || LURES)[id];
+    if (item) shopReact(\`Have a look at \${item.name}. \${item.desc || 'A useful bit of kit for the right conditions.'}\`);
+  }
 });
 
 // ---------- fish finder ----------
@@ -1099,6 +1116,27 @@ function greet() {
   if (!q) return say(`${hello} You woke the Sleeper — this pond’s yours now. Stop by any time.`, btns);
   if (p.ready) return say(`${hello} ${q.done}`, [['🎁 CLAIM REWARD', 'claim', 'hot'], ...btns]);
   say(game.state.quest.i === 0 ? q.story : `${hello} ${q.story}`, [['📜 QUEST', 'quest'], ...btns]);
+}
+
+
+function shopTalk(tab = tackleTab) {
+  const s = game.state;
+  const bait = BAITS[s.bait];
+  const lines = {
+    rods: \`That rack's my pride and joy. You're carrying the \${RODS[s.equip.rod].name} right now. A rod changes how a fight feels, so try one on before spending your Essence.\`,
+    skins: \`A little color never hurt a fishing trip. Your \${SKINS[s.equip.skin].name} finish is equipped now — pick a look that feels like yours.\`,
+    bobbers: \`Keep your eye on the bobber. The right float makes the bite easier to read, especially when the water gets lively.\`,
+    lines: \`Never underestimate your line. It's the quiet bit of kit between a good story and the one that got away.\`,
+    lures: \`Lures give a Goop something different to chase. You're running \${LURES[s.equip.lure].name}; match the lure to the kind of water you're working.\`,
+    bait: \`Bait is a conversation with the pond. You're rigged with \${bait.name} right now, \${s.bait === 'worm' ? 'and the worm tin never runs dry' : \`with \${s.baits[s.bait] || 0} left in your tin\`}.\`,
+    extras: \`These are the field tools. The Fish Finder reads the water, and the little charms can change the conditions when you need a different kind of day.\`,
+  };
+  const weather = WEATHER[s.weather]?.label || s.weather;
+  say(\`It's \${game.timeOfDay.toLowerCase()} outside — \${weather.toLowerCase()} over North Pond. \${lines[tab] || lines.rods}\`, [['📜 STORY', 'quest'], ['📋 BOUNTIES', 'bounties'], ['🧰 KEEP BROWSING', 'shop']]);
+}
+
+function shopReact(line) {
+  say(line, [['🧰 KEEP BROWSING', 'shop'], ['📜 WIGGS’ STORY', 'quest']]);
 }
 
 function renderShack() {
@@ -1542,6 +1580,21 @@ $('mapSvg').addEventListener('keydown', (e) => {
 });
 
 document.addEventListener('click', (e) => {
+  const station = e.target.closest('[data-shop-station]')?.dataset.shopStation;
+  if (station) {
+    if (station === 'counter') {
+      wiggsMode = 'quest';
+      say(\`Pull up a stool, kid. The story board's right here, and I've got a few jobs for someone who knows their way around North Pond.\`, [['📜 VIEW STORY', 'quest'], ['📋 BOUNTIES', 'bounties'], ['🎣 BACK TO SHOP', 'shop']]);
+      $('questCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+      tackleTab = station === 'bait' ? 'bait' : 'rods';
+      tryOn = null;
+      renderTackle();
+      shopTalk(tackleTab);
+      $('shopCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    return;
+  }
   const walk = e.target.closest('[data-walk]')?.dataset.walk;
   if (walk) {
     walkTo(walk);
@@ -1554,9 +1607,20 @@ document.addEventListener('click', (e) => {
   const goop = e.target.closest('[data-goop]')?.dataset.goop;
   if (goop) { openDexDetail(goop); return; }
   const bait = e.target.closest('[data-bait]')?.dataset.bait;
-  if (bait) { game.selectBait(bait); lastLists = ''; renderShop(); return; }
+  if (bait) {
+    const ok = game.selectBait(bait);
+    if (ok && view === 'shack') shopReact(\`All set — \${BAITS[bait].name} is on the hook. Now let's see what it brings in.\`);
+    lastLists = ''; renderShop(); return;
+  }
   const buyBait = e.target.closest('[data-buybait]')?.dataset.buybait;
-  if (buyBait) { if (game.buyBait(buyBait)) { game.selectBait(buyBait); } lastLists = ''; renderShop(); return; }
+  if (buyBait) {
+    const ok = game.buyBait(buyBait);
+    if (ok) {
+      game.selectBait(buyBait);
+      if (view === 'shack') shopReact(\`Fresh stock! \${BAITS[buyBait].pack} packs of \${BAITS[buyBait].name}, and I've put it on your hook.\`);
+    } else if (view === 'shack') shopReact(\`That tin costs \${BAITS[buyBait].cost} Essence. Save up and it's yours.\`);
+    lastLists = ''; renderShop(); return;
+  }
   const close = e.target.closest('[data-close]')?.dataset.close;
   if (close) { closeDialog(close); return; }
   if (e.target.tagName === 'DIALOG' && e.target.open) closeDialog(e.target.id); // backdrop
