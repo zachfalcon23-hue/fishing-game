@@ -203,6 +203,59 @@ export function resolveHabitatInteraction({
 }
 
 /**
+ * Translate an already-resolved habitat interaction into a small, deterministic
+ * motion accent for an existing ambient school. This is presentation-only:
+ * it creates no entities, clocks, state, or encounter eligibility.
+ */
+export function habitatInteractionMotion(interaction, timeSeconds = 0, phase = 0, schoolId = 0) {
+  const t = Number.isFinite(timeSeconds) ? timeSeconds : 0;
+  const p = (Number.isFinite(phase) ? phase : 0) + (Number.isFinite(schoolId) ? schoolId : 0) * 0.23;
+  const intensity = clamp(Number.isFinite(interaction?.intensity) ? interaction.intensity : 0.5, 0, 1);
+  const pulse = 0.5 + 0.5 * Math.sin(t * 1.15 + p * 0.7);
+  const neutral = {
+    speed: 1, sway: 1, spacing: 1, driftX: 0, vertical: 0,
+    orbitRadius: 0, orbitRate: 0, surface: 0,
+  };
+  if (!interaction?.active) return neutral;
+
+  switch (interaction.id) {
+    case 'reeds-school-rise':
+      return { ...neutral, speed: 1.08, sway: 1.12, spacing: 0.62,
+        vertical: -(5 + intensity * 10) * pulse, surface: 0.24 };
+    case 'dock-lantern-baitball':
+      return { ...neutral, speed: 0.92, sway: 1.08, spacing: 0.54,
+        orbitRadius: 12 + intensity * 9, orbitRate: 0.72, surface: 0.34 };
+    case 'lily-petal-drift':
+      return { ...neutral, speed: 0.76, sway: 0.72, spacing: 0.86,
+        driftX: Math.sin(t * 0.34 + p) * 22, vertical: Math.sin(t * 0.52 + p) * 4 };
+    case 'boulder-eddy-break':
+      return { ...neutral, speed: 1.18, sway: 1.32, spacing: 0.9,
+        orbitRadius: 16 + intensity * 8, orbitRate: 1.08 };
+    case 'falls-current-seam':
+      return { ...neutral, speed: 1.36, sway: 0.84, spacing: 1.08,
+        driftX: Math.sin(t * 0.62 + p) * 9, vertical: -3 };
+    case 'cave-prism-echo':
+      return { ...neutral, speed: 0.82, sway: 0.66, spacing: 0.92,
+        vertical: Math.sin(t * 1.25 + p * 0.35) * (5 + intensity * 5), surface: 0.3 };
+    case 'grotto-spore-bloom':
+      return { ...neutral, speed: 0.74, sway: 0.94, spacing: 0.76,
+        vertical: -(8 + intensity * 9) * pulse, surface: 0.28 };
+    case 'deep-pressure-rise':
+      return { ...neutral, speed: 1.16, sway: 1.2, spacing: 0.96,
+        vertical: -(15 + intensity * 13) * pulse };
+    case 'sandbar-moon-runnel':
+      return { ...neutral, speed: 0.88, sway: 0.74, spacing: 0.7,
+        driftX: Math.sin(t * 0.28 + p) * 24, vertical: 2 };
+    case 'wreck-ghost-wake':
+      return { ...neutral, speed: 1.24, sway: 1.42, spacing: 1.18,
+        orbitRadius: 10 + intensity * 8, orbitRate: 1.42,
+        vertical: Math.sin(t * 1.8 + p) * 6 };
+    default:
+      return neutral;
+  }
+}
+
+/**
  * Choose one visible species from an existing encounter pool without consuming game RNG.
  * Keeping the selector deterministic prevents species flicker and makes rendering side-effect free.
  */
