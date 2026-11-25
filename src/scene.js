@@ -2,7 +2,7 @@
 // The pond is one continuous shoreline. The camera walks along it; every layer scrolls at its
 // own depth so near things slide past faster than far ones.
 import { PHASES, SPOTS, NOTES, SPOT_BY, GOOPS, RODS, SKINS, LINES, BAITS, encounterPool } from './game.js';
-import { evaluateWildlifeBehavior, wildlifeNeeds, habitatReturnOffset, habitatInteractionMotion, resolveWildlifeSighting, wildlifeDisplayProfile } from './wildlife.js';
+import { evaluateWildlifeBehavior, wildlifeNeeds, habitatReturnOffset, habitatInteractionMotion, habitatInteractionWaterCue, resolveWildlifeSighting, wildlifeDisplayProfile } from './wildlife.js';
 
 export const W = 1920;
 export const H = 1080;
@@ -642,7 +642,7 @@ export class Scene {
 
     // ---- water ----
     base(0.55);
-    this.drawWater(g, base, time, weather, t, spotOff);
+    this.drawWater(g, base, time, weather, t, spotOff, game);
     base(0.62);
     this.drawWildlife(g, t, weather, game);
 
@@ -874,7 +874,7 @@ export class Scene {
 
   // ----- water -----
 
-  drawWater(g, base, time, weather, t, spotOff) {
+  drawWater(g, base, time, weather, t, spotOff, game = null) {
     const img = this.graded('water', this.gradeOps(time, weather, 0));
     if (!img) return;
     const d = 0.55;
@@ -936,6 +936,91 @@ export class Scene {
       }
       g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
     }
+    // Habitat events now leave a localized signature on the existing water surface.
+    // This reuses the event resolver and water pass; it creates no particles or persistent state.
+    const interactions = game?.event?.interactions || {};
+    base(d);
+    g.save();
+    g.beginPath(); g.rect(-W * 2, HZ - 10, W * 4, H - HZ + 60); g.clip();
+    g.globalCompositeOperation = 'lighter';
+    for (const spot of SPOTS) {
+      const cue = habitatInteractionWaterCue(interactions[spot.id]);
+      if (!cue || Math.abs(SPOT_X[spot.id] - this.camX) > (W + cue.spread * 2) / d) continue;
+      const x = this.layerX(SPOT_X[spot.id], d);
+      const y = HZ + 108;
+      const pulse = 0.55 + 0.45 * Math.sin(t * 1.7 + SPOTS.indexOf(spot) * 0.83);
+      const alpha = (0.07 + cue.intensity * 0.12) * pulse;
+      g.save();
+      g.globalAlpha = alpha;
+      g.strokeStyle = cue.color;
+      g.fillStyle = cue.color;
+      g.lineWidth = 2;
+      if (cue.style === 'cluster' || cue.style === 'upwell') {
+        const rings = cue.style === 'upwell' ? 4 : 3;
+        for (let i = 0; i < rings; i++) {
+          const radius = 15 + i * (cue.spread / rings) + ((t * (cue.style === 'upwell' ? 20 : 9)) % 18);
+          g.beginPath(); g.ellipse(x, y, radius, radius * 0.2, 0, 0, Math.PI * 2); g.stroke();
+        }
+      } else if (cue.style === 'orbit' || cue.style === 'vortex') {
+        for (let i = 0; i < 4; i++) {
+          const phase = t * (cue.style === 'vortex' ? 1.15 : 0.62) + i * Math.PI / 2;
+          const radius = cue.style === 'vortex' ? cue.spread * 0.55 : cue.spread * 0.7;
+          g.beginPath();
+          g.ellipse(x, y, radius, radius * 0.23, phase * 0.18,
+            phase, phase + Math.PI * (cue.style === 'vortex' ? 0.72 : 0.9));
+          g.stroke();
+        }
+      } else if (cue.style === 'drift' || cue.style === 'stream') {
+        for (let i = 0; i < 6; i++) {
+          const yy = y - 28 + i * 11;
+          const shift = cue.style === 'stream' ? ((t * 58 + i * 31) % 90) - 45 : Math.sin(t * 0.5 + i) * 30;
+          g.beginPath();
+          g.moveTo(x - cue.spread * 0.55 + shift, yy);
+          g.quadraticCurveTo(x + shift, yy + Math.sin(t + i) * 5,
+            x + cue.spread * 0.55 + shift, yy - 2);
+          g.stroke();
+        }
+      } else if (cue.style === 'prism') {
+        for (let i = 0; i < 7; i++) {
+          const angle = t * 0.22 + i * Math.PI * 2 / 7;
+          const reach = cue.spread * (0.32 + 0.12 * Math.sin(t * 2 + i));
+          const sx = x + Math.cos(angle) * reach;
+          const sy = y + Math.sin(angle) * reach * 0.2;
+          g.beginPath(); g.moveTo(sx - 4, sy); g.lineTo(sx + 4, sy); g.moveTo(sx, sy - 4); g.lineTo(sx, sy + 4); g.stroke();
+        }
+      } else if (cue.style === 'bloom') {
+        for (let i = 0; i < 8; i++) {
+          const phase = (t * 0.32 + i / 8) % 1;
+          const bx = x + Math.sin(i * 2.3 + t * 0.4) * cue.spread * 0.55;
+          const by = y - phase * 72;
+          g.globalAlpha = alpha * (1 - phase) * 1.4;
+          g.beginPath(); g.arc(bx, by, 2 + phase * 3, 0, Math.PI * 2); g.fill();
+        }
+      } else if (cue.style === 'tide') {
+        for (let i = 0; i < 4; i++) {
+          const yy = y - 18 + i * 12;
+          g.beginPath();
+          g.moveTo(x - cue.spread, yy + Math.sin(t * 0.35 + i) * 5);
+          g.bezierCurveTo(x - cue.spread * 0.35, yy - 10, x + cue.spread * 0.25, yy + 10,
+            x + cue.spread, yy + Math.sin(t * 0.35 + i + 1) * 5);
+          g.stroke();
+        }
+      } else if (cue.style === 'wake') {
+        for (let i = 0; i < 3; i++) {
+          const offset = i * 12 - 12;
+          g.beginPath();
+          g.moveTo(x - cue.spread * 0.7, y + offset);
+          g.quadraticCurveTo(x - 8, y + offset + Math.sin(t * 1.4 + i) * 16,
+            x + cue.spread * 0.7, y + offset - 4);
+          g.stroke();
+        }
+      }
+      g.restore();
+    }
+    g.restore();
+    g.globalAlpha = 1;
+    g.globalCompositeOperation = 'source-over';
+
     // darker water out over the Deep Drop
     const deepW = clamp(1 - Math.abs(this.camX - SPOT_X.deep) / SPOT_GAP, 0, 1);
     if (deepW > 0) {
