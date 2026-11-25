@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { GOOPS, SPOTS, encounterPool } from '../src/game.js';
 import {
   HABITAT_INTERACTIONS, resolveHabitatInteraction,
-  evaluateWildlifeBehavior, wildlifeNeeds, habitatReturnOffset, habitatInteractionMotion,
+  evaluateWildlifeBehavior, wildlifeNeeds, habitatReturnOffset, habitatInteractionMotion, habitatInteractionWaterCue,
   selectWildlifeSpecies, resolveWildlifeSighting, wildlifeDisplayProfile,
 } from '../src/wildlife.js';
 
@@ -58,6 +58,22 @@ test('each active habitat interaction produces a distinct, deterministic wildlif
     speed: 1, sway: 1, spacing: 1, driftX: 0, vertical: 0,
     orbitRadius: 0, orbitRate: 0, surface: 0,
   });
+});
+
+test('active habitat events expose ten distinct, bounded water-surface cues', () => {
+  const styles = new Set();
+  for (const interaction of HABITAT_INTERACTIONS) {
+    const cue = habitatInteractionWaterCue({ ...interaction, active: true, intensity: 0.8 });
+    assert.ok(cue, `${interaction.id} should have a water cue`);
+    assert.ok(cue.spread >= 40 && cue.spread <= 160);
+    assert.ok(cue.intensity >= 0.2 && cue.intensity <= 1);
+    assert.ok(/^#[0-9a-f]{6}$/i.test(cue.color));
+    styles.add(cue.style);
+  }
+  assert.equal(styles.size, HABITAT_INTERACTIONS.length,
+    'each habitat event should use its own water-surface visual language');
+  assert.equal(habitatInteractionWaterCue(null), null);
+  assert.equal(habitatInteractionWaterCue({ id: 'unknown', active: true }), null);
 });
 
 test('ambient needs are repeatable for the same school and scene time', () => {
