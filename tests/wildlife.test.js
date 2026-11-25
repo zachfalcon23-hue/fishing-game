@@ -25,7 +25,7 @@ test('all ten habitats can produce their authored environmental interaction', ()
   ];
   for (const scenario of scenarios) {
     const habitat = SPOTS.find((entry) => entry.id === scenario.spot);
-    const event = resolveHabitatInteraction({ spot: habitat, timeSeconds: 30, ...scenario });
+    const event = resolveHabitatInteraction({ ...scenario, spot: habitat, timeSeconds: 30 });
     assert.equal(event?.spot, scenario.spot, scenario.spot + ' should resolve an active event');
     assert.equal(event?.id, HABITAT_INTERACTIONS.find((entry) => entry.spot === scenario.spot)?.id);
     assert.equal(event?.active, true);
