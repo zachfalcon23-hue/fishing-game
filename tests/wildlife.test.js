@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { GOOPS, SPOTS, encounterPool } from '../src/game.js';
 import {
   HABITAT_INTERACTIONS, resolveHabitatInteraction,
-  evaluateWildlifeBehavior, wildlifeNeeds, habitatReturnOffset,
+  evaluateWildlifeBehavior, wildlifeNeeds, habitatReturnOffset, habitatInteractionMotion,
   selectWildlifeSpecies, resolveWildlifeSighting, wildlifeDisplayProfile,
 } from '../src/wildlife.js';
 
@@ -36,6 +36,28 @@ test('all ten habitats can produce their authored environmental interaction', ()
   assert.equal(resolveHabitatInteraction({
     spot: SPOTS.find((entry) => entry.id === 'sandbar'), time: 'Night', weather: 'clear',
   }), null, 'the moon-tide clue requires a full moon');
+});
+
+test('each active habitat interaction produces a distinct, deterministic wildlife motion signature', () => {
+  const signatures = new Set();
+  for (const interaction of HABITAT_INTERACTIONS) {
+    const input = { ...interaction, active: true, intensity: 0.7 };
+    const first = habitatInteractionMotion(input, 18, 1.25, 4);
+    assert.deepEqual(first, habitatInteractionMotion(input, 18, 1.25, 4));
+    assert.notDeepEqual(first, habitatInteractionMotion(null, 18, 1.25, 4));
+    for (const [key, value] of Object.entries(first)) {
+      assert.ok(Number.isFinite(value), `${interaction.id} ${key} should be finite`);
+      if (key === 'spacing') assert.ok(value >= 0.5 && value <= 1.5);
+      else assert.ok(Math.abs(value) <= 40, `${interaction.id} ${key} should remain visually bounded`);
+    }
+    signatures.add(JSON.stringify(first));
+  }
+  assert.equal(signatures.size, HABITAT_INTERACTIONS.length,
+    'all ten habitats should have a recognizably different motion signature');
+  assert.deepEqual(habitatInteractionMotion({ id: 'unknown', active: true }), {
+    speed: 1, sway: 1, spacing: 1, driftX: 0, vertical: 0,
+    orbitRadius: 0, orbitRate: 0, surface: 0,
+  });
 });
 
 test('ambient needs are repeatable for the same school and scene time', () => {

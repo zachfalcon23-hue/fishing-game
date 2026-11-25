@@ -2,7 +2,7 @@
 // The pond is one continuous shoreline. The camera walks along it; every layer scrolls at its
 // own depth so near things slide past faster than far ones.
 import { PHASES, SPOTS, NOTES, SPOT_BY, GOOPS, RODS, SKINS, LINES, BAITS, encounterPool } from './game.js';
-import { evaluateWildlifeBehavior, wildlifeNeeds, habitatReturnOffset, resolveWildlifeSighting, wildlifeDisplayProfile } from './wildlife.js';
+import { evaluateWildlifeBehavior, wildlifeNeeds, habitatReturnOffset, habitatInteractionMotion, resolveWildlifeSighting, wildlifeDisplayProfile } from './wildlife.js';
 
 export const W = 1920;
 export const H = 1080;
@@ -986,6 +986,8 @@ export class Scene {
       // Resolve the nearest habitat before selecting a species, so the sighting stays local.
       const habitat = SPOTS.reduce((best, spot) =>
         Math.abs(SPOT_X[spot.id] - wx) < Math.abs(SPOT_X[best.id] - wx) ? spot : best, SPOTS[0]);
+      const interaction = gameEvent.interactions?.[habitat.id] || null;
+      const interactionMotion = habitatInteractionMotion(interaction, t, school.phase, school.id);
       const localActivity = typeof game.activityAt === 'function' ? game.activityAt(habitat.id) : areaActivity;
       const localFrenzy = frenzySpot === habitat.id;
       const visitorId = gameEvent.visitor?.spot === habitat.id ? gameEvent.visitor.goop : '';
@@ -993,7 +995,7 @@ export class Scene {
       const sightingKey = [
         habitat.id, habitatUnlocked ? 1 : 0, weather, timeOfDay, localActivity, localFrenzy ? 1 : 0,
         visitorId, gameEvent.fullMoon ? 1 : 0, gameEvent.sleeper ? 1 : 0,
-        gameEvent.interactions?.[habitat.id]?.id || '', day, sightingWeightKey,
+        interaction?.id || '', day, sightingWeightKey,
       ].join('|');
 
       // Locked and undiscovered habitats remain anonymous. For open habitats, use the exact
@@ -1056,6 +1058,12 @@ export class Scene {
         if (returnedHabitat.id === habitat.id) wx = returnedX;
       }
 
+      // The interaction may nudge a school, but never across its encounter habitat boundary.
+      const driftedX = wx + interactionMotion.driftX;
+      const driftHabitat = SPOTS.reduce((best, spot) =>
+        Math.abs(SPOT_X[spot.id] - driftedX) < Math.abs(SPOT_X[best.id] - driftedX) ? spot : best, SPOTS[0]);
+      if (driftHabitat.id === habitat.id) wx = driftedX;
+
       const x = this.layerX(wx, d);
       if (x < -180 || x > W + 180) continue;
       const playerDistance = Math.abs(wx - this.camX);
@@ -1068,12 +1076,12 @@ export class Scene {
         };
       }
       const swaySize = (movement === 'weave' ? 15 : movement === 'drift' ? 5 : 9)
-        * behavior.sway * (profile?.sway ?? 1);
-      const sway = Math.sin(t * (habitatMovement * behavior.motionRate * (profile?.speed ?? 1)
+        * behavior.sway * interactionMotion.sway * (profile?.sway ?? 1);
+      const sway = Math.sin(t * (habitatMovement * behavior.motionRate * interactionMotion.speed * (profile?.speed ?? 1)
         + behavior.feeding * 0.55 + disturbance * 1.4) + school.phase)
         * (swaySize - behavior.feeding * 2 + disturbance * 5);
       const verticalStyle = profile?.vertical ?? 1;
-      const y = school.y + sway * verticalStyle - behavior.feeding * (profile ? 5 : 2);
+      const y = school.y + interactionMotion.vertical + sway * verticalStyle - behavior.feeding * (profile ? 5 : 2);
       const depth = clamp((y - HZ) / (H - HZ), 0, 1);
       const scale = school.size * (0.58 + depth * 0.62);
       const dir = behavior.state === 'fleeing'
@@ -1090,11 +1098,13 @@ export class Scene {
 
       for (let i = 0; i < school.count; i++) {
         // Feeding schools tighten together; fleeing schools spread apart.
-        const spacing = 22 * behavior.spacing - behavior.feeding * 6;
+        const spacing = 22 * behavior.spacing * interactionMotion.spacing - behavior.feeding * 6;
+        const orbit = interactionMotion.orbitRadius;
+        const orbitPhase = t * interactionMotion.orbitRate + school.phase + i * 0.58;
         const fx = -i * spacing - Math.sin(t * (1.3 + behavior.feeding) + i + school.phase)
-          * (5 + behavior.feeding * 2);
+          * (5 + behavior.feeding * 2) + Math.cos(orbitPhase) * orbit;
         const fy = Math.sin(t * (1.7 + behavior.feeding * 0.8) + i * 1.8 + school.phase)
-          * (5 - behavior.feeding * 1.5);
+          * (5 - behavior.feeding * 1.5) + Math.sin(orbitPhase) * orbit * 0.46;
         g.save();
         g.translate(fx, fy);
         g.fillStyle = fishColor;
@@ -1152,6 +1162,20 @@ export class Scene {
         g.restore();
       }
       g.restore();
+
+      // Active habitat interactions add a restrained visual signature to the same school.
+      // No new particles or simulation state are created; the cue follows its existing motion.
+      if (interaction && interactionMotion.surface > 0 && depth < 0.62) {
+        const pulse = 0.55 + 0.45 * Math.sin(t * 2.2 + school.phase);
+        g.save();
+        g.globalAlpha = visibility * interactionMotion.surface * pulse;
+        g.strokeStyle = fishColor;
+        g.lineWidth = 1.35;
+        g.beginPath();
+        g.ellipse(x, y + 7, 18 + interactionMotion.surface * 20, 3.2, 0, 0, Math.PI * 2);
+        g.stroke();
+        g.restore();
+      }
 
       // A subtle surface ring links visible feeding schools to a useful fishing clue.
       // It appears only for a species currently eligible in this open habitat.
