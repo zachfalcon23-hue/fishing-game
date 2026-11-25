@@ -1707,7 +1707,7 @@ sceneEl.addEventListener('contextmenu', (e) => e.preventDefault());
 
 window.addEventListener('keydown', (e) => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
-  if (hollow.active) { if (['ArrowUp','KeyW'].includes(e.code)) hollow.input.y=-1; else if (['ArrowDown','KeyS'].includes(e.code)) hollow.input.y=1; else if (['ArrowLeft','KeyA'].includes(e.code)) hollow.input.x=-1; else if (['ArrowRight','KeyD'].includes(e.code)) hollow.input.x=1; else if (e.code==='KeyE'||e.code==='Enter') interactHollow(); else if (e.code==='Escape') exitHollow(); else return; e.preventDefault(); return; }
+  if (hollow.active) { if ((e.code==='Enter'||e.code==='Space') && e.target.closest('#hollowOverlay button')) return; if (['ArrowUp','KeyW'].includes(e.code)) hollow.input.y=-1; else if (['ArrowDown','KeyS'].includes(e.code)) hollow.input.y=1; else if (['ArrowLeft','KeyA'].includes(e.code)) hollow.input.x=-1; else if (['ArrowRight','KeyD'].includes(e.code)) hollow.input.x=1; else if (e.code==='KeyE'||e.code==='Enter') interactHollow(); else if (e.code==='Escape') exitHollow(); else return; e.preventDefault(); return; }
   if (anyDialogOpen() || view !== 'pond') return;
   if (game.phase === PHASES.FIGHT && !e.repeat && ['ArrowLeft', 'KeyA', 'ArrowRight', 'KeyD'].includes(e.code)) { steerLatch = e.code === 'ArrowLeft' || e.code === 'KeyA' ? -1 : 1; e.preventDefault(); return; }
   if (e.code === 'ArrowLeft' || e.code === 'KeyA') { if (!keys.left) pressAt.keyLeft = performance.now(); keys.left = true; e.preventDefault(); sfx.unlock(); return; }
