@@ -35,7 +35,7 @@ test('Old Dock lantern wake favours rare night-active residents only at night', 
   assert.equal(dockLanternWakeMultiplier(dock, 'Night', 'Rare', null), 1);
 });
 
-test('Old Dock lantern wake raises night-active resident weights in its encounter pool', () => {
+test('Old Dock lantern wake strengthens night-active resident weights without removing daytime residents', () => {
   const pool = encounterPool({ spot: SPOT_BY.dock, time: 'Night', weather: 'clear' });
   const lanternfin = pool.find((goop) => goop.id === 'lanternfin');
   const drowsy = pool.find((goop) => goop.id === 'drowsy');
@@ -46,7 +46,9 @@ test('Old Dock lantern wake raises night-active resident weights in its encounte
   assert.ok(Math.abs(lanternfin.weight - expectedLanternfin) < 1e-9);
   assert.ok(Math.abs(drowsy.weight - expectedDrowsy) < 1e-9);
   const daytime = encounterPool({ spot: SPOT_BY.dock, time: 'Day', weather: 'clear' });
-  assert.equal(daytime.find((goop) => goop.id === 'lanternfin'), undefined);
+  const daytimeLanternfin = daytime.find((goop) => goop.id === 'lanternfin');
+  assert.ok(daytimeLanternfin, 'a preferred-time species remains encounter-eligible outside its preferred window');
+  assert.ok(daytimeLanternfin.weight < lanternfin.weight, 'the lantern wake changes weighting rather than creating a hard eligibility gate');
 });
 
 test('empty and zero-weight encounter pools return null', () => {
