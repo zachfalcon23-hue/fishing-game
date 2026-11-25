@@ -272,7 +272,7 @@ function baitRows() {
     const on = s.bait === k;
     const use = on ? '<button class="on" disabled>IN USE</button>' : `<button class="use" data-bait="${k}" ${k !== 'worm' && !s.baits[k] ? 'disabled' : ''}>USE</button>`;
     const buy = b.cost ? `<button data-buybait="${k}" ${s.essence < b.cost ? 'disabled' : ''} title="Buy ${b.pack}">+${b.pack} · ${b.cost}</button>` : '';
-    return `<div class="option bait-row ${on ? 'equipped' : ''}"><span class="ico emoji">${b.icon}</span><div class="txt"><b>${b.name} <i class="own">×${n}</i></b><small>${b.desc}</small></div><div class="btns">${use}${buy}</div></div>`;
+    return `<div class="option bait-row ${on ? 'equipped' : ''} ${shelfFocus?.kind === 'bait' && shelfFocus.id === k ? 'shelf-selected' : ''}" data-shelf-bait="${k}"><span class="ico emoji">${b.icon}</span><div class="txt"><b>${b.name} <i class="own">×${n}</i></b><small>${b.desc}</small></div><div class="btns">${use}${buy}</div></div>`;
   }).join('');
 }
 
@@ -869,6 +869,7 @@ function tapWalk(dir) {
 
 let tackleTab = 'rods';
 let tryOn = null; // { kind, id } previewed but not equipped
+let shelfFocus = null; // bait item selected directly from the physical shelf
 const TABS = [['rods', 'RODS'], ['skins', 'SKINS'], ['bobbers', 'BOBBERS'], ['lines', 'LINES'], ['lures', 'LURES'], ['bait', 'BAIT'], ['extras', 'EXTRAS']];
 const TABLE = { rods: RODS, skins: SKINS, bobbers: BOBBERS, lines: LINES };
 const SLOT = { rods: 'rod', skins: 'skin', bobbers: 'bobber', lines: 'line', lures: 'lure' };
@@ -1580,6 +1581,24 @@ $('mapSvg').addEventListener('keydown', (e) => {
 });
 
 document.addEventListener('click', (e) => {
+  const shelfItem = e.target.closest('[data-shop-shelf-item]')?.dataset.shopShelfItem;
+  if (shelfItem) {
+    const [kind, id] = shelfItem.split(':');
+    if (kind === 'bait' && BAITS[id]) {
+      tackleTab = 'bait'; tryOn = null; shelfFocus = { kind, id }; renderTackle();
+      const count = id === 'worm' ? 'unlimited' : `${game.state.baits[id] || 0} in your tin`;
+      shopReact(`Have a look at ${BAITS[id].name}. ${BAITS[id].desc} You have ${count}.`);
+      $('tackleList').querySelector(`[data-shelf-bait="${id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else if (kind === 'lures' && LURES[id]) {
+      tackleTab = 'lures'; shelfFocus = null; tryOn = { kind, id }; renderTackle();
+      shopReact(`Take a look at ${LURES[id].name}. ${LURES[id].desc}`);
+      $('tackleList').querySelector(`[data-try="lures:${id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else if (kind === 'rods') {
+      tackleTab = 'rods'; shelfFocus = null; tryOn = null; renderTackle(); shopTalk('rods');
+      $('tackleList').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    return;
+  }
   const station = e.target.closest('[data-shop-station]')?.dataset.shopStation;
   if (station) {
     if (station === 'counter') {
@@ -1608,12 +1627,14 @@ document.addEventListener('click', (e) => {
   if (goop) { openDexDetail(goop); return; }
   const bait = e.target.closest('[data-bait]')?.dataset.bait;
   if (bait) {
+    shelfFocus = null;
     const ok = game.selectBait(bait);
     if (ok && view === 'shack') shopReact(`All set — ${BAITS[bait].name} is on the hook. Now let's see what it brings in.`);
     lastLists = ''; renderShop(); return;
   }
   const buyBait = e.target.closest('[data-buybait]')?.dataset.buybait;
   if (buyBait) {
+    shelfFocus = null;
     const ok = game.buyBait(buyBait);
     if (ok) {
       game.selectBait(buyBait);

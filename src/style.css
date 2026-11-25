@@ -614,9 +614,14 @@ img.is-shiny { filter: hue-rotate(150deg) saturate(1.3) brightness(1.08) drop-sh
 .shack-window i { position: absolute; inset: 0; background: linear-gradient(135deg, rgba(255, 255, 255, .25), transparent 40%); }
 .shack-sign { position: absolute; left: 50%; top: 5%; transform: translateX(-50%) rotate(-1.5deg); padding: 8px 22px; border-radius: 10px; background: linear-gradient(180deg, #e8c890, #c8a060); border: 4px solid #4a2a12; color: #3a1a08; font-family: var(--display); font-size: clamp(14px, 2.4vw, 26px); letter-spacing: .06em; white-space: nowrap; box-shadow: 0 6px 12px rgba(0, 0, 0, .45); }
 .rod-rack { position: absolute; left: 33%; top: 22%; width: 30%; height: 56%; }
-.shelf { position: absolute; display: flex; justify-content: space-around; align-items: flex-end; padding: 0 8px; height: 13%; border-bottom: 10px solid #4a2a12; filter: drop-shadow(0 6px 6px rgba(0, 0, 0, .4)); font-size: clamp(14px, 2.2vw, 26px); }
+.shelf { position: absolute; z-index: 5; display: flex; justify-content: space-around; align-items: flex-end; padding: 0 8px; height: 13%; border-bottom: 10px solid #4a2a12; filter: drop-shadow(0 6px 6px rgba(0, 0, 0, .4)); font-size: clamp(14px, 2.2vw, 26px); }
 .shelf.s1 { right: 4%; top: 58%; width: 30%; }
-.shelf.s2 { right: 4%; top: 76%; width: 22%; }
+.shelf.s2 { right: 4%; top: 76%; width: 30%; }
+.shelf-item { display: grid; place-items: center; min-width: 0; flex: 1; height: 100%; padding: 0 1px 8px; border: 0; border-radius: 8px 8px 2px 2px; background: transparent; color: inherit; font: inherit; cursor: pointer; filter: drop-shadow(0 2px 2px rgba(0,0,0,.55)); transition: transform .14s, background .14s, filter .14s; }
+.shelf-item:hover, .shelf-item:focus-visible { transform: translateY(-5px) scale(1.12); background: rgba(255,225,160,.16); filter: drop-shadow(0 0 7px rgba(255,220,140,.65)); outline: 2px solid rgba(255,225,160,.75); outline-offset: -2px; }
+.rod-rack-hotspot { position: absolute; z-index: 5; left: 33%; top: 22%; width: 30%; height: 56%; border: 0; border-radius: 12px; background: transparent; cursor: pointer; }
+.rod-rack-hotspot:hover, .rod-rack-hotspot:focus-visible { outline: 2px solid rgba(255,225,160,.65); outline-offset: -3px; background: rgba(255,220,140,.05); }
+.bait-row.shelf-selected { border-color: #ffe29a; box-shadow: 0 0 0 2px rgba(255,226,154,.18), 0 0 18px rgba(255,190,92,.16); }
 .net { position: absolute; left: 2%; top: 4%; width: 18%; height: 28%; background: repeating-linear-gradient(45deg, transparent 0 14px, rgba(230, 210, 170, .35) 14px 16px), repeating-linear-gradient(-45deg, transparent 0 14px, rgba(230, 210, 170, .35) 14px 16px); border-top: 5px solid #8a6a3a; border-radius: 0 0 50% 50%; opacity: .8; }
 .counter { position: absolute; left: 0; right: 0; bottom: 0; height: 17%; background: linear-gradient(180deg, #8a5a2a, #5a3214 30%, #3a1e0a); border-top: 6px solid #a8743a; box-shadow: 0 -6px 14px rgba(0, 0, 0, .4); }
 .wiggs { position: absolute; left: 2%; bottom: 6%; width: 64%; height: 82%; display: flex; align-items: flex-end; gap: 10px; z-index: 2; }
@@ -695,8 +700,11 @@ img.is-shiny { filter: hue-rotate(150deg) saturate(1.3) brightness(1.08) drop-sh
   .shack-scene { aspect-ratio: auto; height: 470px; }
   .shack-window { width: 44%; top: 15%; }
   .rod-rack { left: 2%; top: 16%; width: 52%; height: 34%; }
+  .rod-rack-hotspot { left: 2%; top: 16%; width: 52%; height: 34%; }
   .net { display: none; }
-  .shelf.s1 { top: 44%; width: 44%; } .shelf.s2 { display: none; }
+  .shelf.s1 { top: 44%; right: 2%; width: 46%; height: 11%; border-bottom-width: 7px; padding: 0 3px; }
+  .shelf.s2 { display: none; }
+  .shelf-item { padding-bottom: 5px; font-size: clamp(12px, 3.6vw, 19px); }
   .wiggs { left: 0; width: 100%; height: 62%; bottom: 3%; gap: 0; }
   .wiggs-svg { height: 58%; align-self: flex-end; }
   .speech { margin: 0 8px 0 0; align-self: flex-end; margin-bottom: 26%; padding: 10px 12px; }
