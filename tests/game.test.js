@@ -41,8 +41,10 @@ test('Old Dock lantern wake raises night-active resident weights in its encounte
   const drowsy = pool.find((goop) => goop.id === 'drowsy');
   assert.ok(lanternfin);
   assert.ok(drowsy);
-  assert.equal(lanternfin.weight, GOOPS.find((goop) => goop.id === 'lanternfin').weight * SPOT_BY.dock.rareMul * 3 * 1.4);
-  assert.equal(drowsy.weight, GOOPS.find((goop) => goop.id === 'drowsy').weight * SPOT_BY.dock.rareMul * 3 * 1.4);
+  const expectedLanternfin = GOOPS.find((goop) => goop.id === 'lanternfin').weight * SPOT_BY.dock.rareMul * 3 * 1.4;
+  const expectedDrowsy = GOOPS.find((goop) => goop.id === 'drowsy').weight * SPOT_BY.dock.rareMul * 3 * 1.4;
+  assert.ok(Math.abs(lanternfin.weight - expectedLanternfin) < 1e-9);
+  assert.ok(Math.abs(drowsy.weight - expectedDrowsy) < 1e-9);
   const daytime = encounterPool({ spot: SPOT_BY.dock, time: 'Day', weather: 'clear' });
   assert.equal(daytime.find((goop) => goop.id === 'lanternfin'), undefined);
 });
