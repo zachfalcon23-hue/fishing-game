@@ -585,6 +585,9 @@ function render(dt) {
   if (z.mix.some(([spot, share]) => spot.id === 'deep' && share >= 0.65)) {
     evs.push('<span class="ev" title="Abyssal pressure sinks the line every nine seconds. Watch for the warning and reel through the short pressure drop to prevent slack.">⬇️ ABYSSAL PRESSURE · REEL THROUGH THE DROP</span>');
   }
+  if (z.mix.some(([spot, share]) => spot.id === 'dock' && share >= 0.65) && game.timeOfDay === 'Night') {
+    evs.push('<span class="ev" title="The Old Dock lanterns draw rare Goops that naturally feed after dark, including Lanternfin and Drowsy.">🏮 LANTERN WAKE · NIGHT FEEDERS</span>');
+  }
   if (z.mix.some(([spot, share]) => spot.id === 'lily' && share >= 0.65) && (game.timeOfDay === 'Dawn' || game.timeOfDay === 'Dusk')) {
     evs.push('<span class="ev petal" title="Dawn and dusk petals gather rare drift-pattern Goops along the Lily Cove bloom line.">🌸 PETAL DRIFT · RARE DRIFTERS</span>');
   }
