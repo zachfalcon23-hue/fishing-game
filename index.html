@@ -178,6 +178,9 @@
       <div class="planks" aria-hidden="true"></div>
       <div class="shack-window" aria-hidden="true"><i></i></div>
       <div class="shack-sign">WIGGS' BAIT &amp; TACKLE</div>
+      <div class="shack-lantern" aria-hidden="true"><i></i></div>
+      <div class="shack-chalkboard" aria-hidden="true"><b>WIGGS' NOTES</b><span>FRESH BAIT</span><span>HONEST TACKLE</span><span>NO FISH STORIES</span></div>
+      <div class="shack-counter-props" aria-hidden="true"><i class="bait-jar">🫙</i><i class="coffee-mug">☕</i><i class="ledger">📒</i></div>
       <canvas id="rackCanvas" class="rod-rack" width="600" height="360" aria-hidden="true"></canvas>
       <div class="shelf s1" aria-hidden="true"><span>🪱</span><span>🍬</span><span>🔥</span><span>❄️</span><span>✨</span></div>
       <div class="shelf s2" aria-hidden="true"><span>🪝</span><span>🦆</span><span>⏳</span><span>🌦️</span></div>
@@ -225,6 +228,11 @@
         </div>
       </div>
       <div class="counter" aria-hidden="true"></div>
+      <div class="shack-stations" aria-label="Explore the bait shack">
+        <button type="button" data-shop-station="counter"><span>📜</span><b>WIGGS' COUNTER</b><small>Stories &amp; jobs</small></button>
+        <button type="button" data-shop-station="bait"><span>🪱</span><b>BAIT WALL</b><small>Fresh bait &amp; feed</small></button>
+        <button type="button" data-shop-station="tackle"><span>🎣</span><b>TACKLE RACK</b><small>Rods &amp; gear</small></button>
+      </div>
     </div>
 
     <div class="shack-grid">
@@ -240,7 +248,7 @@
         <canvas id="previewCanvas" class="tk-preview" width="900" height="300" aria-label="Preview of your rod, bobber, line and lure"></canvas>
         <div class="loadout" id="tkLoadout"></div>
         <div class="tk-tabs" id="tackleTabs" role="tablist"></div>
-        <p class="sheet-tip">Tap a card to preview it, then buy or equip. Lures you buy are kept and can be upgraded to level 3.</p>
+        <p class="sheet-tip">Browse the shelves, inspect a piece of kit, then buy or equip it. Your preview shows the rig you’ll take back to the water. Lures can be upgraded to level 3.</p>
         <div id="tackleList" class="tackle-grid"></div>
       </article>
     </div>
@@ -279,7 +287,7 @@
     </div>
   </section>
 
-  <footer><span>GOOP FISHING · BUILD 0.24 · FIELD GUIDE</span><button id="resetBtn" class="ghost">RESET SAVE</button></footer>
+  <footer><span>GOOP FISHING · BUILD 0.28 · FIELD GUIDE</span><button id="resetBtn" class="ghost">RESET SAVE</button></footer>
 </main>
 
 <dialog id="dexDetail" class="dex-detail">
@@ -351,6 +359,6 @@
   <div class="guide-actions"><button id="guidePrev" class="mini-btn" disabled>BACK</button><button id="guideNext" class="mini-btn guide-next">NEXT LESSON →</button><button id="guideFinish" class="slime-btn small" hidden>LET’S FISH</button></div>
 </dialog>
 
-<script type="module" src="src/main.js?v=0.27"></script>
+<script type="module" src="src/main.js?v=0.28"></script>
 </body>
 </html>
