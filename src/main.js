@@ -7,6 +7,7 @@ import { Scene, loadAssets, GOOP_ART, SPOT_X, SPOT_GAP, WORLD_MIN, WORLD_MAX, CL
 import { Sfx } from './audio.js';
 import { Tank } from './aquarium.js';
 import { SessionTelemetry, downloadJSONFile } from './telemetry.js';
+import { HOLLOW, moveHollowPlayer, nearbyHollowDiscovery, sanitizeHollowSave } from './exploration.js';
 
 const $ = (id) => document.getElementById(id);
 const canvas = $('gameCanvas');
@@ -28,6 +29,133 @@ const keys = { left: false, right: false };
 const held = { left: false, right: false, drag: 0 };
 const pressAt = { left: 0, right: 0, keyLeft: 0, keyRight: 0 };
 const walker = { x: fromShore(game.state.shore ?? 0), v: 0, target: null, step: 0 };
+const HOLLOW_SAVE_KEY = 'goop-fishing-reedbed-hollow-v1';
+const hollowSaved = (() => { try { return sanitizeHollowSave(JSON.parse(localStorage.getItem(HOLLOW_SAVE_KEY) || 'null')); } catch { return sanitizeHollowSave(null); } })();
+const hollow = { ...hollowSaved, active: false, returnX: fromShore(game.state.shore ?? 0), input: { x: 0, y: 0 }, prompt: null, canvas: null, ctx: null, lastSaved: { ...hollowSaved.position } };
+function saveHollow() {
+  try { localStorage.setItem(HOLLOW_SAVE_KEY, JSON.stringify({ position: hollow.position, discovered: hollow.discovered })); hollow.lastSaved = { ...hollow.position }; } catch { /* exploration remains playable when storage is unavailable */ }
+}
+function buildHollowOverlay() {
+  if (hollow.canvas) return;
+  const overlay = document.createElement('div');
+  overlay.id = 'hollowOverlay';
+  overlay.innerHTML = `
+    <canvas aria-label="Reedbed Hollow exploration area"></canvas>
+    <div class="hollow-head"><div><small>NORTH POND · SIDE TRAIL</small><b>REEDBED HOLLOW</b></div><span id="hollowCount">0 / ${HOLLOW.discoveries.length} NOTES</span></div>
+    <div class="hollow-note" id="hollowNote">Follow the trail. Look closely — the reeds hide more than fish.</div>
+    <div class="hollow-actions"><button type="button" data-hollow-exit>↩ RETURN TO POND</button><button type="button" data-hollow-interact id="hollowInteract" disabled>🔎 INVESTIGATE</button></div>
+    <div class="hollow-pad" aria-label="Movement controls">
+      <button type="button" data-hollow-dir="up" aria-label="Walk up">▲</button>
+      <div><button type="button" data-hollow-dir="left" aria-label="Walk left">◀</button><button type="button" data-hollow-dir="down" aria-label="Walk down">▼</button><button type="button" data-hollow-dir="right" aria-label="Walk right">▶</button></div>
+    </div>`;
+  sceneEl.appendChild(overlay);
+  hollow.canvas = overlay.querySelector('canvas');
+  hollow.ctx = hollow.canvas.getContext('2d');
+  overlay.querySelector('[data-hollow-exit]').addEventListener('click', exitHollow);
+  overlay.querySelector('[data-hollow-interact]').addEventListener('click', interactHollow);
+  for (const button of overlay.querySelectorAll('[data-hollow-dir]')) {
+    const dir = button.dataset.hollowDir;
+    const vector = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }[dir];
+    const down = (e) => { e.preventDefault(); hollow.input.x = vector[0]; hollow.input.y = vector[1]; button.setPointerCapture?.(e.pointerId); };
+    const up = () => { hollow.input.x = 0; hollow.input.y = 0; };
+    button.addEventListener('pointerdown', down);
+    button.addEventListener('pointerup', up);
+    button.addEventListener('pointercancel', up);
+    button.addEventListener('lostpointercapture', up);
+  }
+  const style = document.createElement('style');
+  style.textContent = `
+    .side-btn[hidden]{display:none!important}
+    #hollowOverlay{position:absolute;inset:0;z-index:12;display:none;overflow:hidden;background:#183b2c;color:#f2ffe9;font-family:var(--body);touch-action:none}
+    .scene.exploring #hollowOverlay{display:block}
+    .scene.exploring>#gameCanvas,.scene.exploring>.hud-top,.scene.exploring>.hud-left,.scene.exploring>.side-btns,.scene.exploring>.minimap,.scene.exploring>.toast,.scene.exploring>.walk-hint,.scene.exploring>.move-prompt,.scene.exploring>.fight-hud,.scene.exploring>.catch-card{visibility:hidden}
+    #hollowOverlay canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+    .hollow-head{position:absolute;top:12px;left:14px;right:14px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;pointer-events:none;text-shadow:0 2px 5px #10251b}
+    .hollow-head small{display:block;font-size:9px;letter-spacing:.17em;font-weight:900;color:#d4f2bd}
+    .hollow-head b{display:block;font:24px var(--display);letter-spacing:.04em;color:#f1ffbd}
+    .hollow-head span{padding:7px 11px;border:1px solid #c5e6a7;border-radius:99px;background:#102c24cc;font-size:10px;font-weight:900}
+    .hollow-note{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);width:min(470px,58%);padding:10px 14px;border:1px solid #c5e6a7aa;border-radius:14px;background:#102c24df;text-align:center;font-size:12px;line-height:1.4;box-shadow:0 8px 22px #08160e88;pointer-events:none}
+    .hollow-actions{position:absolute;right:14px;bottom:14px;display:flex;gap:8px}
+    .hollow-actions button,.hollow-pad button{border:1px solid #d8efb5;border-radius:12px;background:#183c2deF;color:#f5ffd9;font:900 11px var(--body);padding:10px 13px;box-shadow:0 3px 0 #0b2017;touch-action:none}
+    .hollow-actions button:disabled{opacity:.4}
+    .hollow-pad{position:absolute;left:12px;bottom:12px;display:grid;justify-items:center;gap:4px}
+    .hollow-pad>div{display:flex;gap:4px}
+    .hollow-pad button{width:42px;height:38px;padding:0;font-size:16px}
+    @media(max-width:650px){.hollow-head{top:7px;left:8px;right:8px}.hollow-head b{font-size:18px}.hollow-head small{font-size:7px}.hollow-head span{font-size:8px;padding:5px 7px}.hollow-note{bottom:100px;width:calc(100% - 20px);font-size:10px;padding:7px 9px}.hollow-actions{right:8px;bottom:10px;flex-direction:column}.hollow-actions button{font-size:9px;padding:8px}.hollow-pad{left:8px;bottom:8px}.hollow-pad button{width:34px;height:32px}}
+  `;
+  document.head.appendChild(style);
+}
+function enterHollow() {
+  if (game.busy || !game.spotUnlocked('reeds') || Math.abs(walker.x - SPOT_X.reeds) > 360) return;
+  buildHollowOverlay();
+  hollow.returnX = walker.x;
+  hollow.active = true;
+  hollow.input.x = hollow.input.y = 0;
+  sceneEl.classList.add('exploring');
+  $('hollowCount').textContent = `${hollow.discovered.length} / ${HOLLOW.discoveries.length} NOTES`;
+  sfx.step();
+}
+function exitHollow() {
+  hollow.active = false;
+  hollow.input.x = hollow.input.y = 0;
+  sceneEl.classList.remove('exploring');
+  walker.x = hollow.returnX;
+  walker.v = 0; walker.target = null;
+  game.setShore(toShore(walker.x));
+  saveHollow();
+  if (hollow.discovered.length) notify(`Reedbed Hollow field notes: ${hollow.discovered.length} / ${HOLLOW.discoveries.length} discoveries recorded.`, 3000);
+  sfx.step();
+}
+function interactHollow() {
+  if (!hollow.prompt) return;
+  if (!hollow.discovered.includes(hollow.prompt.id)) {
+    hollow.discovered.push(hollow.prompt.id);
+    saveHollow();
+    $('hollowNote').textContent = `FIELD NOTE · ${hollow.prompt.title}: ${hollow.prompt.note}`;
+    $('hollowCount').textContent = `${hollow.discovered.length} / ${HOLLOW.discoveries.length} NOTES`;
+    sfx.note();
+  } else {
+    $('hollowNote').textContent = hollow.prompt.note;
+  }
+  renderHollow();
+}
+function renderHollow() {
+  if (!hollow.active || !hollow.canvas) return;
+  const rect = sceneEl.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
+  const w = Math.max(1, Math.round(rect.width * dpr)), h = Math.max(1, Math.round(rect.height * dpr));
+  if (hollow.canvas.width !== w || hollow.canvas.height !== h) { hollow.canvas.width = w; hollow.canvas.height = h; }
+  const g = hollow.ctx, cw = rect.width, ch = rect.height;
+  g.setTransform(dpr,0,0,dpr,0,0);
+  const cameraX = Math.max(cw/2, Math.min(HOLLOW.width-cw/2, hollow.position.x));
+  const cameraY = Math.max(ch/2, Math.min(HOLLOW.height-ch/2, hollow.position.y));
+  const sx = (x) => x-cameraX+cw/2, sy = (y) => y-cameraY+ch/2;
+  const sky = g.createLinearGradient(0,0,0,ch); sky.addColorStop(0,'#79a88a'); sky.addColorStop(.55,'#46765a'); sky.addColorStop(1,'#244b38');
+  g.fillStyle=sky;g.fillRect(0,0,cw,ch);
+  // distant tree canopy and layered marsh floor
+  for(let i=0;i<42;i++){const x=(i*173+91)%HOLLOW.width,y=(i*97+43)%HOLLOW.height;const px=sx(x),py=sy(y);if(px<-100||px>cw+100||py<-100||py>ch+100)continue;g.fillStyle=i%3?'#315b3e':'#3d7048';g.beginPath();g.arc(px,py,42+(i%4)*9,0,Math.PI*2);g.fill();g.fillStyle='#73965a';g.globalAlpha=.18;g.beginPath();g.arc(px-12,py-14,22,0,Math.PI*2);g.fill();g.globalAlpha=1;}
+  // shallow water pools flanking the trail
+  for(const [x,y,rx,ry] of [[300,560,210,95],[1120,850,190,130],[1500,720,210,105],[1450,230,160,75]]){g.fillStyle='#397d78';g.beginPath();g.ellipse(sx(x),sy(y),rx,ry,0,0,Math.PI*2);g.fill();g.strokeStyle='#9bd2ae';g.globalAlpha=.3;g.lineWidth=3;g.stroke();g.globalAlpha=1;}
+  // trail base and packed-earth center, including both branches
+  for(const path of HOLLOW.paths){g.beginPath();path.forEach(([x,y],i)=>i?g.lineTo(sx(x),sy(y)):g.moveTo(sx(x),sy(y)));g.lineCap='round';g.lineJoin='round';g.strokeStyle='#352f25';g.lineWidth=HOLLOW.corridor*2.1;g.stroke();g.strokeStyle='#b69a68';g.lineWidth=HOLLOW.corridor*1.72;g.stroke();g.strokeStyle='#d2b982';g.lineWidth=HOLLOW.corridor*1.2;g.stroke();g.strokeStyle='#9b835c';g.lineWidth=3;g.setLineDash([12,18]);g.stroke();g.setLineDash([]);}
+  // reeds and stones make the path edges legible
+  for(let i=0;i<70;i++){const x=(i*137+230)%HOLLOW.width,y=(i*191+170)%HOLLOW.height;if(!HOLLOW.paths.some(path=>path.slice(1).some((b,j)=>{const a=path[j],dx=b[0]-a[0],dy=b[1]-a[1],t=Math.max(0,Math.min(1,((x-a[0])*dx+(y-a[1])*dy)/(dx*dx+dy*dy)));const distance=Math.hypot(x-a[0]-dx*t,y-a[1]-dy*t);return distance>HOLLOW.corridor+12&&distance<180;})))continue;const px=sx(x),py=sy(y);g.strokeStyle=i%2?'#b0c66a':'#6d9b4e';g.lineWidth=3;g.beginPath();for(let j=0;j<3;j++){g.moveTo(px,py);g.quadraticCurveTo(px+(j-1)*9-8,py-17,px+(j-1)*14,py-35-(i%4)*4);}g.stroke();}
+  // authored points of interest
+  for(const item of HOLLOW.discoveries){const x=sx(item.x),y=sy(item.y),found=hollow.discovered.includes(item.id);g.fillStyle=found?'#c7e6a4':'#ffe58a';g.globalAlpha=found?.38:.95;g.beginPath();g.arc(x,y,found?13:19,0,Math.PI*2);g.fill();g.globalAlpha=1;g.strokeStyle='#263e2a';g.lineWidth=4;g.stroke();g.font='bold 22px sans-serif';g.textAlign='center';g.fillStyle='#182c20';g.fillText(({ 'trail-marker':'⚑','lost-satchel':'🎒','hidden-pool':'◉','lookout':'⌖' })[item.id],x,y+7);if(!found){g.font='900 13px sans-serif';g.fillStyle='#fff';g.fillText(item.title.toUpperCase(),x,y-30);}}
+  // player shadow and character
+  const px=sx(hollow.position.x),py=sy(hollow.position.y);
+  g.fillStyle='#10251b88';g.beginPath();g.ellipse(px,py+17,18,8,0,0,Math.PI*2);g.fill();
+  g.fillStyle='#9bf36b';g.beginPath();g.arc(px,py,14,0,Math.PI*2);g.fill();g.strokeStyle='#183b22';g.lineWidth=4;g.stroke();g.fillStyle='#102b20';g.beginPath();g.arc(px-5,py-3,2.2,0,Math.PI*2);g.arc(px+5,py-3,2.2,0,Math.PI*2);g.fill();
+  hollow.prompt=nearbyHollowDiscovery(hollow.position);
+  const btn=$('hollowInteract');btn.disabled=!hollow.prompt;btn.textContent=hollow.prompt?(hollow.discovered.includes(hollow.prompt.id)?'📖 READ FIELD NOTE':'🔎 INVESTIGATE'):'🔎 NO DISCOVERY NEARBY';
+}
+function updateHollow(dt) {
+  if (!hollow.active) return;
+  hollow.position=moveHollowPlayer(hollow.position,hollow.input,dt);
+  if (Math.hypot(hollow.position.x-hollow.lastSaved.x,hollow.position.y-hollow.lastSaved.y)>70) saveHollow();
+  if (hollow.prompt) hollow.prompt=nearbyHollowDiscovery(hollow.position);
+  renderHollow();
+}
+
 const WALK_SPEED = 950;
 const TAP_MS = 230;
 let dexFilter = 'all';
@@ -549,6 +677,8 @@ function renderSessionTelemetry() {
   $('exportSessionBtn').disabled = summary.events.casts === 0;
 }
 function render(dt) {
+  const exploreBtn = $('exploreBtn');
+  if (exploreBtn) exploreBtn.hidden = hollow.active || !game.spotUnlocked('reeds') || Math.abs(walker.x - SPOT_X.reeds) > 360 || game.busy;
   const p = game.phase;
   const walking = Math.abs(walker.v) > 30;
   setText('phaseTag', walking ? 'WALKING' : PHASE_TAG[p]);
@@ -851,6 +981,7 @@ function warnEdge(side) {
 }
 
 function updateWalk(dt) {
+  if (hollow.active) { updateHollow(dt); return; }
   const b = bounds();
   let dir = (keys.right || held.right ? 1 : 0) - (keys.left || held.left ? 1 : 0) + held.drag;
   dir = Math.max(-1, Math.min(1, dir));
@@ -1446,7 +1577,7 @@ function loop(ts) {
   if (scene) {
     scene.reeling = reelHeld && game.phase === PHASES.FIGHT;
     if (view === 'pond') {
-      scene.render(game, dt, { ...pointer, camX: walker.x, walkSpeed: walker.v / WALK_SPEED, gate: gateX() });
+      if (!hollow.active) scene.render(game, dt, { ...pointer, camX: walker.x, walkSpeed: walker.v / WALK_SPEED, gate: gateX() });
       scene.trackPerf(dt);
     }
   }
@@ -1576,6 +1707,7 @@ sceneEl.addEventListener('contextmenu', (e) => e.preventDefault());
 
 window.addEventListener('keydown', (e) => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (hollow.active) { if ((e.code==='Enter'||e.code==='Space') && e.target.closest('#hollowOverlay button')) return; if (['ArrowUp','KeyW'].includes(e.code)) hollow.input.y=-1; else if (['ArrowDown','KeyS'].includes(e.code)) hollow.input.y=1; else if (['ArrowLeft','KeyA'].includes(e.code)) hollow.input.x=-1; else if (['ArrowRight','KeyD'].includes(e.code)) hollow.input.x=1; else if (e.code==='KeyE'||e.code==='Enter') interactHollow(); else if (e.code==='Escape') exitHollow(); else return; e.preventDefault(); return; }
   if (anyDialogOpen() || view !== 'pond') return;
   if (game.phase === PHASES.FIGHT && !e.repeat && ['ArrowLeft', 'KeyA', 'ArrowRight', 'KeyD'].includes(e.code)) { steerLatch = e.code === 'ArrowLeft' || e.code === 'KeyA' ? -1 : 1; e.preventDefault(); return; }
   if (e.code === 'ArrowLeft' || e.code === 'KeyA') { if (!keys.left) pressAt.keyLeft = performance.now(); keys.left = true; e.preventDefault(); sfx.unlock(); return; }
@@ -1588,6 +1720,7 @@ window.addEventListener('keydown', (e) => {
   else if (e.code === 'KeyN') toggleMute();
 });
 window.addEventListener('keyup', (e) => {
+  if (hollow.active) { if (['ArrowUp','KeyW','ArrowDown','KeyS'].includes(e.code)) hollow.input.y=0; if (['ArrowLeft','KeyA','ArrowRight','KeyD'].includes(e.code)) hollow.input.x=0; return; }
   if (e.code === 'Space') { e.preventDefault(); reelHeld = false; }
   if (e.code === 'ArrowLeft' || e.code === 'KeyA') { keys.left = false; if (performance.now() - pressAt.keyLeft < TAP_MS - 60) tapWalk(-1); }
   if (e.code === 'ArrowRight' || e.code === 'KeyD') { keys.right = false; if (performance.now() - pressAt.keyRight < TAP_MS - 60) tapWalk(1); }
@@ -1745,7 +1878,12 @@ async function boot() {
   scene.onThunder = () => sfx.thunder();
   tank = new Tank($('tankCanvas'), assets, scene);
   tank.sync(game.state, 0);
-  window.__goop = { game, scene, walker, tank, go };
+  const exploreBtn = document.createElement('button');
+  exploreBtn.id = 'exploreBtn'; exploreBtn.className = 'side-btn'; exploreBtn.type = 'button'; exploreBtn.hidden = true; exploreBtn.title = 'Explore Reedbed Hollow'; exploreBtn.setAttribute('aria-label', 'Explore Reedbed Hollow'); exploreBtn.innerHTML = '<span class="emoji">🥾</span>';
+  exploreBtn.addEventListener('click', enterHollow);
+  document.querySelector('.side-btns')?.appendChild(exploreBtn);
+  
+  window.__goop = { game, scene, walker, tank, go, hollow };
   const start0 = location.hash.slice(1);
   if (VIEWS.includes(start0) && start0 !== 'pond') go(start0, { scroll: false });
   $('loadHint').textContent = 'The Goops are biting.';
