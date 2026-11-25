@@ -65,6 +65,7 @@ function buildHollowOverlay() {
   }
   const style = document.createElement('style');
   style.textContent = `
+    .side-btn[hidden]{display:none!important}
     #hollowOverlay{position:absolute;inset:0;z-index:12;display:none;overflow:hidden;background:#183b2c;color:#f2ffe9;font-family:var(--body);touch-action:none}
     .scene.exploring #hollowOverlay{display:block}
     .scene.exploring>#gameCanvas,.scene.exploring>.hud-top,.scene.exploring>.hud-left,.scene.exploring>.side-btns,.scene.exploring>.minimap,.scene.exploring>.toast,.scene.exploring>.walk-hint,.scene.exploring>.move-prompt,.scene.exploring>.fight-hud,.scene.exploring>.catch-card{visibility:hidden}
@@ -678,6 +679,8 @@ function renderSessionTelemetry() {
   $('exportSessionBtn').disabled = summary.events.casts === 0;
 }
 function render(dt) {
+  const exploreBtn = $('exploreBtn');
+  if (exploreBtn) exploreBtn.hidden = hollow.active || !game.spotUnlocked('reeds') || Math.abs(walker.x - SPOT_X.reeds) > 360 || game.busy;
   const p = game.phase;
   const walking = Math.abs(walker.v) > 30;
   setText('phaseTag', walking ? 'WALKING' : PHASE_TAG[p]);
@@ -1878,11 +1881,10 @@ async function boot() {
   tank = new Tank($('tankCanvas'), assets, scene);
   tank.sync(game.state, 0);
   const exploreBtn = document.createElement('button');
-  exploreBtn.id = 'exploreBtn'; exploreBtn.className = 'side-btn'; exploreBtn.type = 'button'; exploreBtn.title = 'Explore Reedbed Hollow'; exploreBtn.setAttribute('aria-label', 'Explore Reedbed Hollow'); exploreBtn.innerHTML = '<span class="emoji">🥾</span>';
+  exploreBtn.id = 'exploreBtn'; exploreBtn.className = 'side-btn'; exploreBtn.type = 'button'; exploreBtn.hidden = true; exploreBtn.title = 'Explore Reedbed Hollow'; exploreBtn.setAttribute('aria-label', 'Explore Reedbed Hollow'); exploreBtn.innerHTML = '<span class="emoji">🥾</span>';
   exploreBtn.addEventListener('click', enterHollow);
   document.querySelector('.side-btns')?.appendChild(exploreBtn);
-  const updateExploreAvailability = () => { exploreBtn.hidden = !game.spotUnlocked('reeds') || Math.abs(walker.x - SPOT_X.reeds) > 360 || game.busy; };
-  setInterval(updateExploreAvailability, 500);
+  
   window.__goop = { game, scene, walker, tank, go, hollow };
   const start0 = location.hash.slice(1);
   if (VIEWS.includes(start0) && start0 !== 'pond') go(start0, { scroll: false });
