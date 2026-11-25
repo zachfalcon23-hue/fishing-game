@@ -32,6 +32,11 @@ const walker = { x: fromShore(game.state.shore ?? 0), v: 0, target: null, step: 
 const HOLLOW_SAVE_KEY = 'goop-fishing-reedbed-hollow-v1';
 const hollowSaved = (() => { try { return sanitizeHollowSave(JSON.parse(localStorage.getItem(HOLLOW_SAVE_KEY) || 'null')); } catch { return sanitizeHollowSave(null); } })();
 const hollow = { ...hollowSaved, active: false, returnX: fromShore(game.state.shore ?? 0), input: { x: 0, y: 0 }, prompt: null, canvas: null, ctx: null, lastSaved: { ...hollowSaved.position } };
+ // Import discoveries made before the Field Journal integration into the main save.
+for (const id of hollow.discovered) {
+  const discovery = HOLLOW.discoveries.find((item) => item.id === id);
+  if (discovery) game.recordExplorationNote(discovery);
+}
 function saveHollow() {
   try { localStorage.setItem(HOLLOW_SAVE_KEY, JSON.stringify({ position: hollow.position, discovered: hollow.discovered })); hollow.lastSaved = { ...hollow.position }; } catch { /* exploration remains playable when storage is unavailable */ }
 }
@@ -109,10 +114,16 @@ function exitHollow() {
 function interactHollow() {
   if (!hollow.prompt) return;
   if (!hollow.discovered.includes(hollow.prompt.id)) {
+    const recorded = game.recordExplorationNote(hollow.prompt);
+    if (!recorded) {
+      notify('The Field Journal could not record this discovery. Your exploration progress is still available.', 2800);
+      return;
+    }
     hollow.discovered.push(hollow.prompt.id);
     saveHollow();
     $('hollowNote').textContent = `FIELD NOTE · ${hollow.prompt.title}: ${hollow.prompt.note}`;
     $('hollowCount').textContent = `${hollow.discovered.length} / ${HOLLOW.discoveries.length} NOTES`;
+    renderNotes();
     sfx.note();
   } else {
     $('hollowNote').textContent = hollow.prompt.note;
@@ -384,13 +395,24 @@ function renderNotes() {
   $('noteList').innerHTML = found.length
     ? found.map((id) => { const n = NOTES.find((x) => x.id === id); const g = GOOPS.find((x) => x.id === n.reveals); return `<p><b>${g.name}</b> — ${conditionText(g)}</p>`; }).join('')
     : '<p class="muted">Glowing bottles wash up along the shore. Tap one to read it — each reveals where a rare Goop hides.</p>';
-  const observations = SPOTS.flatMap((spot) => game.habitatResearch(spot.id).observations.map((entry) => ({ spot, entry })))
-    .sort((a, b) => b.entry.day - a.entry.day);
-  $('observationList').innerHTML = observations.length ? observations.map(({ spot, entry }) => {
+  const explorationNotes = (game.state.explorationNotes || []).map((entry) => ({
+    type: 'exploration', day: entry.day, entry,
+  }));
+  const observations = SPOTS.flatMap((spot) => game.habitatResearch(spot.id).observations.map((entry) => ({
+    type: 'habitat', day: entry.day, spot, entry,
+  })));
+  const journalEntries = [...explorationNotes, ...observations].sort((a, b) => b.day - a.day);
+  $('observationList').innerHTML = journalEntries.length ? journalEntries.map((item) => {
+    if (item.type === 'exploration') {
+      const entry = item.entry;
+      const weather = WEATHER[entry.weather]?.label || entry.weather;
+      return `<div class="observation-row exploration-entry"><span class="observation-icon">🧭</span><div><b>${esc(entry.title)}</b><small>REEDBED HOLLOW · Day ${entry.day} · ${esc(entry.time)} · ${esc(weather)}</small><p>${esc(entry.note)}</p></div></div>`;
+    }
+    const { spot, entry } = item;
     const event = HABITAT_EVENT_BY_ID.get(entry.id);
     const weather = WEATHER[entry.weather]?.label || entry.weather;
     return `<div class="observation-row"><span class="observation-icon">${event?.icon || '👁'}</span><div><b>${esc(event?.name || entry.id)}</b><small>${esc(spot.name)} · Day ${entry.day} · ${esc(entry.time)} · ${esc(weather)}</small><p>${esc(event?.description || 'A habitat interaction was recorded.')}</p></div></div>`;
-  }).join('') : '<p class="muted">Watch the water for a habitat-specific clue, then choose OBSERVE to add it to your Field Journal.</p>';
+  }).join('') : '<p class="muted">Explore the shoreline and Reedbed Hollow, or observe habitat clues, to build your Field Journal.</p>';
   const log = game.state.catchLog || [];
   $('catchLogList').innerHTML = log.length ? log.slice(0, 8).map((entry) => {
     const goop = GOOPS.find((item) => item.id === entry.goop);
@@ -1419,7 +1441,11 @@ function renderQuestChip() {
   $('tankDot').hidden = !game.tipJar();
   if (!q || game.busy) return;
   const p = game.questProgress();
-  setHTML('questChip', p.ready ? '📜 <b>Quest done!</b> Visit Wiggs' : `📜 ${esc(goalText(q.goal))} <b>${p.have}/${p.need}</b>`);
+  const full = p.ready
+    ? '📜 <b>Quest done!</b> Visit Wiggs'
+    : `📜 ${esc(goalText(q.goal))} <b>${p.have}/${p.need}</b>`;
+  const compact = p.ready ? '📜 QUEST READY' : `📜 QUEST · ${p.have}/${p.need}`;
+  setHTML('questChip', `<span class="quest-full">${full}</span><span class="quest-compact">${compact}</span>`);
   chip.classList.toggle('ready', p.ready);
 }
 $('questChip').addEventListener('click', () => go('shack'));

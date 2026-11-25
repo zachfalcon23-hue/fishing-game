@@ -1775,3 +1775,51 @@ test('save v6 migrates to v7 and sanitizes bounded catch and observation entries
   assert.equal(capped.catchLog.length, 40, 'history is capped at 40 validated entries');
   assert.equal(capped.catchLog[0].at, 1, 'the newest-first save order is preserved');
 });
+
+
+test('Reedbed discoveries become durable, idempotent Field Journal entries', () => {
+  const { mem, store } = memStore();
+  const game = new FishingGame({ rng: () => 0, saveStore: store });
+  const discovery = {
+    id: 'trail-marker',
+    title: 'Old Trail Marker',
+    note: 'A weathered marker points deeper into the reeds.',
+  };
+
+  const first = game.recordExplorationNote(discovery);
+  assert.equal(first.discovered, true);
+  assert.equal(game.state.explorationNotes.length, 1);
+  assert.equal(first.entry.day, game.state.day);
+  assert.equal(first.entry.time, game.timeOfDay);
+
+  const duplicate = game.recordExplorationNote(discovery);
+  assert.equal(duplicate.discovered, false);
+  assert.equal(game.state.explorationNotes.length, 1);
+
+  const reloaded = new FishingGame({
+    rng: () => 0,
+    saveStore: new SaveStore(mem, 'test'),
+  });
+  assert.deepEqual(reloaded.state.explorationNotes, [first.entry]);
+});
+
+test('Field Journal exploration entries are sanitized and older saves remain compatible', () => {
+  const { store } = memStore();
+  const fresh = store.fresh();
+  const older = store.sanitize({ ...fresh });
+  assert.deepEqual(older.explorationNotes, []);
+
+  const normalized = store.sanitize({
+    ...fresh,
+    explorationNotes: [
+      { id: 'trail-marker', title: 'Old Trail Marker', note: 'Valid note', day: 3, time: 'Night', weather: 'rain' },
+      { id: 'trail-marker', title: 'Duplicate', note: 'Ignored duplicate' },
+      { id: '<script>', title: 'Invalid ID', note: 'Rejected' },
+      { id: 'empty-note', title: 'Missing note', note: '' },
+    ],
+  });
+  assert.equal(normalized.explorationNotes.length, 1);
+  assert.equal(normalized.explorationNotes[0].id, 'trail-marker');
+  assert.equal(normalized.explorationNotes[0].day, 3);
+  assert.equal(normalized.explorationNotes[0].weather, 'rain');
+});

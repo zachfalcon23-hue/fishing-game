@@ -1248,7 +1248,7 @@ export class SaveStore {
       owned: { rods: ['twig'], skins: ['factory'], bobbers: ['classic'], lines: ['classic'], lures: {} },
       equip: { rod: 'twig', skin: 'factory', bobber: 'classic', line: 'classic', lure: 'none' },
       quest: { i: 0, have: 0 }, tank: { tanks: [newTank(1)], decor: [], themes: ['pond'], tipDay: 0 },
-      bounties: [], bountyDay: 0, frenzy: null, visitor: null, rumors: [], trackedGoop: null, activity: {}, research: {},
+      bounties: [], bountyDay: 0, frenzy: null, visitor: null, rumors: [], trackedGoop: null, activity: {}, research: {}, explorationNotes: [],
     };
   }
 
@@ -1433,6 +1433,23 @@ export class SaveStore {
           })(),
         };
       }
+    }
+    // Reedbed discoveries are durable Field Journal entries, independent of the local scene cache.
+    s.explorationNotes = [];
+    const explorationIds = new Set();
+    for (const entry of Array.isArray(p.explorationNotes) ? p.explorationNotes.slice(0, 40) : []) {
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue;
+      const id = typeof entry.id === 'string' ? entry.id : '';
+      const title = typeof entry.title === 'string' ? entry.title.trim().slice(0, 80) : '';
+      const note = typeof entry.note === 'string' ? entry.note.trim().slice(0, 500) : '';
+      if (!/^[a-z0-9-]{1,48}$/.test(id) || !title || !note || explorationIds.has(id)) continue;
+      explorationIds.add(id);
+      s.explorationNotes.push({
+        id, title, note,
+        day: Math.floor(num(entry.day, 1, 1)),
+        time: TIMES.includes(entry.time) ? entry.time : 'Day',
+        weather: WEATHER[entry.weather] ? entry.weather : 'clear',
+      });
     }
     // tackle box
     const o = p.owned && typeof p.owned === 'object' ? p.owned : {};
@@ -2208,6 +2225,27 @@ export class FishingGame {
     this.emit('observation', result);
     this.saveStore.save(this.state);
     return result;
+  }
+
+  /** Record a Reedbed discovery in the persistent Field Journal. Safe to call more than once. */
+  recordExplorationNote(discovery) {
+    if (!discovery || typeof discovery !== 'object') return null;
+    const id = typeof discovery.id === 'string' ? discovery.id : '';
+    const title = typeof discovery.title === 'string' ? discovery.title.trim().slice(0, 80) : '';
+    const note = typeof discovery.note === 'string' ? discovery.note.trim().slice(0, 500) : '';
+    if (!/^[a-z0-9-]{1,48}$/.test(id) || !title || !note) return null;
+    const existing = (this.state.explorationNotes || []).find((entry) => entry.id === id);
+    if (existing) return { discovered: false, entry: { ...existing } };
+    if (!Array.isArray(this.state.explorationNotes)) this.state.explorationNotes = [];
+    if (this.state.explorationNotes.length >= 40) return null;
+    const entry = {
+      id, title, note, day: this.state.day, time: this.timeOfDay, weather: this.state.weather,
+    };
+    this.state.explorationNotes.push(entry);
+    this.message = 'Field Journal updated: ' + title + '.';
+    this.emit('explorationNote', { ...entry });
+    this.saveStore.save(this.state);
+    return { discovered: true, entry: { ...entry } };
   }
 
   /** Pick up a field note found on the shore at the current spot. */
