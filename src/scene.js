@@ -643,10 +643,12 @@ export class Scene {
     // ---- water ----
     base(0.55);
     this.drawWater(g, base, time, weather, t, spotOff, game);
+    this.drawDeepDropShelf(g, base, t);
     base(0.62);
     this.drawWildlife(g, t, weather, game);
 
     this.drawSecretsMid(g, base, game, t);
+    this.drawGrottoLandmarks(g, base, t);
     this.drawFrenzy(g, base, game, t, dt);
 
     // ---- near shore, back to front ----
@@ -1031,6 +1033,114 @@ export class Scene {
       g.fillStyle = gr; g.fillRect(0, hy, this.canvas.width, this.canvas.height - hy);
     }
     void spotOff;
+  }
+
+  /**
+   * The Deep Drop needs a readable depth change, not another generic rock prop.
+   * This is a static, camera-anchored underwater shelf in the existing water pass;
+   * wildlife, encounters and the event simulation remain untouched.
+   */
+  drawDeepDropShelf(g, base, t) {
+    const d = 0.55;
+    if (Math.abs(SPOT_X.deep - this.camX) > W * 1.55 / d) return;
+    base(d);
+    const x = this.layerX(SPOT_X.deep, d);
+    g.save();
+    g.beginPath(); g.rect(-W * 2, HZ + 8, W * 4, H - HZ + 80); g.clip();
+
+    const basin = g.createLinearGradient(0, HZ + 260, 0, H + 120);
+    basin.addColorStop(0, 'rgba(13,20,67,0)');
+    basin.addColorStop(0.28, 'rgba(12,17,59,0.18)');
+    basin.addColorStop(1, 'rgba(4,7,31,0.48)');
+    g.fillStyle = basin;
+    g.beginPath();
+    g.moveTo(x - 900, H + 100);
+    g.lineTo(x - 900, HZ + 420);
+    g.bezierCurveTo(x - 640, HZ + 365, x - 500, HZ + 265, x - 260, HZ + 350);
+    g.bezierCurveTo(x - 80, HZ + 420, x + 40, HZ + 255, x + 250, HZ + 300);
+    g.bezierCurveTo(x + 470, HZ + 350, x + 650, HZ + 390, x + 900, HZ + 330);
+    g.lineTo(x + 900, H + 100);
+    g.closePath(); g.fill();
+
+    // A restrained rim line gives the shelf a visible drop-off without obscuring fish.
+    g.strokeStyle = 'rgba(117,137,226,0.16)';
+    g.lineWidth = 3;
+    g.beginPath();
+    g.moveTo(x - 900, HZ + 420);
+    g.bezierCurveTo(x - 640, HZ + 365, x - 500, HZ + 265, x - 260, HZ + 350);
+    g.bezierCurveTo(x - 80, HZ + 420, x + 40, HZ + 255, x + 250, HZ + 300);
+    g.bezierCurveTo(x + 470, HZ + 350, x + 650, HZ + 390, x + 900, HZ + 330);
+    g.stroke();
+
+    // Dim vertical pressure traces make the central basin feel deeper.
+    g.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 5; i++) {
+      const px = x - 300 + i * 150;
+      const pulse = 0.45 + 0.25 * Math.sin(t * 0.55 + i * 1.4);
+      g.globalAlpha = pulse * 0.12;
+      g.strokeStyle = '#8292ff';
+      g.lineWidth = 2;
+      g.beginPath();
+      g.moveTo(px, HZ + 390);
+      g.quadraticCurveTo(px + Math.sin(t * 0.35 + i) * 16, HZ + 560, px - 8, H + 30);
+      g.stroke();
+    }
+    g.restore();
+    g.globalAlpha = 1;
+    g.globalCompositeOperation = 'source-over';
+  }
+
+  /**
+   * Glowshroom Grotto's bank was relying almost entirely on generic framing plants
+   * and ambient motes. These small, fixed clusters give the habitat a clear landmark
+   * silhouette while reusing the renderer's cached glow texture.
+   */
+  drawGrottoLandmarks(g, base, t) {
+    const d = 0.88;
+    const offsets = [-470, -120, 300, 610];
+    if (Math.abs(SPOT_X.grotto - this.camX) > W * 1.5 / d) return;
+    base(d);
+
+    const mushroom = (x, y, scale, color, phase) => {
+      const stemW = 9 * scale, stemH = 34 * scale;
+      const capW = 27 * scale, capH = 15 * scale;
+      const glow = 42 * scale;
+      g.globalCompositeOperation = 'lighter';
+      g.globalAlpha = 0.16 + Math.max(0, Math.sin(t * 1.7 + phase)) * 0.13;
+      g.drawImage(this.tintGlow(color), x - glow, y - stemH - glow * 0.75, glow * 2, glow * 1.6);
+      g.globalCompositeOperation = 'source-over';
+      g.globalAlpha = 1;
+
+      g.fillStyle = 'rgba(35,24,58,0.78)';
+      g.beginPath(); g.ellipse(x, y + 2, capW * 0.9, 5 * scale, 0, 0, Math.PI * 2); g.fill();
+      const stem = g.createLinearGradient(x - stemW, 0, x + stemW, 0);
+      stem.addColorStop(0, '#6b55a0'); stem.addColorStop(0.5, '#e4d5ff'); stem.addColorStop(1, '#59417f');
+      g.fillStyle = stem;
+      g.fillRect(x - stemW * 0.55, y - stemH, stemW * 1.1, stemH);
+      const cap = g.createRadialGradient(x - capW * 0.25, y - stemH - capH * 0.35, 2, x, y - stemH, capW);
+      cap.addColorStop(0, '#f1dcff'); cap.addColorStop(0.35, color); cap.addColorStop(1, '#39245f');
+      g.fillStyle = cap;
+      g.beginPath();
+      g.moveTo(x - capW, y - stemH + 2 * scale);
+      g.quadraticCurveTo(x - capW * 0.72, y - stemH - capH * 1.25, x, y - stemH - capH);
+      g.quadraticCurveTo(x + capW * 0.82, y - stemH - capH * 1.1, x + capW, y - stemH + 2 * scale);
+      g.quadraticCurveTo(x, y - stemH + capH * 0.48, x - capW, y - stemH + 2 * scale);
+      g.closePath(); g.fill();
+      g.fillStyle = 'rgba(255,255,255,0.7)';
+      for (let i = -1; i <= 1; i++) {
+        g.beginPath(); g.arc(x + i * capW * 0.42, y - stemH - capH * 0.28, 2.1 * scale, 0, Math.PI * 2); g.fill();
+      }
+      g.globalAlpha = 1;
+    };
+
+    for (let i = 0; i < offsets.length; i++) {
+      const worldX = SPOT_X.grotto + offsets[i];
+      if (Math.abs(worldX - this.camX) > W * 1.25 / d) continue;
+      const x = this.layerX(worldX, d);
+      const baseY = H - 34 - (i % 2) * 16;
+      mushroom(x - 22, baseY, 0.78 + (i % 3) * 0.12, i % 2 ? '#9b7bff' : '#67e9d2', i * 1.7);
+      mushroom(x + 25, baseY - 4, 0.52 + (i % 2) * 0.1, '#b58cff', i * 2.1 + 0.8);
+    }
   }
 
   /**
