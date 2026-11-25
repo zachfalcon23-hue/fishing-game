@@ -2,9 +2,41 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { GOOPS, SPOTS, encounterPool } from '../src/game.js';
 import {
+  HABITAT_INTERACTIONS, resolveHabitatInteraction,
   evaluateWildlifeBehavior, wildlifeNeeds, habitatReturnOffset,
   selectWildlifeSpecies, resolveWildlifeSighting, wildlifeDisplayProfile,
 } from '../src/wildlife.js';
+
+
+test('all ten habitats can produce their authored environmental interaction', () => {
+  assert.equal(HABITAT_INTERACTIONS.length, 10);
+  assert.equal(new Set(HABITAT_INTERACTIONS.map((entry) => entry.spot)).size, 10);
+  const scenarios = [
+    { spot: 'reeds', time: 'Day', weather: 'clear', activity: 3, frenzy: true },
+    { spot: 'dock', time: 'Night', weather: 'clear', activity: 3, frenzy: true },
+    { spot: 'lily', time: 'Dawn', weather: 'clear' },
+    { spot: 'boulder', time: 'Day', weather: 'storm' },
+    { spot: 'falls', time: 'Day', weather: 'rain' },
+    { spot: 'cave', time: 'Dawn', weather: 'clear' },
+    { spot: 'grotto', time: 'Night', weather: 'clear', activity: 3, frenzy: true },
+    { spot: 'deep', time: 'Night', weather: 'storm' },
+    { spot: 'sandbar', time: 'Night', weather: 'clear', fullMoon: true },
+    { spot: 'wreck', time: 'Day', weather: 'fog' },
+  ];
+  for (const scenario of scenarios) {
+    const habitat = SPOTS.find((entry) => entry.id === scenario.spot);
+    const event = resolveHabitatInteraction({ spot: habitat, timeSeconds: 30, ...scenario });
+    assert.equal(event?.spot, scenario.spot, scenario.spot + ' should resolve an active event');
+    assert.equal(event?.id, HABITAT_INTERACTIONS.find((entry) => entry.spot === scenario.spot)?.id);
+    assert.equal(event?.active, true);
+  }
+  assert.equal(resolveHabitatInteraction({
+    spot: SPOTS.find((entry) => entry.id === 'dock'), time: 'Day', weather: 'clear',
+  }), null, 'lantern feeding remains a night-only clue');
+  assert.equal(resolveHabitatInteraction({
+    spot: SPOTS.find((entry) => entry.id === 'sandbar'), time: 'Night', weather: 'clear',
+  }), null, 'the moon-tide clue requires a full moon');
+});
 
 test('ambient needs are repeatable for the same school and scene time', () => {
   const school = { phase: 2.4, chronotype: -0.5 };
