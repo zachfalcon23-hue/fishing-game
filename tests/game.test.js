@@ -4,7 +4,7 @@ import { fightReactionPose } from '../src/scene.js';
 import {
   GOOPS, SPOTS, UPGRADES, NOTES, NOTE_REWARD, HABITAT_RESEARCH_TIERS, weightedPick, encounterPool, makeFight, tickFight, pullForce,
   FishingGame, SaveStore, PHASES, CASTS_PER_TIME, conditionsMet, conditionText,
-  SPOT_BY, BAITS, SETS, RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, tackleMods, QUESTS, DECOR, THEMES, tankTips, TANK_CAP, TANK_COSTS, DECOR_SLOTS, startMove, SIGNATURE, MOVE_INFO, fightReadout, stagesFor, BREAK_TIME, shoreZone, zonePool, makeBounties, bountyMatches, comboFor, LUNGE_PROFILE, PERFECT_HOOK, CLEAN_HOOK, hookTiming, isFullMoon, rollGoopSize, TRACK_WEIGHT_MULT, evaluateSpecimenQuality, SPECIMEN_GRADE_RANK, moonTideSizeExponent, lilyPetalDriftMultiplier,
+  SPOT_BY, BAITS, SETS, RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, tackleMods, QUESTS, DECOR, THEMES, tankTips, TANK_CAP, TANK_COSTS, DECOR_SLOTS, startMove, SIGNATURE, MOVE_INFO, fightReadout, stagesFor, BREAK_TIME, shoreZone, zonePool, makeBounties, bountyMatches, comboFor, LUNGE_PROFILE, PERFECT_HOOK, CLEAN_HOOK, hookTiming, isFullMoon, rollGoopSize, TRACK_WEIGHT_MULT, evaluateSpecimenQuality, SPECIMEN_GRADE_RANK, moonTideSizeExponent, lilyPetalDriftMultiplier, dockLanternWakeMultiplier,
 } from '../src/game.js';
 
 function memStore(initial = null) {
@@ -19,6 +19,33 @@ function newGame(opts = {}) {
 function runUntil(g, phase, input = {}, max = 20) {
   for (let t = 0; t < max && g.phase !== phase; t += 0.05) g.update(0.05, input);
 }
+
+test('Old Dock lantern wake favours rare night-active residents only at night', () => {
+  const dock = SPOT_BY.dock;
+  const lily = SPOT_BY.lily;
+  const nightActive = { time: ['Night'] };
+  const dawnAndNight = { time: ['Dawn', 'Night'] };
+  assert.equal(dockLanternWakeMultiplier(dock, 'Night', 'Rare', nightActive), 1.4);
+  assert.equal(dockLanternWakeMultiplier(dock, 'Night', 'Epic', dawnAndNight), 1.4);
+  assert.equal(dockLanternWakeMultiplier(dock, 'Night', 'Common', nightActive), 1);
+  assert.equal(dockLanternWakeMultiplier(dock, 'Dusk', 'Rare', nightActive), 1);
+  assert.equal(dockLanternWakeMultiplier(dock, 'Day', 'Rare', nightActive), 1);
+  assert.equal(dockLanternWakeMultiplier(lily, 'Night', 'Rare', nightActive), 1);
+  assert.equal(dockLanternWakeMultiplier(dock, 'Night', 'Rare', { time: ['Day'] }), 1);
+  assert.equal(dockLanternWakeMultiplier(dock, 'Night', 'Rare', null), 1);
+});
+
+test('Old Dock lantern wake raises night-active resident weights in its encounter pool', () => {
+  const pool = encounterPool({ spot: SPOT_BY.dock, time: 'Night', weather: 'clear' });
+  const lanternfin = pool.find((goop) => goop.id === 'lanternfin');
+  const drowsy = pool.find((goop) => goop.id === 'drowsy');
+  assert.ok(lanternfin);
+  assert.ok(drowsy);
+  assert.equal(lanternfin.weight, GOOPS.find((goop) => goop.id === 'lanternfin').weight * SPOT_BY.dock.rareMul * 3 * 1.4);
+  assert.equal(drowsy.weight, GOOPS.find((goop) => goop.id === 'drowsy').weight * SPOT_BY.dock.rareMul * 3 * 1.4);
+  const daytime = encounterPool({ spot: SPOT_BY.dock, time: 'Day', weather: 'clear' });
+  assert.equal(daytime.find((goop) => goop.id === 'lanternfin'), undefined);
+});
 
 test('empty and zero-weight encounter pools return null', () => {
   assert.equal(weightedPick([]), null);
