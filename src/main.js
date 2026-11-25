@@ -1441,7 +1441,11 @@ function renderQuestChip() {
   $('tankDot').hidden = !game.tipJar();
   if (!q || game.busy) return;
   const p = game.questProgress();
-  setHTML('questChip', p.ready ? '📜 <b>Quest done!</b> Visit Wiggs' : `📜 ${esc(goalText(q.goal))} <b>${p.have}/${p.need}</b>`);
+  const full = p.ready
+    ? '📜 <b>Quest done!</b> Visit Wiggs'
+    : `📜 ${esc(goalText(q.goal))} <b>${p.have}/${p.need}</b>`;
+  const compact = p.ready ? '📜 QUEST READY' : `📜 QUEST · ${p.have}/${p.need}`;
+  setHTML('questChip', `<span class="quest-full">${full}</span><span class="quest-compact">${compact}</span>`);
   chip.classList.toggle('ready', p.ready);
 }
 $('questChip').addEventListener('click', () => go('shack'));
