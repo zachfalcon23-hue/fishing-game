@@ -31,9 +31,9 @@ const pressAt = { left: 0, right: 0, keyLeft: 0, keyRight: 0 };
 const walker = { x: fromShore(game.state.shore ?? 0), v: 0, target: null, step: 0 };
 const HOLLOW_SAVE_KEY = 'goop-fishing-reedbed-hollow-v1';
 const hollowSaved = (() => { try { return sanitizeHollowSave(JSON.parse(localStorage.getItem(HOLLOW_SAVE_KEY) || 'null')); } catch { return sanitizeHollowSave(null); } })();
-const hollow = { ...hollowSaved, active: false, returnX: fromShore(game.state.shore ?? 0), input: { x: 0, y: 0 }, prompt: null, canvas: null, ctx: null, lastNote: '' };
+const hollow = { ...hollowSaved, active: false, returnX: fromShore(game.state.shore ?? 0), input: { x: 0, y: 0 }, prompt: null, canvas: null, ctx: null, lastSaved: { ...hollowSaved.position } };
 function saveHollow() {
-  try { localStorage.setItem(HOLLOW_SAVE_KEY, JSON.stringify({ position: hollow.position, discovered: hollow.discovered })); } catch { /* exploration remains playable when storage is unavailable */ }
+  try { localStorage.setItem(HOLLOW_SAVE_KEY, JSON.stringify({ position: hollow.position, discovered: hollow.discovered })); hollow.lastSaved = { ...hollow.position }; } catch { /* exploration remains playable when storage is unavailable */ }
 }
 function buildHollowOverlay() {
   if (hollow.canvas) return;
@@ -111,7 +111,6 @@ function interactHollow() {
   if (!hollow.discovered.includes(hollow.prompt.id)) {
     hollow.discovered.push(hollow.prompt.id);
     saveHollow();
-    hollow.lastNote = hollow.prompt.note;
     $('hollowNote').textContent = `FIELD NOTE · ${hollow.prompt.title}: ${hollow.prompt.note}`;
     $('hollowCount').textContent = `${hollow.discovered.length} / ${HOLLOW.discoveries.length} NOTES`;
     sfx.note();
@@ -127,8 +126,6 @@ function renderHollow() {
   if (hollow.canvas.width !== w || hollow.canvas.height !== h) { hollow.canvas.width = w; hollow.canvas.height = h; }
   const g = hollow.ctx, cw = rect.width, ch = rect.height;
   g.setTransform(dpr,0,0,dpr,0,0);
-  const p = moveHollowPlayer(hollow.position, hollow.input, 0);
-  void p;
   const cameraX = Math.max(cw/2, Math.min(HOLLOW.width-cw/2, hollow.position.x));
   const cameraY = Math.max(ch/2, Math.min(HOLLOW.height-ch/2, hollow.position.y));
   const sx = (x) => x-cameraX+cw/2, sy = (y) => y-cameraY+ch/2;
@@ -154,6 +151,7 @@ function renderHollow() {
 function updateHollow(dt) {
   if (!hollow.active) return;
   hollow.position=moveHollowPlayer(hollow.position,hollow.input,dt);
+  if (Math.hypot(hollow.position.x-hollow.lastSaved.x,hollow.position.y-hollow.lastSaved.y)>70) saveHollow();
   if (hollow.prompt) hollow.prompt=nearbyHollowDiscovery(hollow.position);
   renderHollow();
 }
