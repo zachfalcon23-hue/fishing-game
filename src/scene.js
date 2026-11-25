@@ -992,7 +992,8 @@ export class Scene {
       const habitatUnlocked = typeof game.spotUnlocked !== 'function' || game.spotUnlocked(habitat.id);
       const sightingKey = [
         habitat.id, habitatUnlocked ? 1 : 0, weather, timeOfDay, localActivity, localFrenzy ? 1 : 0,
-        visitorId, gameEvent.fullMoon ? 1 : 0, gameEvent.sleeper ? 1 : 0, day, sightingWeightKey,
+        visitorId, gameEvent.fullMoon ? 1 : 0, gameEvent.sleeper ? 1 : 0,
+        gameEvent.interactions?.[habitat.id]?.id || '', day, sightingWeightKey,
       ].join('|');
 
       // Locked and undiscovered habitats remain anonymous. For open habitats, use the exact

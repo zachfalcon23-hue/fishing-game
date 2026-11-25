@@ -97,6 +97,111 @@ function stableHash(value) {
   return hash >>> 0;
 }
 
+
+/** Distinct, habitat-authored field clues driven by the same school needs and behavior model. */
+export const HABITAT_INTERACTIONS = Object.freeze([
+  { id: 'reeds-school-rise', spot: 'reeds', name: 'Schooling Surge', icon: '🌾',
+    clue: 'Small schools are circling tightly along the cattails. A broader shadow holds below them.',
+    description: 'Hungry schools compress against the reed edge, drawing pulse-pattern and muck-feeding Goops into the cover.',
+    patterns: ['pulse', 'steady'], patternMul: 1.22, tastes: ['muck'], tasteMul: 1.16,
+    rarities: ['Uncommon', 'Rare', 'Epic'], rarityMul: 1.1, timeLikes: [], timeMul: 1 },
+  { id: 'dock-lantern-baitball', spot: 'dock', name: 'Lantern Baitball', icon: '🏮',
+    clue: 'Tiny flashes are gathering beneath the dock lanterns. Something is feeding in the light.',
+    description: 'Night-active schools gather under the lantern glow, drawing dark-water feeders toward a cast.',
+    patterns: ['dart', 'sleepy'], patternMul: 1.18, tastes: ['glow', 'muck'], tasteMul: 1.12,
+    rarities: ['Rare', 'Epic'], rarityMul: 1.12, timeLikes: ['Night'], timeMul: 1.18 },
+  { id: 'lily-petal-drift', spot: 'lily', name: 'Petal Drift', icon: '🌸',
+    clue: 'Loose petals are sliding along one quiet seam. Slow-moving shapes are following the bloom line.',
+    description: 'At dawn and dusk, the petal line concentrates drifting Goops along the edge of the lilies.',
+    patterns: ['drift', 'sleepy'], patternMul: 1.24, tastes: ['sweet'], tasteMul: 1.16,
+    rarities: ['Uncommon', 'Rare', 'Epic'], rarityMul: 1.08, timeLikes: ['Dawn', 'Dusk'], timeMul: 1.12 },
+  { id: 'boulder-eddy-break', spot: 'boulder', name: 'Eddy Break', icon: '🪨',
+    clue: 'The current is folding back around the rocks. Bubbles are holding in a narrow, repeating line.',
+    description: 'Rain-swollen water or heavy local feeding bends the current around the boulders, creating a seam used by pulse and dart Goops.',
+    patterns: ['pulse', 'dart'], patternMul: 1.24, tastes: ['ember'], tasteMul: 1.14,
+    rarities: ['Rare', 'Epic'], rarityMul: 1.1, timeLikes: [], timeMul: 1 },
+  { id: 'falls-current-seam', spot: 'falls', name: 'Current Seam', icon: '💧',
+    clue: 'A smooth ribbon has formed beside the falling water. Silhouettes cross it, then vanish into the spray.',
+    description: 'Rain and waterfall flow create a sheltered seam that fast-moving and storm-responsive Goops cross.',
+    patterns: ['dart', 'wild'], patternMul: 1.2, tastes: ['frost'], tasteMul: 1.12,
+    rarities: ['Rare', 'Epic'], rarityMul: 1.1, timeLikes: [], timeMul: 1 },
+  { id: 'cave-prism-echo', spot: 'cave', name: 'Prism Echo', icon: '🔮',
+    clue: 'A brief band of coloured light moves across the cave pool. The ripples seem to answer it.',
+    description: 'Low-angle light refracts through the cave opening at dawn and dusk, drawing slow and frost-touched residents toward the reflection.',
+    patterns: ['drift', 'sleepy'], patternMul: 1.22, tastes: ['frost'], tasteMul: 1.18,
+    rarities: ['Rare', 'Epic'], rarityMul: 1.12, timeLikes: ['Dawn', 'Dusk'], timeMul: 1.1 },
+  { id: 'grotto-spore-bloom', spot: 'grotto', name: 'Spore Bloom', icon: '🍄',
+    clue: 'The glowshrooms are releasing a soft cloud of spores. Dim lights are moving beneath the bloom.',
+    description: 'Night and dusk bring a glowshroom spore release. Glow-tasting and slow-moving Goops investigate the luminous cloud.',
+    patterns: ['drift', 'sleepy'], patternMul: 1.24, tastes: ['glow'], tasteMul: 1.22,
+    rarities: ['Rare', 'Epic', 'Legendary'], rarityMul: 1.1, timeLikes: ['Night', 'Dusk'], timeMul: 1.12 },
+  { id: 'deep-pressure-rise', spot: 'deep', name: 'Pressure Upwelling', icon: '⬇️',
+    clue: 'A column of bubbles is rising from the dark water. The surface dips before each surge.',
+    description: 'Night pressure shifts or storm-driven disturbance lifts deep-water residents toward the upper column.',
+    patterns: ['wild', 'pulse'], patternMul: 1.18, tastes: ['ember', 'glow'], tasteMul: 1.12,
+    rarities: ['Epic', 'Legendary'], rarityMul: 1.2, timeLikes: ['Night'], timeMul: 1.08 },
+  { id: 'sandbar-moon-runnel', spot: 'sandbar', name: 'Moon-Tide Runnel', icon: '🌕',
+    clue: 'Moonlight is tracing a narrow channel across the exposed sand. A pale wake follows the tide.',
+    description: 'At full moon after dark, a shallow runnel forms across the sandbar and favours drifting and night-active residents.',
+    patterns: ['drift', 'dart'], patternMul: 1.2, tastes: ['sweet'], tasteMul: 1.12,
+    rarities: ['Rare', 'Legendary'], rarityMul: 1.18, timeLikes: ['Night'], timeMul: 1.1 },
+  { id: 'wreck-ghost-wake', spot: 'wreck', name: 'Ghost Wake', icon: '⚓',
+    clue: 'A faint wake crosses the wreck without disturbing the surface. The rigging hums in the shifting water.',
+    description: 'Fog and storm currents move through the sunken rigging. Wild and darting residents become more active around the wreck.',
+    patterns: ['wild', 'dart'], patternMul: 1.22, tastes: ['muck', 'glow'], tasteMul: 1.12,
+    rarities: ['Rare', 'Epic', 'Legendary'], rarityMul: 1.14, timeLikes: [], timeMul: 1 },
+]);
+
+const INTERACTION_BY_SPOT = new Map(HABITAT_INTERACTIONS.map((interaction) => [interaction.spot, interaction]));
+
+/** Resolve a clue from the existing wildlife needs/action scoring; no second ecology clock is saved. */
+export function resolveHabitatInteraction({
+  spot, time = 'Day', weather = 'clear', activity = 0, frenzy = false,
+  fullMoon = false, timeSeconds = 0,
+} = {}) {
+  const definition = INTERACTION_BY_SPOT.get(spot?.id);
+  if (!definition) return null;
+  const seed = stableHash(spot.id);
+  const school = {
+    phase: (seed % 6283) / 1000,
+    chronotype: ((seed >>> 5) % 5 - 2) * 0.42,
+    fidelity: 0.68 + ((seed >>> 9) % 25) / 100,
+  };
+  const needs = wildlifeNeeds(school, (Number.isFinite(timeSeconds) ? timeSeconds : 0) + (seed % 97) * 0.13);
+  const behavior = evaluateWildlifeBehavior({
+    ...needs, activity, frenzy, fidelity: school.fidelity, time,
+  });
+  const localActivity = clamp(Number.isFinite(activity) ? activity : 0, 0, 3);
+  const calm = behavior.state !== 'fleeing';
+  const feeding = behavior.state === 'feeding' || frenzy
+    || (localActivity >= 2 && needs.hunger >= 0.4);
+  const dawnDusk = time === 'Dawn' || time === 'Dusk';
+  let active = false;
+  switch (spot.id) {
+    case 'reeds': active = feeding; break;
+    case 'dock': active = time === 'Night' && calm && (feeding || needs.hunger >= 0.35); break;
+    case 'lily': active = dawnDusk && calm; break;
+    case 'boulder': active = calm && (weather === 'rain' || weather === 'storm' || localActivity >= 2); break;
+    case 'falls': active = calm && (weather === 'rain' || weather === 'storm' || (localActivity >= 1 && feeding)); break;
+    case 'cave': active = calm && dawnDusk && (weather === 'clear' || weather === 'fog'); break;
+    case 'grotto': active = calm && (time === 'Night' || time === 'Dusk') && (feeding || needs.hunger >= 0.35); break;
+    case 'deep': active = calm && time === 'Night' && (weather === 'storm' || fullMoon || localActivity >= 2); break;
+    case 'sandbar': active = time === 'Night' && fullMoon; break;
+    case 'wreck': active = calm && (weather === 'fog' || weather === 'storm'); break;
+    default: active = false;
+  }
+  if (!active) return null;
+  return {
+    ...definition,
+    patterns: [...definition.patterns],
+    tastes: [...definition.tastes],
+    rarities: [...definition.rarities],
+    timeLikes: [...definition.timeLikes],
+    active: true, behavior: behavior.state, feeding: behavior.state === 'feeding',
+    intensity: clamp(0.28 + localActivity * 0.12 + (frenzy ? 0.18 : 0) + needs.hunger * 0.16, 0.2, 1),
+  };
+}
+
 /**
  * Choose one visible species from an existing encounter pool without consuming game RNG.
  * Keeping the selector deterministic prevents species flicker and makes rendering side-effect free.
