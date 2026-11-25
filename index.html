@@ -9,7 +9,7 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='34' r='26' fill='%2359e04a'/%3E%3Ccircle cx='24' cy='28' r='7' fill='%23fff'/%3E%3Ccircle cx='25' cy='29' r='3.5' fill='%23062a10'/%3E%3Cpath d='M14 46q4 12 6 0M38 50q3 10 5 0' fill='%2359e04a'/%3E%3C/svg%3E">
   <link rel="preload" as="font" type="font/woff2" href="assets/fonts/lilita-one.woff2" crossorigin>
   <link rel="preload" as="image" href="assets/ui/title.webp">
-  <link rel="stylesheet" href="src/style.css?v=0.28">
+  <link rel="stylesheet" href="src/style.css?v=0.29">
 </head>
 <body>
 <div class="loader" id="loader">
@@ -182,8 +182,23 @@
       <div class="shack-chalkboard" aria-hidden="true"><b>WIGGS' NOTES</b><span>FRESH BAIT</span><span>HONEST TACKLE</span><span>NO FISH STORIES</span></div>
       <div class="shack-counter-props" aria-hidden="true"><i class="bait-jar">🫙</i><i class="coffee-mug">☕</i><i class="ledger">📒</i></div>
       <canvas id="rackCanvas" class="rod-rack" width="600" height="360" aria-hidden="true"></canvas>
-      <div class="shelf s1" aria-hidden="true"><span>🪱</span><span>🍬</span><span>🔥</span><span>❄️</span><span>✨</span></div>
-      <div class="shelf s2" aria-hidden="true"><span>🪝</span><span>🦆</span><span>⏳</span><span>🌦️</span></div>
+      <button type="button" class="rod-rack-hotspot" data-shop-shelf-item="rods" aria-label="Inspect the rod rack" title="Inspect rods"></button>
+      <div class="shelf s1" aria-label="Bait wall">
+        <button type="button" class="shelf-item" data-shop-shelf-item="bait:worm" aria-label="Inspect Wriggly Worm bait" title="Wriggly Worm">🪱</button>
+        <button type="button" class="shelf-item" data-shop-shelf-item="bait:sugar" aria-label="Inspect Sugar Drop bait" title="Sugar Drop">🍬</button>
+        <button type="button" class="shelf-item" data-shop-shelf-item="bait:mud" aria-label="Inspect Mud Pie bait" title="Mud Pie">🟤</button>
+        <button type="button" class="shelf-item" data-shop-shelf-item="bait:ember" aria-label="Inspect Ember Pellet bait" title="Ember Pellet">🔥</button>
+        <button type="button" class="shelf-item" data-shop-shelf-item="bait:frost" aria-label="Inspect Frost Fly bait" title="Frost Fly">❄️</button>
+        <button type="button" class="shelf-item" data-shop-shelf-item="bait:glow" aria-label="Inspect Glow Grub bait" title="Glow Grub">✨</button>
+        <button type="button" class="shelf-item" data-shop-shelf-item="bait:golden" aria-label="Inspect Golden Goo bait" title="Golden Goo">🌟</button>
+      </div>
+      <div class="shelf s2" aria-label="Lure display">
+        <button type="button" class="shelf-item" data-shop-shelf-item="lures:spinner" aria-label="Inspect Silver Spinner lure" title="Silver Spinner">🌀</button>
+        <button type="button" class="shelf-item" data-shop-shelf-item="lures:jig" aria-label="Inspect Bounce Jig lure" title="Bounce Jig">🪶</button>
+        <button type="button" class="shelf-item" data-shop-shelf-item="lures:crank" aria-label="Inspect Drift Crank lure" title="Drift Crank">🐟</button>
+        <button type="button" class="shelf-item" data-shop-shelf-item="lures:spoon" aria-label="Inspect Shimmer Spoon lure" title="Shimmer Spoon">🥄</button>
+        <button type="button" class="shelf-item" data-shop-shelf-item="lures:glowjig" aria-label="Inspect Glow Jig lure" title="Glow Jig">🌙</button>
+      </div>
       <div class="net" aria-hidden="true"></div>
       <div class="wiggs" id="wiggs">
         <svg viewBox="0 0 240 300" class="wiggs-svg" aria-label="Old Wiggs">
@@ -359,6 +374,6 @@
   <div class="guide-actions"><button id="guidePrev" class="mini-btn" disabled>BACK</button><button id="guideNext" class="mini-btn guide-next">NEXT LESSON →</button><button id="guideFinish" class="slime-btn small" hidden>LET’S FISH</button></div>
 </dialog>
 
-<script type="module" src="src/main.js?v=0.28"></script>
+<script type="module" src="src/main.js?v=0.29"></script>
 </body>
 </html>
