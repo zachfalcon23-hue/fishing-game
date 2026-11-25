@@ -585,6 +585,9 @@ function render(dt) {
   if (z.mix.some(([spot, share]) => spot.id === 'deep' && share >= 0.65)) {
     evs.push('<span class="ev" title="Abyssal pressure sinks the line every nine seconds. Watch for the warning and reel through the short pressure drop to prevent slack.">⬇️ ABYSSAL PRESSURE · REEL THROUGH THE DROP</span>');
   }
+  if (z.mix.some(([spot, share]) => spot.id === 'lily' && share >= 0.65) && (game.timeOfDay === 'Dawn' || game.timeOfDay === 'Dusk')) {
+    evs.push('<span class="ev petal" title="Dawn and dusk petals gather rare drift-pattern Goops along the Lily Cove bloom line.">🌸 PETAL DRIFT · RARE DRIFTERS</span>');
+  }
   if (z.mix.some(([spot, share]) => spot.id === 'sandbar' && share >= 0.65) && game.fullMoon && game.timeOfDay === 'Night') {
     evs.push('<span class="ev moon" title="Full-moon tide pools at the Moonlit Sandbar favour larger specimens. The size bonus is locked in when you cast.">🌕 MOON-TIDE · TROPHY GOOPS</span>');
   }

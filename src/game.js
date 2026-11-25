@@ -273,7 +273,7 @@ const SPOT_DEFS = [
     secret: { when: { time: ['Night', 'Dusk'] }, rumor: '“When the moon is up, the tide pulls way back past the old dock. Walk west and see.”', clue: 'The tide is out. Something glints to the west…' },
   },
   { id: 'dock', name: 'The Old Dock', pos: 0, unlockAt: 0, essenceMul: 1, rareMul: 1, biteMin: 1.0, biteMax: 3.0, desc: 'Lantern-lit planks over open water. Every journey starts here.' },
-  { id: 'lily', name: 'Lily Cove', pos: 1, unlockAt: 0, essenceMul: 1.1, rareMul: 1.05, biteMin: 1.0, biteMax: 2.8, desc: 'A sheltered cove of lily pads and pink blooms.' },
+  { id: 'lily', name: 'Lily Cove', pos: 1, unlockAt: 0, essenceMul: 1.1, rareMul: 1.05, biteMin: 1.0, biteMax: 2.8, desc: 'A sheltered cove of lily pads and pink blooms. At dawn and dusk, drifting petals gather rare current-loving Goops along the bloom line.' },
   { id: 'reeds', name: 'Cattail Reeds', pos: 2, unlockAt: 3, essenceMul: 1.2, rareMul: 1.1, biteMin: 0.9, biteMax: 2.6, stirMultiplier: 2, desc: 'Cattails, moss and murky shallows. Dense cover shelters feeding schools, so each cast builds water activity twice as fast.' },
   { id: 'boulder', name: 'Slime Boulders', pos: 3, unlockAt: 7, essenceMul: 1.3, rareMul: 1.15, biteMin: 1.1, biteMax: 3.0, desc: 'Slime-streaked boulders where tough Goops lurk. Rocky eddies tug at your line, narrowing the safe tension window during fights.' },
   { id: 'falls', name: 'Waterfall Inlet', pos: 4, unlockAt: 12, essenceMul: 1.4, rareMul: 1.25, biteMin: 1.0, biteMax: 2.8, desc: 'Cold, churning water under the falls. Every six seconds, a current surge pulls harder against your line; watch for the warning and manage the extra tension.' },
@@ -338,6 +338,12 @@ export function moonTideSizeExponent(base, zone, time, fullMoon) {
   return time === 'Night' && fullMoon && sandbarShare >= 0.65
     ? Math.max(1, exponent * 0.75)
     : exponent;
+}
+
+
+/** Dawn and dusk petals guide rare drift-pattern Goops into the Lily Cove bloom line. */
+export function lilyPetalDriftMultiplier(spot, time, rarity, pattern) {
+  return spot?.id === 'lily' && (time === 'Dawn' || time === 'Dusk') && rarity !== 'Common' && pattern === 'drift' ? 1.35 : 1;
 }
 
 export const SHINY_ODDS = 1 / 48;
@@ -554,6 +560,7 @@ export function encounterPool({ spot = SPOT_BY.dock, weather = 'clear', time = '
   if (event.visitor && event.visitor.spot === spot.id) ids.add(event.visitor.goop);
   return GOOPS.filter((g) => ids.has(g.id) && conditionsMet(g, weather, time) && (!g.quest || event.sleeper)).map((g) => {
     let weight = g.weight;
+    weight *= lilyPetalDriftMultiplier(spot, time, g.rarity, g.pattern);
     if (g.likes?.weather?.includes(weather)) weight *= 4;
     if (g.likes?.time?.includes(time)) weight *= 3;
     if (g.needs) weight *= 1.5; // conditions are hard to line up; reward the player who does
