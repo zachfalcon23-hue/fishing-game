@@ -1,4 +1,6 @@
 // Goop Fishing — game rules and state. No DOM access in this file so it can be unit tested in Node.
+import { HABITAT_INTERACTIONS, resolveHabitatInteraction } from './wildlife.js';
+export { HABITAT_INTERACTIONS };
 
 export const PHASES = Object.freeze({
   IDLE: 'idle', CAST: 'cast', BITE: 'bite', FIGHT: 'fight', CAUGHT: 'caught', ESCAPED: 'escaped',
@@ -577,6 +579,13 @@ export function encounterPool({ spot = SPOT_BY.dock, weather = 'clear', time = '
     if (trackedGoop === g.id) weight *= TRACK_WEIGHT_MULT;
     const activity = Math.max(0, Math.min(3, Number(event.activity?.[spot.id]) || 0));
     if (g.rarity !== 'Common' && activity) weight *= 1 + activity * 0.06;
+    const interaction = event.interactions?.[spot.id];
+    if (interaction?.active) {
+      if (interaction.patterns?.includes(g.pattern)) weight *= interaction.patternMul || 1;
+      if (interaction.tastes?.includes(g.taste)) weight *= interaction.tasteMul || 1;
+      if (interaction.rarities?.includes(g.rarity)) weight *= interaction.rarityMul || 1;
+      if (g.likes?.time?.some((likedTime) => interaction.timeLikes?.includes(likedTime))) weight *= interaction.timeMul || 1;
+    }
     if (event.frenzy === spot.id && g.rarity !== 'Common') weight *= 1.3;
     if (event.fullMoon && time === 'Night' && g.rarity === 'Legendary') weight *= 2;
     if (mods) {
@@ -1214,7 +1223,7 @@ export function bountyMatches(b, c) {
 
 // ---------- persistence ----------
 
-const SAVE_VERSION = 6;
+const SAVE_VERSION = 7;
 const OLD_SPOT = { pond: 'dock', reeds: 'reeds', deep: 'deep' };
 const OLD_SPOT_COST = { reeds: 200, deep: 600 };
 
@@ -1248,7 +1257,7 @@ export class SaveStore {
     const parseSave = (raw) => {
       const value = JSON.parse(raw || 'null');
       if (!value || typeof value !== 'object' || Array.isArray(value)
-        || ![1, 2, 3, 4, 5, SAVE_VERSION].includes(value.version)) {
+        || ![1, 2, 3, 4, 5, 6, SAVE_VERSION].includes(value.version)) {
         throw new Error('Unrecognized or damaged save structure');
       }
       return value;
@@ -1407,6 +1416,21 @@ export class SaveStore {
           baits: list(record.baits, (id) => !!BAITS[id]),
           perfect: Math.floor(Math.min(1000000, num(record.perfect, 0))),
           qualityGrades: list(record.qualityGrades, (grade) => Object.hasOwn(SPECIMEN_GRADE_RANK, grade)),
+          observations: (() => {
+            const known = new Set();
+            return (Array.isArray(record.observations) ? record.observations : []).slice(0, 20).filter((entry) => {
+              const definition = HABITAT_INTERACTIONS.find((item) => item.id === entry?.id && item.spot === spotId);
+              if (!definition || known.has(entry.id)) return false;
+              known.add(entry.id);
+              return true;
+            }).map((entry) => ({
+              id: entry.id,
+              time: TIMES.includes(entry.time) ? entry.time : 'Day',
+              weather: WEATHER[entry.weather] ? entry.weather : 'clear',
+              behavior: ['feeding', 'resting', 'roaming', 'fleeing'].includes(entry.behavior) ? entry.behavior : 'roaming',
+              day: Math.floor(num(entry.day, 1, 1)),
+            }));
+          })(),
         };
       }
     }
@@ -1506,6 +1530,7 @@ export class FishingGame {
     this.saveStore = saveStore;
     this.state = saveStore.load();
     this.biteDuration = biteDuration;
+    this.ecologyTime = 0;
     this.events = [];
     this.prevReel = false;
     this.here = true; // standing at state.spot (false on the open shore)
@@ -1541,7 +1566,24 @@ export class FishingGame {
   get event() {
     const questing = this.quest?.goal.type === 'goop' && this.quest.goal.id === 'sleeper';
     const woken = this.state.quest.i > QUESTS.findIndex((q) => q.goal.id === 'sleeper');
-    return { frenzy: this.state.frenzy, visitor: this.state.visitor, fullMoon: this.fullMoon, sleeper: questing || (woken && this.fullMoon) };
+    const interactions = {};
+    for (const spot of SPOTS) {
+      const interaction = this.habitatInteraction(spot.id);
+      if (interaction) interactions[spot.id] = interaction;
+    }
+    return { frenzy: this.state.frenzy, visitor: this.state.visitor, fullMoon: this.fullMoon,
+      sleeper: questing || (woken && this.fullMoon), interactions };
+  }
+
+  /** Current environmental wildlife clue for an unlocked habitat. */
+  habitatInteraction(spotId) {
+    const spot = SPOT_BY[spotId];
+    if (!spot || !this.spotUnlocked(spotId)) return null;
+    return resolveHabitatInteraction({
+      spot, time: this.timeOfDay, weather: this.state.weather,
+      activity: this.activityAt(spotId), frenzy: this.state.frenzy === spotId,
+      fullMoon: this.fullMoon, timeSeconds: this.ecologyTime,
+    });
   }
 
   spotUnlocked(id) {
@@ -1566,7 +1608,7 @@ export class FishingGame {
     const validSpot = Object.prototype.hasOwnProperty.call(SPOT_BY, spotId);
     const record = validSpot && Object.prototype.hasOwnProperty.call(this.state.research || {}, spotId)
       ? this.state.research[spotId]
-      : { points: 0, catches: 0, species: [], times: [], weather: [], baits: [], perfect: 0 };
+      : { points: 0, catches: 0, species: [], times: [], weather: [], baits: [], perfect: 0, observations: [] };
     const points = Math.max(0, Math.floor(Number(record.points) || 0));
     const rank = HABITAT_RESEARCH_TIERS.filter((tier) => points >= tier.points).length;
     const previous = rank ? HABITAT_RESEARCH_TIERS[rank - 1].points : 0;
@@ -1586,6 +1628,8 @@ export class FishingGame {
       weather: [...(record.weather || [])],
       baits: [...(record.baits || [])],
       qualityGrades: [...(record.qualityGrades || [])],
+      observations: (record.observations || []).map((entry) => ({ ...entry })),
+      observationCount: record.observations?.length || 0,
       rank,
       title: rank ? HABITAT_RESEARCH_TIERS[rank - 1].name : 'Unsurveyed',
       next: nextTier?.points ?? null,
@@ -1802,13 +1846,15 @@ export class FishingGame {
         || (ev.visitor?.goop === this.goop.id && ev.visitor.spot === spot.id)))
       .sort((a, b) => b[1] - a[1]);
     const researchSpot = researchCandidates[0]?.[0].id || z.spot.id;
+    const activeInteraction = ev.interactions?.[researchSpot] || null;
     const rockyCurrent = z.mix.some(([spot, share]) => spot.id === 'boulder' && share >= 0.65);
     const waterfallCurrent = z.mix.some(([spot, share]) => spot.id === 'falls' && share >= 0.65);
     const glowshroomBloom = z.mix.some(([spot, share]) => spot.id === 'grotto' && share >= 0.65);
     const deepPressure = z.mix.some(([spot, share]) => spot.id === 'deep' && share >= 0.65);
     const wreckSnags = z.mix.some(([spot, share]) => spot.id === 'wreck' && share >= 0.65);
     this.castCtx = {
-      spot: z.spot.id, researchSpot, hot: z.hot, bait, frenzy, essenceMul: st.essenceMul, weather: s.weather, time: this.timeOfDay,
+      spot: z.spot.id, researchSpot, interaction: activeInteraction?.id || null,
+      hot: z.hot, bait, frenzy, essenceMul: st.essenceMul, weather: s.weather, time: this.timeOfDay,
       habitatMods,
       // Lock fight handling to the conditions that selected this encounter, even if the clock rolls over.
       // Rocky eddies compress the safe tension band; waterfall surges periodically increase line pull.
@@ -1822,8 +1868,9 @@ export class FishingGame {
     }
     this.phase = PHASES.CAST;
     this.prevReel = true; // a button already held at cast time must be released and pressed again to hook
-    this.message = frenzy ? 'Frenzy! They’re biting fast…' : 'Line out… watch for a bite.';
-    this.emit('cast', { bait, activity });
+    this.message = frenzy ? 'Frenzy! They’re biting fast…'
+      : activeInteraction ? activeInteraction.name + ': ' + activeInteraction.clue : 'Line out… watch for a bite.';
+    this.emit('cast', { bait, activity, interaction: activeInteraction?.id || null });
     this.stirWater(z);
     this.advanceClock();
     this.saveStore.save(this.state);
@@ -1885,6 +1932,7 @@ export class FishingGame {
 
   update(dt, input = {}) {
     const step = Math.max(0, Math.min(dt, 0.08));
+    this.ecologyTime += step;
     const reel = !!input.reel;
     const pressed = reel && !this.prevReel;
     this.prevReel = reel;
@@ -2076,8 +2124,9 @@ export class FishingGame {
 
     const records = this.state.research || (this.state.research = {});
     const record = records[spotId] || (records[spotId] = {
-      points: 0, catches: 0, species: [], times: [], weather: [], baits: [], perfect: 0, qualityGrades: [],
+      points: 0, catches: 0, species: [], times: [], weather: [], baits: [], perfect: 0, qualityGrades: [], observations: [],
     });
+    if (!Array.isArray(record.observations)) record.observations = [];
     const previousRank = this.habitatResearch(spotId).rank;
     const reasons = [];
     let earned = 3;
@@ -2122,6 +2171,43 @@ export class FishingGame {
       samples: next.catches, firstSample: next.catches === 1,
       previousRank, rank: next.rank, title: next.title, reasons,
     };
+  }
+
+
+  /** Log an active environmental clue in the existing habitat Field Journal. */
+  recordHabitatObservation(spotId, interactionId) {
+    const interaction = this.habitatInteraction(spotId);
+    if (!interaction || interaction.id !== interactionId) return null;
+    const records = this.state.research || (this.state.research = {});
+    const record = records[spotId] || (records[spotId] = {
+      points: 0, catches: 0, species: [], times: [], weather: [], baits: [],
+      perfect: 0, qualityGrades: [], observations: [],
+    });
+    if (!Array.isArray(record.observations)) record.observations = [];
+    if (record.observations.some((entry) => entry.id === interaction.id)) {
+      const survey = this.habitatResearch(spotId);
+      return { spot: spotId, id: interaction.id, name: interaction.name,
+        discovered: false, earned: 0, total: survey.points, rank: survey.rank };
+    }
+
+    const previousRank = this.habitatResearch(spotId).rank;
+    const observation = {
+      id: interaction.id, time: this.timeOfDay, weather: this.state.weather,
+      behavior: interaction.behavior, day: this.state.day,
+    };
+    record.observations.push(observation);
+    const earned = 8;
+    record.points = Math.min(1000000, (Number(record.points) || 0) + earned);
+    const survey = this.habitatResearch(spotId);
+    const result = {
+      spot: spotId, id: interaction.id, name: interaction.name, icon: interaction.icon,
+      clue: interaction.clue, observation: { ...observation }, discovered: true,
+      earned, total: survey.points, previousRank, rank: survey.rank, title: survey.title,
+    };
+    this.message = 'Field observation recorded: ' + interaction.name + '. +' + earned + ' research points.';
+    this.emit('observation', result);
+    this.saveStore.save(this.state);
+    return result;
   }
 
   /** Pick up a field note found on the shore at the current spot. */
