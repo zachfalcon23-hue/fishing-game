@@ -180,7 +180,7 @@ export function resolveHabitatInteraction({
   switch (spot.id) {
     case 'reeds': active = feeding; break;
     case 'dock': active = time === 'Night' && calm && (feeding || needs.hunger >= 0.35); break;
-    case 'lily': active = dawnDusk && calm && needs.hunger >= 0.2; break;
+    case 'lily': active = dawnDusk && calm; break;
     case 'boulder': active = calm && (weather === 'rain' || weather === 'storm' || localActivity >= 2); break;
     case 'falls': active = calm && (weather === 'rain' || weather === 'storm' || (localActivity >= 1 && feeding)); break;
     case 'cave': active = calm && dawnDusk && (weather === 'clear' || weather === 'fog'); break;
