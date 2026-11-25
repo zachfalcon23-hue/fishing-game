@@ -625,7 +625,7 @@ function render(dt) {
     const { spot, interaction } = localInteraction;
     const logged = game.habitatResearch(spot.id).observations.some((entry) => entry.id === interaction.id);
     evs.push(`<span class="ev interaction" title="${esc(interaction.description)}">${interaction.icon} ${esc(interaction.name.toUpperCase())} · ${esc(interaction.clue)}</span>`);
-    evs.push(`<button type="button" class="ev-observe" data-observe-interaction data-spot="${spot.id}" data-interaction-id="${interaction.id}" ${logged ? 'disabled' : ''}>${logged ? '✓ LOGGED IN FIELD JOURNAL' : '👁 OBSERVE · +8 RESEARCH'}</button>`);
+    evs.push(`<button type="button" class="ev-observe" data-observe-interaction data-spot="${spot.id}" data-interaction-id="${interaction.id}" ${logged || game.busy ? 'disabled' : ''}>${logged ? '✓ LOGGED IN FIELD JOURNAL' : '👁 OBSERVE · +8 RESEARCH'}</button>`);
   }
   setHTML('eventTag', evs.join(''));
   $('castBtn').disabled = game.busy || walking;
