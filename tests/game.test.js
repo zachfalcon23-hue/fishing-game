@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fightReactionPose } from '../src/scene.js';
 import {
-  GOOPS, SPOTS, UPGRADES, NOTES, NOTE_REWARD, HABITAT_RESEARCH_TIERS, weightedPick, encounterPool, makeFight, tickFight, pullForce,
+  GOOPS, SPOTS, UPGRADES, NOTES, NOTE_REWARD, HABITAT_RESEARCH_TIERS, HABITAT_INTERACTIONS, weightedPick, encounterPool, makeFight, tickFight, pullForce,
   FishingGame, SaveStore, PHASES, CASTS_PER_TIME, conditionsMet, conditionText,
   SPOT_BY, BAITS, SETS, RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, tackleMods, QUESTS, DECOR, THEMES, tankTips, TANK_CAP, TANK_COSTS, DECOR_SLOTS, startMove, SIGNATURE, MOVE_INFO, fightReadout, stagesFor, BREAK_TIME, shoreZone, zonePool, makeBounties, bountyMatches, comboFor, LUNGE_PROFILE, PERFECT_HOOK, CLEAN_HOOK, hookTiming, isFullMoon, rollGoopSize, TRACK_WEIGHT_MULT, evaluateSpecimenQuality, SPECIMEN_GRADE_RANK, moonTideSizeExponent, lilyPetalDriftMultiplier, dockLanternWakeMultiplier,
 } from '../src/game.js';
@@ -872,7 +872,7 @@ test('field notes are picked up once, at their own spot, and teach the Goop', ()
 test('save storage recovers from malformed data and version mismatch', () => {
   const mem = { v: 'bad', getItem() { return this.v; }, setItem(k, v) { this.v = v; }, removeItem() { this.v = null; } };
   const store = new SaveStore(mem);
-  assert.equal(store.load().version, 5);
+  assert.equal(store.load().version, 7);
   mem.v = JSON.stringify({ version: 99, essence: 999 });
   assert.equal(store.load().essence, 0);
 });
@@ -900,7 +900,7 @@ test('version-2 saves load with new fields filled in and bad new fields are drop
     version: 2, essence: 30, dex: { gloop: { count: 1 } }, discovered: ['dock', 'sandbar'], spot: 'dock',
   }));
   const s = store.load();
-  assert.equal(s.version, 5);
+  assert.equal(s.version, 7);
   assert.equal(s.baits.sugar, 3, 'returning players get starter bait');
   assert.equal(s.bait, 'worm');
   assert.ok(s.discovered.includes('sandbar'), 'found secrets are kept');
@@ -924,7 +924,7 @@ test('version-1 saves migrate: GoopDex kept, old lake purchases refunded', () =>
     caughtToday: 1, spot: 'reeds', unlocked: ['pond', 'reeds'], gear: { rod: 1 },
   }));
   const s = store.load();
-  assert.equal(s.version, 5);
+  assert.equal(s.version, 7);
   assert.equal(s.essence, 240, 'the 200 paid for Reed Shallows comes back');
   assert.equal(s.dex.gloop.count, 2);
   assert.equal(s.dex.gloop.fastest, 3.1);
@@ -1529,13 +1529,13 @@ test('habitat research upgrades v3/v4 saves safely and sanitizes malformed resea
     spot: 'dock',
   })).store.load();
 
-  assert.equal(legacy.version, 5);
+  assert.equal(legacy.version, 7);
   assert.equal(legacy.essence, 415);
   assert.equal(legacy.dex.gloop.count, 2);
   assert.equal(legacy.dex.gloop.qualityBest, null);
   assert.deepEqual(legacy.research, {}, 'old saves gain an empty research ledger without losing progress');
   const priorV4 = memStore(JSON.stringify({ version: 4, essence: 75, dex: { gloop: { count: 3, best: 18, qualityBest: 82, qualityGrade: 'Prized', lastQuality: 65, qualityCounts: { rough: 1, prized: 2, invalid: 99 } } } })).store.load();
-  assert.equal(priorV4.version, 5);
+  assert.equal(priorV4.version, 7);
   assert.equal(priorV4.dex.gloop.qualityBest, 82);
   assert.equal(priorV4.dex.gloop.qualityGrade, 'Prized');
   assert.deepEqual(priorV4.dex.gloop.qualityCounts, { rough: 1, sound: 0, prized: 2, flawless: 0 });
@@ -1569,6 +1569,7 @@ test('habitat research upgrades v3/v4 saves safely and sanitizes malformed resea
     baits: ['worm'],
     perfect: 2,
     qualityGrades: ['Prized'],
+    observations: [],
   });
   assert.equal(migrated.research.nowhere, undefined, 'unknown habitats are discarded');
   assert.equal(Object.hasOwn(migrated.research, 'constructor'), false, 'inherited object keys are not treated as real habitats');
@@ -1696,18 +1697,66 @@ test('habitat rare-rank bonus changes forecast encounter weighting without bypas
 });
 
 
-test('save v5 migrates to an empty recent-catch log and v6 sanitizes bounded entries', () => {
+
+test('active habitat interaction weights only matching eligible residents', () => {
+  const dock = SPOT_BY.dock;
+  const base = encounterPool({ spot: dock, weather: 'clear', time: 'Night', bait: 'worm' });
+  const definition = HABITAT_INTERACTIONS.find((entry) => entry.id === 'dock-lantern-baitball');
+  const stimulated = encounterPool({
+    spot: dock, weather: 'clear', time: 'Night', bait: 'worm',
+    event: { interactions: { dock: { ...definition, active: true } } },
+  });
+  const weight = (pool, id) => pool.find((entry) => entry.id === id)?.weight || 0;
+  assert.ok(weight(stimulated, 'lanternfin') > weight(base, 'lanternfin'));
+  assert.equal(stimulated.some((entry) => entry.id === 'kinggloop'), false,
+    'environment events must not bypass hard time/weather requirements');
+});
+
+test('environmental observation is unique, journalled and persisted without requiring a catch', () => {
+  const { mem, store } = memStore();
+  const game = new FishingGame({ rng: () => 0, saveStore: store });
+  game.state.timeIndex = 3;
+  game.state.frenzy = 'dock';
+  game.state.activity.dock = 3;
+  assert.equal(game.habitatInteraction('dock')?.id, 'dock-lantern-baitball');
+
+  const first = game.recordHabitatObservation('dock', 'dock-lantern-baitball');
+  assert.equal(first.discovered, true);
+  assert.equal(first.earned, 8);
+  assert.equal(game.habitatResearch('dock').observationCount, 1);
+  assert.equal(game.habitatResearch('dock').points, 8);
+  assert.equal(game.state.stats.caught, 0, 'observing is distinct from catching');
+
+  const repeat = game.recordHabitatObservation('dock', 'dock-lantern-baitball');
+  assert.equal(repeat.discovered, false);
+  assert.equal(repeat.earned, 0);
+  assert.equal(game.habitatResearch('dock').points, 8);
+  const saved = JSON.parse(mem.v);
+  assert.equal(saved.research.dock.observations[0].id, 'dock-lantern-baitball');
+  assert.equal(saved.research.dock.observations[0].time, 'Night');
+
+  const sanitized = store.sanitize({ version: 7, research: { dock: { observations: [
+    { id: 'dock-lantern-baitball', time: 'Night', weather: 'storm', behavior: 'feeding', day: 5 },
+    { id: 'dock-lantern-baitball', time: 'Night', weather: 'storm', behavior: 'feeding', day: 5 },
+    { id: 'not-a-real-event', time: 'Night', weather: 'storm', behavior: 'feeding', day: 5 },
+    { id: 'reeds-school-rise', time: 'Night', weather: 'storm', behavior: 'feeding', day: 5 },
+  ] } } });
+  assert.deepEqual(sanitized.research.dock.observations.map((entry) => entry.id), ['dock-lantern-baitball'],
+    'only one valid observation for the matching habitat survives save validation');
+});
+
+test('save v6 migrates to v7 and sanitizes bounded catch and observation entries', () => {
   const legacy = new SaveStore({
-    getItem() { return JSON.stringify({ version: 5, essence: 75, stats: { caught: 4 } }); },
+    getItem() { return JSON.stringify({ version: 6, essence: 75, stats: { caught: 4 } }); },
     setItem() {}, removeItem() {},
   }, 'legacy');
   const migrated = legacy.load();
-  assert.equal(migrated.version, 6);
+  assert.equal(migrated.version, 7);
   assert.deepEqual(migrated.catchLog, []);
   assert.equal(migrated.essence, 75);
 
   const store = new SaveStore(null, 'sanitize');
-  const clean = store.sanitize({ version: 6, catchLog: [
+  const clean = store.sanitize({ version: 7, catchLog: [
     { goop: 'gloop', spot: 'dock', rarity: 'Common', at: 1234, day: 2, size: 19.5, reward: 8, time: 'Night', weather: 'storm', bait: 'mud', qualityGrade: 'Flawless', qualityScore: 96, shiny: true, firstTime: true, hookGrade: 'perfect' },
     { goop: 'not-a-goop', spot: 'dock' },
     { goop: 'gloop', spot: 'not-a-spot' },
@@ -1718,7 +1767,7 @@ test('save v5 migrates to an empty recent-catch log and v6 sanitizes bounded ent
   assert.equal(clean.catchLog[0].bait, 'mud');
 
   const many = Array.from({ length: 45 }, (_, index) => ({ goop: 'gloop', spot: 'dock', at: index + 1 }));
-  const capped = store.sanitize({ version: 6, catchLog: many });
+  const capped = store.sanitize({ version: 7, catchLog: many });
   assert.equal(capped.catchLog.length, 40, 'history is capped at 40 validated entries');
   assert.equal(capped.catchLog[0].at, 1, 'the newest-first save order is preserved');
 });
