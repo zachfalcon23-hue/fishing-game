@@ -1696,3 +1696,8 @@ img.is-shiny { filter: hue-rotate(150deg) saturate(1.3) brightness(1.08) drop-sh
 @media (max-width:380px) {
   .wiggs-conversation .speech-btns { grid-template-columns: 1fr; }
 }
+
+@media (max-width:650px) {
+  /* Wiggs remains directly tappable while his dialogue is in the separate panel. */
+  .shack-scene > .wiggs > .wiggs-svg { pointer-events:auto; }
+}
