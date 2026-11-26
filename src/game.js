@@ -76,9 +76,9 @@ export const GOOPS = [
 
   // The Old Dock
   sp('bubblegum', 'Bubblegum', 'Common', ['dock', 'lily'], '#ff9a3c', 'pulse'),
-  sp('dripfin', 'Dripfin', 'Common', ['dock'], '#b050ff', 'pulse'),
-  sp('mudmouth', 'Mudmouth', 'Common', ['dock', 'reeds'], '#b08a50', 'steady'),
-  sp('slimeperch', 'Slimeperch', 'Uncommon', ['dock'], '#c060ff', 'steady'),
+  sp('dripfin', 'Dripfin', 'Common', ['dock', 'wreck'], '#b050ff', 'pulse'),
+  sp('mudmouth', 'Mudmouth', 'Common', ['dock', 'reeds', 'cave'], '#b08a50', 'steady'),
+  sp('slimeperch', 'Slimeperch', 'Uncommon', ['dock', 'wreck'], '#c060ff', 'steady'),
   sp('lanternfin', 'Lanternfin', 'Uncommon', ['dock', 'deep'], '#3d6cff', 'dart', { likes: { time: ['Night'] } }),
   sp('kinggloop', 'King Gloop', 'Legendary', ['dock'], '#ffd23a', 'wild', { needs: { time: ['Dawn'] }, signature: 'tug', hint: 'The king of the pond. It answers to no one.' }),
 
@@ -99,7 +99,7 @@ export const GOOPS = [
   // Cattail Reeds
   sp('bogbelly', 'Bogbelly', 'Common', ['reeds'], '#6a9a3a', 'steady'),
   sp('mireback', 'Mireback', 'Common', ['reeds'], '#8a9a3a', 'steady'),
-  sp('mirecarp', 'Mirecarp', 'Uncommon', ['reeds'], '#8a7a3a', 'steady'),
+  sp('mirecarp', 'Mirecarp', 'Uncommon', ['reeds', 'cave'], '#8a7a3a', 'steady'),
   sp('swampgill', 'Swampgill', 'Uncommon', ['reeds'], '#7aa83a', 'steady', { likes: { weather: ['fog'] } }),
   sp('mosskarp', 'Mosskarp', 'Uncommon', ['reeds'], '#7ac83a', 'steady'),
   sp('toxitail', 'Toxitail', 'Uncommon', ['reeds'], '#e8e040', 'pulse'),
