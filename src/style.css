@@ -1120,3 +1120,703 @@ img.is-shiny { filter: hue-rotate(150deg) saturate(1.3) brightness(1.08) drop-sh
   /* The ? guide already contains these instructions; don't repeat a full paragraph under the controls. */
   .tip, .walk-hint { display: none; }
 }
+
+
+/* ---------- focused mobile game presentation ---------- */
+@media (max-width: 650px) {
+  html, body { width: 100%; max-width: 100%; overflow-x: hidden; }
+  .shell, .view, .stage, .scene, .shack-view, .shack-grid { min-width: 0; max-width: 100%; }
+  .shell { padding-left: 8px; padding-right: 8px; }
+  .topbar { gap: 6px; }
+  .slime-logo { max-width: 42vw; font-size: clamp(17px, 5vw, 22px); }
+  .top-right { min-width: 0; gap: 4px; }
+  .wallet { flex: none; }
+  .icon-btn { flex: none; }
+
+  /* Fishing view: scenery first, only one-line status labels. */
+  .scene { aspect-ratio: 4 / 3; }
+  .hud-top { left: 7px; right: 7px; top: 7px; gap: 4px; }
+  .hud-top .chip.weather, .hud-top .chip.phase { display: none; }
+  .chip.loc { max-width: min(70%, 285px); }
+  .hud-left { top: 43px; left: 7px; right: 68px; max-width: none; gap: 4px; }
+  .quest-chip, .hunt-chip {
+    max-width: 150px; min-height: 24px; padding: 4px 7px;
+    font-size: 8px; line-height: 1.1;
+  }
+  .event-tag { top: 76px; left: 7px; right: 66px; gap: 3px; max-height: 28px; overflow: hidden; }
+  .event-tag .ev:not(.frenzy) { display: none !important; }
+  .event-tag .ev.frenzy {
+    max-width: 100%; padding: 4px 7px; font-size: 8px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .event-tag .ev-observe {
+    position: absolute; left: 0; top: 0; padding: 5px 8px;
+    font-size: 8px; letter-spacing: .03em;
+  }
+  .finder { display: none !important; }
+  .toast { top: 44px; max-width: calc(100% - 120px); font-size: 11px; }
+  .side-btns { right: 7px; gap: 6px; }
+  .side-btn { width: 40px; height: 40px; border-radius: 12px; }
+  .minimap { transform: scale(.86); transform-origin: bottom center; }
+  .controls { padding: 8px; gap: 7px; }
+  .slime-btn { min-width: 0; padding: 12px 5px; font-size: clamp(12px, 3.6vw, 16px); }
+  .slime-btn.walk { flex: 0 0 48px; }
+  .slime-btn.cast, .slime-btn.reel { flex: 1 1 0; }
+  .tip, .walk-hint { display: none !important; }
+  .lower-grid { margin-top: 10px; gap: 10px; }
+  .card { padding: 13px; border-radius: 16px; }
+  .card-sub, .sheet-tip { font-size: 11px; line-height: 1.4; }
+
+  /* Bait Shack: dialogue stays inside the room and never forces horizontal scrolling. */
+  .shack-scene {
+    aspect-ratio: 4 / 5; min-height: 390px; max-height: 560px;
+    overflow: hidden; isolation: isolate;
+  }
+  .shack-sign { left: 50%; right: 3%; top: 3%; transform: translateX(-50%); width: max-content; max-width: 94%; text-align: center; }
+  .shack-window { right: 4%; top: 13%; width: 38%; border-width: 6px; }
+  .shack-chalkboard { left: 3%; top: 31%; width: 27%; min-height: 18%; }
+  .shack-lantern { right: 43%; top: 18%; }
+  .rod-rack { left: 39%; top: 27%; width: 39%; height: 34%; }
+  .wiggs {
+    left: 2%; bottom: 13%; width: 96%; height: 58%;
+    display: block; overflow: visible;
+  }
+  .wiggs-svg {
+    position: absolute; left: 0; bottom: 0;
+    height: 100%; width: auto; max-width: 48%;
+  }
+  .speech {
+    position: absolute; left: 35%; right: 2%; top: 4%;
+    width: auto; max-width: none; min-width: 0; margin: 0;
+    padding: 9px 10px 8px; border-width: 2px; border-radius: 12px;
+    box-sizing: border-box;
+  }
+  .speech::before { left: -13px; top: 24px; border-width: 8px; border-right-width: 11px; }
+  .speech::after { left: -8px; top: 26px; border-width: 6px; border-right-width: 9px; }
+  .speech .who { font-size: 9px; }
+  .speech p {
+    min-height: 0; max-height: 5.2em; overflow: hidden;
+    margin: 3px 0 7px; font-size: 11px; line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+  .speech-btns { display: grid; grid-template-columns: 1fr; gap: 5px; }
+  .speech-btns button {
+    width: 100%; min-width: 0; padding: 7px 6px;
+    font-size: 9px; line-height: 1.15; white-space: normal;
+  }
+  .counter { bottom: 10%; }
+  .shack-counter-props { display: none; }
+  .shack-stations {
+    left: 2%; right: 2%; bottom: 2%; width: auto;
+    grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px;
+  }
+  .shack-stations button { padding: 6px 3px; }
+  .shack-stations button > span { font-size: 16px; }
+  .shack-stations button b { font-size: 7px; white-space: normal; line-height: 1.05; }
+  .shack-grid { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .quest-card, .shop-card { min-width: 0; }
+}
+@media (max-width: 380px) {
+  .hud-left { right: 60px; }
+  .quest-chip, .hunt-chip { max-width: 125px; }
+  .side-btn { width: 36px; height: 36px; }
+  .slime-btn.walk { flex-basis: 40px; }
+  .speech { left: 33%; right: 2%; }
+  .wiggs-svg { max-width: 46%; }
+}
+
+
+/* Bait Shack mobile correction: establish a deliberate scene hierarchy.
+   Keep Wiggs, dialogue and station controls in separate, non-overlapping zones. */
+@media (max-width: 650px) {
+  .shack-scene {
+    position: relative;
+    aspect-ratio: 4 / 5;
+    min-height: 0;
+    height: min(148vw, 650px);
+    max-height: 650px;
+    overflow: hidden;
+    isolation: isolate;
+  }
+  .shack-sign {
+    z-index: 6;
+    top: 3%;
+    left: 50%;
+    right: auto;
+    width: max-content;
+    max-width: 88%;
+    padding: 8px 12px;
+    font-size: clamp(12px, 3.5vw, 17px);
+    transform: translateX(-50%);
+  }
+  /* The wall display is decorative on desktop, but its clickable items
+     were drawing over the dialogue on narrow screens. */
+  .shack-window, .shack-chalkboard, .shack-lantern,
+  .shack-counter-props, .rod-rack, .rod-rack-hotspot,
+  .shelf, .net { display: none !important; }
+
+  .wiggs {
+    z-index: 4;
+    left: 3%;
+    bottom: 12%;
+    width: 54%;
+    height: 43%;
+    display: block;
+    overflow: visible;
+  }
+  .wiggs-svg {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 100%;
+    width: auto;
+    max-width: 100%;
+  }
+  .speech {
+    z-index: 8;
+    position: absolute;
+    left: 4%;
+    right: 4%;
+    top: 13%;
+    width: auto;
+    max-width: none;
+    min-width: 0;
+    max-height: 43%;
+    overflow-y: auto;
+    margin: 0;
+    padding: 12px 13px 11px;
+    border: 2px solid #4a2a12;
+    border-radius: 15px;
+    box-sizing: border-box;
+    box-shadow: 0 8px 22px rgba(0,0,0,.48);
+  }
+  .speech::before, .speech::after { display: none; }
+  .speech .who { font-size: 10px; letter-spacing: .12em; }
+  .speech p {
+    min-height: 0;
+    max-height: 4.1em;
+    overflow: hidden;
+    margin: 4px 0 9px;
+    font-size: clamp(12px, 3.4vw, 14px);
+    line-height: 1.35;
+  }
+  .speech-btns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+  }
+  .speech-btns button {
+    min-width: 0;
+    width: 100%;
+    min-height: 36px;
+    padding: 7px 6px;
+    font-size: 9px;
+    line-height: 1.15;
+    letter-spacing: .015em;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .shack-stations {
+    z-index: 10;
+    left: 3%;
+    right: 3%;
+    bottom: 2.5%;
+    width: auto;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .shack-stations button {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 3px;
+    min-height: 58px;
+    padding: 6px 3px;
+    text-align: center;
+  }
+  .shack-stations button > span { font-size: 17px; }
+  .shack-stations button b {
+    width: 100%;
+    font-size: 8px;
+    line-height: 1.05;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .shack-stations button small { display: none; }
+
+  /* Keep quest progress available below the room without a wall of story text. */
+  .quest-card { padding: 13px; }
+  .quest-card .q-story,
+  .quest-card .quest-log,
+  .quest-card .tk-sub { display: none !important; }
+  .quest-card .q-chapter { margin-top: 7px; }
+  .quest-card .q-title { font-size: 20px; margin-bottom: 6px; }
+  .quest-card .q-goal { padding: 8px 10px; }
+}
+@media (max-width: 380px) {
+  .shack-scene { height: min(155vw, 610px); }
+  .speech { left: 3%; right: 3%; top: 12%; padding: 10px; }
+  .speech p { font-size: 12px; }
+  .speech-btns button { font-size: 8px; }
+  .wiggs { width: 57%; height: 42%; }
+}
+
+
+/* Final mobile shop layering fix.
+   .wiggs is a stacking context: its child speech panel cannot out-rank
+   sibling shelf layers. Raise the whole character/dialogue layer and
+   explicitly remove the wall displays from the mobile scene. */
+@media (max-width: 650px) {
+  .shack-scene > .s1,
+  .shack-scene > .s2,
+  .shack-scene > .shelf,
+  .shack-scene > .shelf-item,
+  .shack-scene .shelf,
+  .shack-scene .shelf-item,
+  .shack-scene .rod-rack-hotspot {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+
+  .shack-scene > .wiggs {
+    z-index: 12 !important;
+    left: 3%;
+    right: auto;
+    bottom: 12%;
+    width: 55%;
+    height: 40%;
+    overflow: visible;
+  }
+  .shack-scene > .wiggs > .speech {
+    z-index: 13 !important;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: auto;
+    bottom: auto;
+    width: 172%;
+    max-width: 172%;
+    max-height: 86%;
+    margin: 0;
+    overflow: auto;
+    padding: 11px 12px 10px;
+    background: linear-gradient(180deg, #fff8e8, #f2dfb8);
+    border: 3px solid #6c421e;
+    border-radius: 15px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.52), inset 0 0 0 2px rgba(255,255,255,.5);
+    color: #38210f;
+  }
+  .shack-scene > .wiggs > .speech .who {
+    display: block;
+    margin-bottom: 5px;
+    color: #9a5d1e;
+    font-size: 10px;
+  }
+  .shack-scene > .wiggs > .speech p {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    overflow: hidden;
+    max-height: 4.1em;
+    margin: 0 0 9px;
+    color: #38210f;
+    font-size: 13px;
+    line-height: 1.36;
+  }
+  .shack-scene > .wiggs > .speech .speech-btns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .shack-scene > .wiggs > .speech .speech-btns button {
+    min-width: 0;
+    min-height: 35px;
+    width: 100%;
+    padding: 6px 5px;
+    border: 1px solid #8a5b2c;
+    border-radius: 9px;
+    font-size: 9px;
+    line-height: 1.15;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .shack-scene > .wiggs > .wiggs-svg {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    z-index: 1;
+    height: 100%;
+    width: auto;
+    max-width: 100%;
+  }
+
+  .shack-scene > .shack-stations {
+    z-index: 20 !important;
+  }
+}
+@media (max-width: 380px) {
+  .shack-scene > .wiggs { width: 57%; height: 39%; }
+  .shack-scene > .wiggs > .speech { width: 166%; max-width: 166%; padding: 9px; }
+  .shack-scene > .wiggs > .speech p { font-size: 12px; }
+}
+
+/* Bait Shack art-led mobile composition */
+@media (max-width: 650px) {
+  .shack-scene {
+    position: relative;
+    height: min(150vw, 690px);
+    min-height: 570px;
+    max-height: 690px;
+    aspect-ratio: 2 / 3;
+    overflow: hidden;
+    isolation: isolate;
+    background: #3a2114 url("../assets/bait-shop-interior.svg") center center / 100% 100% no-repeat;
+  }
+  .shack-scene .planks,
+  .shack-scene .shack-window,
+  .shack-scene .shack-lantern,
+  .shack-scene .shack-chalkboard,
+  .shack-scene .shack-counter-props,
+  .shack-scene .rod-rack,
+  .shack-scene .rod-rack-hotspot,
+  .shack-scene .shelf,
+  .shack-scene .net,
+  .shack-scene .counter { display:none !important; }
+  .shack-scene .shack-sign {
+    z-index: 15;
+    top: 2.5%;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    max-width: 88%;
+    white-space: nowrap;
+  }
+  .shack-scene > .wiggs {
+    position: absolute;
+    inset: 0;
+    z-index: 12 !important;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+  .shack-scene > .wiggs > .wiggs-svg {
+    position: absolute;
+    left: 2%;
+    bottom: 12%;
+    width: 37%;
+    height: 36%;
+    max-width: none;
+    z-index: 1;
+  }
+  .shack-scene > .wiggs > .speech {
+    position: absolute;
+    left: 39%;
+    right: 3%;
+    top: auto;
+    bottom: 14%;
+    width: auto;
+    max-width: none;
+    max-height: 25%;
+    min-width: 0;
+    overflow-y: auto;
+    margin: 0;
+    padding: 11px 12px;
+    z-index: 3;
+    pointer-events: auto;
+    background: linear-gradient(180deg,#fff9eb,#f0dcb5);
+    border: 3px solid #71451f;
+    border-radius: 14px;
+    box-shadow: 0 8px 20px #120a06aa, inset 0 0 0 2px #fff8;
+  }
+  .shack-scene > .wiggs > .speech .who { display:block; font-size:10px; color:#9a5d1e; margin-bottom:4px; }
+  .shack-scene > .wiggs > .speech p {
+    display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3;
+    overflow:hidden; max-height:4.2em; margin:0 0 8px;
+    font-size:12px; line-height:1.35; color:#38210f;
+  }
+  .shack-scene > .wiggs > .speech .speech-btns { display:grid; grid-template-columns:1fr; gap:5px; }
+  .shack-scene > .wiggs > .speech .speech-btns button {
+    width:100%; min-width:0; min-height:32px; padding:6px;
+    font-size:9px; line-height:1.1; white-space:normal;
+  }
+  .shack-scene > .shack-stations {
+    z-index:20 !important; left:3%; right:3%; bottom:2.5%;
+    grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px;
+  }
+  .shack-scene > .shack-stations button { min-width:0; min-height:58px; padding:5px 3px; }
+  .shack-scene > .shack-stations button b { font-size:8px; line-height:1.05; white-space:normal; }
+  .shack-scene > .shack-stations button small { display:none; }
+}
+@media (max-width: 380px) {
+  .shack-scene { height:155vw; min-height:550px; }
+  .shack-scene > .wiggs > .wiggs-svg { width:36%; height:34%; }
+  .shack-scene > .wiggs > .speech { left:38%; right:2%; padding:9px; }
+  .shack-scene > .wiggs > .speech p { font-size:11px; }
+}
+
+/* Bait Shack: full-width dialogue lives below the room, never inside a scroll box. */
+.wiggs-conversation {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0 0;
+  padding: 16px 18px;
+  border: 2px solid rgba(197,148,82,.72);
+  border-radius: 18px;
+  color: #39220f;
+  background: linear-gradient(145deg,#fff8e8,#edd6ad);
+  box-shadow: 0 8px 22px rgba(0,0,0,.28), inset 0 0 0 2px rgba(255,255,255,.5);
+}
+.wiggs-conversation .who {
+  font-family: var(--display);
+  font-size: 11px;
+  color: #9a5d1e;
+  letter-spacing: .14em;
+}
+.wiggs-conversation p {
+  margin: 0;
+  max-height: none;
+  overflow: visible;
+  min-height: 0;
+  color: #39220f;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.wiggs-conversation .speech-btns {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 8px;
+}
+.wiggs-conversation .speech-btns button {
+  min-width: 0;
+  min-height: 40px;
+  padding: 8px 9px;
+  font-size: 11px;
+  line-height: 1.2;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+@media (max-width:650px) {
+  .shack-scene {
+    aspect-ratio: 2 / 3;
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    background: #3b2415 url("../assets/bait-shop-interior.svg") center / 100% 100% no-repeat;
+  }
+  .shack-scene .planks,
+  .shack-scene .shack-window,
+  .shack-scene .shack-lantern,
+  .shack-scene .shack-chalkboard,
+  .shack-scene .shack-counter-props,
+  .shack-scene .rod-rack,
+  .shack-scene .rod-rack-hotspot,
+  .shack-scene .shelf,
+  .shack-scene .net,
+  .shack-scene .counter { display:none !important; }
+  .shack-scene .shack-sign {
+    top: 2.5%;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    z-index: 16;
+    max-width: 92%;
+    padding: 7px 10px;
+    font-size: clamp(12px,3.5vw,17px);
+  }
+  .shack-scene > .wiggs {
+    position: absolute;
+    inset: 0;
+    z-index: 12 !important;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+  .shack-scene > .wiggs > .wiggs-svg {
+    position: absolute;
+    left: 4%;
+    bottom: 12%;
+    width: 34%;
+    height: 35%;
+    max-width: none;
+  }
+  .shack-scene > .shack-stations {
+    left: 3%;
+    right: 3%;
+    bottom: 2.5%;
+    width: auto;
+    z-index: 20 !important;
+    grid-template-columns: repeat(3,minmax(0,1fr));
+    gap: 6px;
+  }
+  .shack-scene > .shack-stations button {
+    min-width: 0;
+    min-height: 56px;
+    padding: 5px 3px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+  }
+  .shack-scene > .shack-stations button b {
+    width: 100%;
+    white-space: normal;
+    text-align: center;
+    font-size: 8px;
+    line-height: 1.05;
+  }
+  .shack-scene > .shack-stations button small { display:none; }
+  .wiggs-conversation {
+    margin-top: 10px;
+    padding: 13px 14px;
+    gap: 8px;
+    border-radius: 15px;
+  }
+  .wiggs-conversation p {
+    max-height: none !important;
+    overflow: visible !important;
+    display: block !important;
+    font-size: 14px;
+    line-height: 1.42;
+  }
+  .wiggs-conversation .speech-btns {
+    grid-template-columns: repeat(2,minmax(0,1fr));
+    gap: 7px;
+  }
+  .wiggs-conversation .speech-btns button {
+    min-height: 40px;
+    font-size: 10px;
+    padding: 7px 6px;
+  }
+}
+@media (max-width:380px) {
+  .wiggs-conversation .speech-btns { grid-template-columns: 1fr; }
+}
+
+@media (max-width:650px) {
+  /* Wiggs remains directly tappable while his dialogue is in the separate panel. */
+  .shack-scene > .wiggs > .wiggs-svg { pointer-events:auto; }
+}
+
+
+/* Generated Bait Shack artwork integration.
+   The room illustration supplies the shelves, jars, window, lantern and rods.
+   Existing DOM controls remain as transparent, accessible interaction hotspots. */
+@media (max-width:650px) {
+  .shack-scene {
+    background: #2b160d url("../assets/bait-shop-interior.svg") center / 100% 100% no-repeat !important;
+    aspect-ratio: 2 / 3;
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    overflow: hidden;
+  }
+  .shack-scene > .planks,
+  .shack-scene > .shack-window,
+  .shack-scene > .shack-lantern,
+  .shack-scene > .shack-chalkboard,
+  .shack-scene > .shack-counter-props,
+  .shack-scene > #rackCanvas,
+  .shack-scene > .net,
+  .shack-scene > .counter { display:none !important; }
+
+  .shack-scene > .shack-sign {
+    top: 2%;
+    z-index: 22;
+    padding: 6px 10px;
+    font-size: clamp(11px,3.2vw,16px);
+    box-shadow: 0 3px 9px rgba(0,0,0,.45);
+  }
+
+  /* Transparent hit areas line up with the illustrated merchandise. */
+  .shack-scene > .shelf {
+    display:flex !important;
+    position:absolute;
+    z-index:18;
+    left:5%;
+    right:31%;
+    height:13%;
+    padding:0;
+    gap:3px;
+    background:transparent;
+    border:0;
+    box-shadow:none;
+    overflow:visible;
+  }
+  .shack-scene > .shelf.s1 { top:22%; }
+  .shack-scene > .shelf.s2 { top:43%; left:7%; right:28%; height:15%; }
+  .shack-scene > .shelf .shelf-item {
+    flex:1 1 0;
+    min-width:0;
+    height:100%;
+    padding:0;
+    border:0;
+    border-radius:9px;
+    color:transparent;
+    font-size:0;
+    background:transparent;
+    box-shadow:none;
+    opacity:0;
+  }
+  .shack-scene > .shelf .shelf-item:focus-visible {
+    opacity:1;
+    outline:3px solid #d9ff82;
+    background:rgba(217,255,130,.12);
+  }
+  .shack-scene > .rod-rack-hotspot {
+    display:block !important;
+    position:absolute;
+    z-index:19;
+    top:18%;
+    right:1%;
+    left:auto;
+    width:22%;
+    height:43%;
+    border:0;
+    border-radius:12px;
+    background:transparent;
+    box-shadow:none;
+    opacity:0;
+  }
+  .shack-scene > .rod-rack-hotspot:focus-visible {
+    opacity:1;
+    outline:3px solid #d9ff82;
+    background:rgba(217,255,130,.1);
+  }
+
+  .shack-scene > .wiggs {
+    z-index:16 !important;
+    pointer-events:none;
+  }
+  .shack-scene > .wiggs > .wiggs-svg {
+    left:3%;
+    bottom:12%;
+    width:31%;
+    height:32%;
+    pointer-events:auto;
+  }
+  .shack-scene > .shack-stations {
+    z-index:24 !important;
+    bottom:2.2%;
+    left:3%;
+    right:3%;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:5px;
+  }
+  .shack-scene > .shack-stations button {
+    min-height:54px;
+    padding:5px 2px;
+    background:linear-gradient(180deg,rgba(91,49,22,.96),rgba(40,22,12,.98));
+    border:1px solid rgba(245,199,132,.72);
+    box-shadow:0 3px 0 rgba(15,8,4,.8), inset 0 1px rgba(255,255,255,.12);
+  }
+  .shack-scene > .shack-stations button b {
+    font-size:clamp(7px,2.1vw,9px);
+    line-height:1.05;
+  }
+  .shack-scene > .shack-stations button small { display:none; }
+}

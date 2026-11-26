@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 1080" role="img" aria-label="Warm rustic bait and tackle shop interior">
+<defs>
+ <linearGradient id="wall" x2="0" y2="1"><stop stop-color="#583016"/><stop offset=".6" stop-color="#75431f"/><stop offset="1" stop-color="#321b11"/></linearGradient>
+ <linearGradient id="wood" x2="0" y2="1"><stop stop-color="#a96832"/><stop offset=".5" stop-color="#6e3b1d"/><stop offset="1" stop-color="#3d2114"/></linearGradient>
+ <linearGradient id="shelf" x2="0" y2="1"><stop stop-color="#d0924d"/><stop offset=".3" stop-color="#82451e"/><stop offset="1" stop-color="#3b2114"/></linearGradient>
+ <linearGradient id="glass" x2="0" y2="1"><stop stop-color="#9ce9f6"/><stop offset="1" stop-color="#092b48"/></linearGradient>
+ <radialGradient id="glow"><stop stop-color="#ffe6a1" stop-opacity=".9"/><stop offset="1" stop-color="#ffb34a" stop-opacity="0"/></radialGradient>
+ <filter id="shadow"><feGaussianBlur stdDeviation="10"/></filter>
+</defs>
+<rect width="720" height="1080" fill="url(#wall)"/>
+<path d="M0 0H720V115H0Z" fill="#321b12"/>
+<path d="M0 110H720M0 220H720M0 330H720M0 440H720M0 550H720M0 660H720M0 770H720" stroke="#2d170f" stroke-width="9" opacity=".55"/>
+<path d="M160 0V820M330 0V820M505 0V820" stroke="#3b2114" stroke-width="13" opacity=".65"/>
+<path d="M0 0L170 0 110 70 0 90M720 0H550L610 70H720" fill="#24140e"/>
+<g opacity=".8" fill="#28512a"><path d="M0 0Q50 10 78 85Q40 65 20 110Q14 54 0 42Z"/><path d="M45 0Q110 12 125 65Q83 44 66 100Q60 48 45 0Z"/><path d="M650 0Q615 25 610 70Q660 48 675 100Q685 40 720 22V0Z"/></g>
+<ellipse cx="490" cy="245" rx="170" ry="160" fill="url(#glow)" opacity=".25"/>
+<rect x="390" y="130" width="270" height="230" rx="12" fill="#29170f" stroke="#bd8544" stroke-width="13"/>
+<rect x="407" y="147" width="236" height="196" fill="url(#glass)"/>
+<path d="M407 250Q470 205 520 250T643 242V343H407Z" fill="#0c3450"/>
+<path d="M407 280Q470 250 530 284T643 278" fill="none" stroke="#6bc9e2" stroke-width="5"/>
+<circle cx="570" cy="194" r="42" fill="#f4e7b5"/><circle cx="570" cy="194" r="51" fill="#f4e7b5" opacity=".12"/>
+<path d="M407 245H643M525 147V343" stroke="#b77b3e" stroke-width="10"/>
+<g transform="translate(285 28)"><path d="M0 0H150L137 28H13Z" fill="#2a1a11"/><path d="M28 24H122L112 158H38Z" fill="#392012" stroke="#a66b31" stroke-width="8"/><path d="M48 46H102L96 135H54Z" fill="#ffd878"/><ellipse cx="75" cy="90" rx="95" ry="110" fill="url(#glow)"/></g>
+<!-- bait jars -->
+<g stroke="#d8b37a" stroke-width="5">
+ <g transform="translate(42 300)"><rect width="95" height="118" rx="15" fill="#3d2730"/><rect x="7" y="17" width="81" height="94" rx="10" fill="#9b483c"/><path d="M0 18H95" stroke="#d7c29b" stroke-width="10"/><path d="M18 52Q48 28 78 58T18 86" fill="none" stroke="#e98b62" stroke-width="9"/></g>
+ <g transform="translate(153 300)"><rect width="95" height="118" rx="15" fill="#3b2b18"/><rect x="7" y="17" width="81" height="94" rx="10" fill="#b38a43"/><path d="M0 18H95" stroke="#d7c29b" stroke-width="10"/><circle cx="30" cy="62" r="12" fill="#e9d28a"/><circle cx="64" cy="82" r="13" fill="#f2d88b"/></g>
+ <g transform="translate(264 300)"><rect width="95" height="118" rx="15" fill="#233c23"/><rect x="7" y="17" width="81" height="94" rx="10" fill="#5c9b3b"/><path d="M0 18H95" stroke="#d7c29b" stroke-width="10"/><circle cx="28" cy="58" r="13" fill="#b7ed63"/><circle cx="67" cy="83" r="15" fill="#9de34e"/></g>
+</g>
+<!-- shelves -->
+<g><path d="M22 425H390L410 450H8Z" fill="url(#shelf)" stroke="#29170f" stroke-width="8"/><path d="M25 435H385" stroke="#e0a45e" stroke-width="5"/>
+<path d="M22 565H700L720 592H8Z" fill="url(#shelf)" stroke="#29170f" stroke-width="8"/><path d="M25 575H695" stroke="#e0a45e" stroke-width="5"/>
+<path d="M20 725H700L720 752H8Z" fill="url(#shelf)" stroke="#29170f" stroke-width="8"/><path d="M25 735H695" stroke="#e0a45e" stroke-width="5"/></g>
+<!-- spools and bobbers -->
+<g><g fill="#c8a56b" stroke="#372014" stroke-width="5"><rect x="45" y="485" width="60" height="66" rx="12"/><rect x="118" y="485" width="60" height="66" rx="12"/><rect x="191" y="485" width="60" height="66" rx="12"/></g><g fill="#e9e1d1"><path d="M275 488Q305 450 335 488V526Q305 556 275 526Z"/><path d="M342 488Q372 450 402 488V526Q372 556 342 526Z"/></g><g fill="#d84b42"><path d="M275 505Q305 475 335 505V522H275Z"/><path d="M342 505Q372 475 402 505V522H342Z"/></g></g>
+<!-- packaged lures -->
+<g stroke="#e7c38a" stroke-width="5"><g transform="translate(35 615)"><rect width="82" height="100" rx="8" fill="#e2cda5"/><path d="M15 24L65 70" stroke="#d44830" stroke-width="16"/><path d="M15 24L65 70" stroke="#f5a85b" stroke-width="5"/></g><g transform="translate(132 615)"><rect width="82" height="100" rx="8" fill="#e2cda5"/><path d="M15 24L65 70" stroke="#4d9a40" stroke-width="16"/></g><g transform="translate(229 615)"><rect width="82" height="100" rx="8" fill="#e2cda5"/><path d="M15 24L65 70" stroke="#3886bd" stroke-width="16"/></g><g transform="translate(326 615)"><rect width="82" height="100" rx="8" fill="#e2cda5"/><path d="M15 24L65 70" stroke="#c7b8a0" stroke-width="16"/></g></g>
+<!-- rod rack -->
+<path d="M590 150L620 700M620 150L645 700M650 150L672 700" stroke="#b9874f" stroke-width="9"/><path d="M590 150L620 700M620 150L645 700M650 150L672 700" stroke="#e5c28a" stroke-width="2"/><g fill="#c99b60"><rect x="580" y="680" width="100" height="20" rx="8"/></g>
+<!-- lower counter, clear space for Wiggs and speech -->
+<rect x="0" y="825" width="720" height="255" fill="#24160f" opacity=".6"/><path d="M0 850H720V895H0Z" fill="url(#shelf)"/><path d="M0 860H720" stroke="#d49a59" stroke-width="8"/>
+<path d="M0 1020H720" stroke="#1b100b" stroke-width="18"/><path d="M0 1030H720" stroke="#a66c36" stroke-width="6"/>
+</svg>
