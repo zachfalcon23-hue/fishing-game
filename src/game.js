@@ -354,6 +354,9 @@ export function dockLanternWakeMultiplier(spot, time, rarity, likes) {
 }
 
 export const SHINY_ODDS = 1 / 48;
+export const BITE_FLOOR = 2.6; // minimum seconds between cast and bite
+export const BITE_PATIENCE = 2.2; // scales the spot's bite range
+export const EARLY_REEL_DELAY = 1.5; // seconds added when reel is pressed before a bite
 export const PERFECT_HOOK = 0.4; // seconds after the bite for a perfect hook
 export const CLEAN_HOOK = 1.2; // clean hooks still earn a smaller head start
 export function hookTiming(delay) {
@@ -1857,7 +1860,10 @@ export class FishingGame {
     const activity = this.zoneActivity(z);
     wait *= 1 - activity * 0.045;
     wait *= mods.bite;
-    this.biteAt = Math.max(0.6, wait);
+    // Patience: bites take a short, real wait, and never less than BITE_FLOOR seconds.
+    wait = Math.max(BITE_FLOOR, wait * BITE_PATIENCE);
+    this.biteAt = wait;
+    this.spooked = false;
     const researchCandidates = z.mix
       .filter(([spot, share]) => share > 0 && (spot.goops.includes(this.goop.id)
         || (ev.visitor?.goop === this.goop.id && ev.visitor.spot === spot.id)))
@@ -1956,6 +1962,13 @@ export class FishingGame {
     this.timer += step;
 
     if (this.phase === PHASES.CAST) {
+      // Reeling before the bite spooks the fish once per cast: the bite is delayed, so mashing reel can't time a hook.
+      if (pressed && !this.spooked) {
+        this.spooked = true;
+        this.biteAt += EARLY_REEL_DELAY;
+        this.message = 'Too eager! The Goop backed off. Wait for the bite.';
+        this.emit('spooked');
+      }
       if (this.timer >= this.biteAt) {
         this.phase = PHASES.BITE;
         this.timer = 0;
