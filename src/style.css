@@ -1361,3 +1361,103 @@ img.is-shiny { filter: hue-rotate(150deg) saturate(1.3) brightness(1.08) drop-sh
   .speech-btns button { font-size: 8px; }
   .wiggs { width: 57%; height: 42%; }
 }
+
+
+/* Final mobile shop layering fix.
+   .wiggs is a stacking context: its child speech panel cannot out-rank
+   sibling shelf layers. Raise the whole character/dialogue layer and
+   explicitly remove the wall displays from the mobile scene. */
+@media (max-width: 650px) {
+  .shack-scene > .s1,
+  .shack-scene > .s2,
+  .shack-scene > .shelf,
+  .shack-scene > .shelf-item,
+  .shack-scene .shelf,
+  .shack-scene .shelf-item,
+  .shack-scene .rod-rack-hotspot {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+
+  .shack-scene > .wiggs {
+    z-index: 12 !important;
+    left: 3%;
+    right: auto;
+    bottom: 12%;
+    width: 55%;
+    height: 40%;
+    overflow: visible;
+  }
+  .shack-scene > .wiggs > .speech {
+    z-index: 13 !important;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: auto;
+    bottom: auto;
+    width: 172%;
+    max-width: 172%;
+    max-height: 86%;
+    margin: 0;
+    overflow: auto;
+    padding: 11px 12px 10px;
+    background: linear-gradient(180deg, #fff8e8, #f2dfb8);
+    border: 3px solid #6c421e;
+    border-radius: 15px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.52), inset 0 0 0 2px rgba(255,255,255,.5);
+    color: #38210f;
+  }
+  .shack-scene > .wiggs > .speech .who {
+    display: block;
+    margin-bottom: 5px;
+    color: #9a5d1e;
+    font-size: 10px;
+  }
+  .shack-scene > .wiggs > .speech p {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    overflow: hidden;
+    max-height: 4.1em;
+    margin: 0 0 9px;
+    color: #38210f;
+    font-size: 13px;
+    line-height: 1.36;
+  }
+  .shack-scene > .wiggs > .speech .speech-btns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .shack-scene > .wiggs > .speech .speech-btns button {
+    min-width: 0;
+    min-height: 35px;
+    width: 100%;
+    padding: 6px 5px;
+    border: 1px solid #8a5b2c;
+    border-radius: 9px;
+    font-size: 9px;
+    line-height: 1.15;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .shack-scene > .wiggs > .wiggs-svg {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    z-index: 1;
+    height: 100%;
+    width: auto;
+    max-width: 100%;
+  }
+
+  .shack-scene > .shack-stations {
+    z-index: 20 !important;
+  }
+}
+@media (max-width: 380px) {
+  .shack-scene > .wiggs { width: 57%; height: 39%; }
+  .shack-scene > .wiggs > .speech { width: 166%; max-width: 166%; padding: 9px; }
+  .shack-scene > .wiggs > .speech p { font-size: 12px; }
+}
