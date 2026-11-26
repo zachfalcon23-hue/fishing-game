@@ -1461,3 +1461,97 @@ img.is-shiny { filter: hue-rotate(150deg) saturate(1.3) brightness(1.08) drop-sh
   .shack-scene > .wiggs > .speech { width: 166%; max-width: 166%; padding: 9px; }
   .shack-scene > .wiggs > .speech p { font-size: 12px; }
 }
+
+/* Bait Shack art-led mobile composition */
+@media (max-width: 650px) {
+  .shack-scene {
+    position: relative;
+    height: min(150vw, 690px);
+    min-height: 570px;
+    max-height: 690px;
+    aspect-ratio: 2 / 3;
+    overflow: hidden;
+    isolation: isolate;
+    background: #3a2114 url("../assets/bait-shop-interior.svg") center center / 100% 100% no-repeat;
+  }
+  .shack-scene .planks,
+  .shack-scene .shack-window,
+  .shack-scene .shack-lantern,
+  .shack-scene .shack-chalkboard,
+  .shack-scene .shack-counter-props,
+  .shack-scene .rod-rack,
+  .shack-scene .rod-rack-hotspot,
+  .shack-scene .shelf,
+  .shack-scene .net,
+  .shack-scene .counter { display:none !important; }
+  .shack-scene .shack-sign {
+    z-index: 15;
+    top: 2.5%;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    max-width: 88%;
+    white-space: nowrap;
+  }
+  .shack-scene > .wiggs {
+    position: absolute;
+    inset: 0;
+    z-index: 12 !important;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+  .shack-scene > .wiggs > .wiggs-svg {
+    position: absolute;
+    left: 2%;
+    bottom: 12%;
+    width: 37%;
+    height: 36%;
+    max-width: none;
+    z-index: 1;
+  }
+  .shack-scene > .wiggs > .speech {
+    position: absolute;
+    left: 39%;
+    right: 3%;
+    top: auto;
+    bottom: 14%;
+    width: auto;
+    max-width: none;
+    max-height: 25%;
+    min-width: 0;
+    overflow-y: auto;
+    margin: 0;
+    padding: 11px 12px;
+    z-index: 3;
+    pointer-events: auto;
+    background: linear-gradient(180deg,#fff9eb,#f0dcb5);
+    border: 3px solid #71451f;
+    border-radius: 14px;
+    box-shadow: 0 8px 20px #120a06aa, inset 0 0 0 2px #fff8;
+  }
+  .shack-scene > .wiggs > .speech .who { display:block; font-size:10px; color:#9a5d1e; margin-bottom:4px; }
+  .shack-scene > .wiggs > .speech p {
+    display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3;
+    overflow:hidden; max-height:4.2em; margin:0 0 8px;
+    font-size:12px; line-height:1.35; color:#38210f;
+  }
+  .shack-scene > .wiggs > .speech .speech-btns { display:grid; grid-template-columns:1fr; gap:5px; }
+  .shack-scene > .wiggs > .speech .speech-btns button {
+    width:100%; min-width:0; min-height:32px; padding:6px;
+    font-size:9px; line-height:1.1; white-space:normal;
+  }
+  .shack-scene > .shack-stations {
+    z-index:20 !important; left:3%; right:3%; bottom:2.5%;
+    grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px;
+  }
+  .shack-scene > .shack-stations button { min-width:0; min-height:58px; padding:5px 3px; }
+  .shack-scene > .shack-stations button b { font-size:8px; line-height:1.05; white-space:normal; }
+  .shack-scene > .shack-stations button small { display:none; }
+}
+@media (max-width: 380px) {
+  .shack-scene { height:155vw; min-height:550px; }
+  .shack-scene > .wiggs > .wiggs-svg { width:36%; height:34%; }
+  .shack-scene > .wiggs > .speech { left:38%; right:2%; padding:9px; }
+  .shack-scene > .wiggs > .speech p { font-size:11px; }
+}
