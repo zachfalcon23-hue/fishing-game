@@ -270,7 +270,7 @@ export function tankTips(dex) {
 // Secret spots are not on the path; they appear when their conditions line up and you find them.
 const SPOT_DEFS = [
   {
-    id: 'sandbar', name: 'Moonlit Sandbar', pos: -1, essenceMul: 1.5, rareMul: 1.3, biteMin: 1.0, biteMax: 2.8,
+    id: 'sandbar', name: 'Moonlit Sandbar', pos: -1, essenceMul: 1.5, rareMul: 1.2, biteMin: 1.0, biteMax: 2.8,
     desc: 'A ribbon of sand that only shows when the tide runs out after dark.',
     secret: { when: { time: ['Night', 'Dusk'] }, rumor: '“When the moon is up, the tide pulls way back past the old dock. Walk west and see.”', clue: 'The tide is out. Something glints to the west…' },
   },
@@ -278,16 +278,16 @@ const SPOT_DEFS = [
   { id: 'lily', name: 'Lily Cove', pos: 1, unlockAt: 0, essenceMul: 1.1, rareMul: 1.05, biteMin: 1.0, biteMax: 2.8, desc: 'A sheltered cove of lily pads and pink blooms. At dawn and dusk, drifting petals gather rare current-loving Goops along the bloom line.' },
   { id: 'reeds', name: 'Cattail Reeds', pos: 2, unlockAt: 3, essenceMul: 1.2, rareMul: 1.1, biteMin: 0.9, biteMax: 2.6, stirMultiplier: 2, desc: 'Cattails, moss and murky shallows. Dense cover shelters feeding schools, so each cast builds water activity twice as fast.' },
   { id: 'boulder', name: 'Slime Boulders', pos: 3, unlockAt: 7, essenceMul: 1.3, rareMul: 1.15, biteMin: 1.1, biteMax: 3.0, desc: 'Slime-streaked boulders where tough Goops lurk. Rocky eddies tug at your line, narrowing the safe tension window during fights.' },
-  { id: 'falls', name: 'Waterfall Inlet', pos: 4, unlockAt: 12, essenceMul: 1.4, rareMul: 1.25, biteMin: 1.0, biteMax: 2.8, desc: 'Cold, churning water under the falls. Every six seconds, a current surge pulls harder against your line; watch for the warning and manage the extra tension.' },
+  { id: 'falls', name: 'Waterfall Inlet', pos: 4, unlockAt: 12, essenceMul: 1.4, rareMul: 1.15, biteMin: 1.0, biteMax: 2.8, desc: 'Cold, churning water under the falls. Every six seconds, a current surge pulls harder against your line; watch for the warning and manage the extra tension.' },
   {
-    id: 'cave', name: 'Hidden Falls Cave', pos: 5, essenceMul: 1.6, rareMul: 1.4, biteMin: 1.1, biteMax: 3.0,
+    id: 'cave', name: 'Hidden Falls Cave', pos: 5, essenceMul: 1.6, rareMul: 1.2, biteMin: 1.1, biteMax: 3.0,
     desc: 'A crystal cave tucked behind the waterfall. Refracted light shifts the safe line window every five seconds—watch for the warning and follow the moving green band.',
     secret: { when: { time: ['Day', 'Dawn'] }, requires: 'falls', rumor: '“Sunlight hits the far side of the falls just right in the daytime. There’s a gap back there, I swear it.”', clue: 'Light is shining through a gap in the rocks…' },
   },
-  { id: 'grotto', name: 'Glowshroom Grotto', pos: 6, unlockAt: 18, essenceMul: 1.5, rareMul: 1.35, biteMin: 1.2, biteMax: 3.2, desc: 'Glowing mushrooms over still, dark water.' },
-  { id: 'deep', name: 'The Deep Drop', pos: 7, unlockAt: 26, essenceMul: 1.8, rareMul: 1.6, biteMin: 1.3, biteMax: 3.6, desc: 'The pond floor drops away. Every nine seconds, abyssal pressure sinks your line—reel through the brief drop before slack takes hold.' },
+  { id: 'grotto', name: 'Glowshroom Grotto', pos: 6, unlockAt: 18, essenceMul: 1.5, rareMul: 1.2, biteMin: 1.2, biteMax: 3.2, desc: 'Glowing mushrooms over still, dark water.' },
+  { id: 'deep', name: 'The Deep Drop', pos: 7, unlockAt: 26, essenceMul: 1.8, rareMul: 1.35, biteMin: 1.3, biteMax: 3.6, desc: 'The pond floor drops away. Every nine seconds, abyssal pressure sinks your line—reel through the brief drop before slack takes hold.' },
   {
-    id: 'wreck', name: 'Sunken Wreck', pos: 8, essenceMul: 2, rareMul: 1.7, biteMin: 1.3, biteMax: 3.4,
+    id: 'wreck', name: 'Sunken Wreck', pos: 8, essenceMul: 2, rareMul: 1.35, biteMin: 1.3, biteMax: 3.4,
     desc: 'An old boat on the pond floor, past the Deep Drop. Every eight seconds, loose rigging snags your line—watch the warning and cut away in the called direction.' ,
     secret: { when: { weather: ['storm', 'fog'] }, requires: 'deep', rumor: '“Storms and fog churn the water past the Deep Drop. That’s when the old mast shows.”', clue: 'A broken mast pokes out of the churning water…' },
   },
@@ -421,7 +421,7 @@ export const RODS = {
   ember: { name: 'Magma Pole', cost: 900, dex: 12, style: 'ember', desc: 'Heat-loving Goop specialist: Ember Goops bite more readily and pull weaker, but other encounters gain no special handling.', stats: { taste: 'ember', tasteMul: 1.6, force: 0.9 } },
   storm: { name: 'Storm Caller', cost: 1300, dex: 18, style: 'storm', desc: 'Weather specialist: in rain or storms Goops pull weaker and pay more Essence; outside those conditions it is a modest all-rounder.', stats: { when: ['rain', 'storm'], reel: 1.05 } },
   crystal: { name: 'Crystal Caster', cost: 1600, dex: 24, style: 'crystal', desc: 'Trophy hunter: improves shiny odds with quick handling, but does not specialize in controlling heavy pulls.', stats: { shiny: 1.6, reel: 1.15, zone: 0.02, snapGuard: 0.96 } },
-  abyss: { name: 'Abyssal Reach', cost: 3000, dex: 40, style: 'abyss', desc: 'Deep-water specialist: improves Epic and Legendary encounters and resists lunges, but its premium power is not the fastest reel.', stats: { legend: 1.8, epic: 1.3, reel: 1.12, zone: 0.03, lunge: 0.8, snapGuard: 1.06 } },
+  abyss: { name: 'Abyssal Reach', cost: 3000, dex: 40, style: 'abyss', desc: 'Deep-water specialist: improves Epic and Legendary encounters and resists lunges, but its premium power is not the fastest reel.', stats: { legend: 1.6, epic: 1.2, reel: 1.12, zone: 0.03, lunge: 0.8, snapGuard: 1.06 } },
 };
 
 /** Rod colourways: [dark, mid, light, highlight] for the shaft, grip colour, [hi, mid, lo] for the reel, tip glow. */
@@ -574,7 +574,7 @@ export function encounterPool({ spot = SPOT_BY.dock, weather = 'clear', time = '
     if (g.needs) weight *= 1.5; // conditions are hard to line up; reward the player who does
     if (g.rarity !== 'Common') weight *= spot.rareMul * (1 + 0.15 * lure);
     if (b.taste && g.taste === b.taste) weight *= 3;
-    if (bait === 'golden' && RANK[g.rarity] >= 2) weight *= 2;
+    if (bait === 'golden' && RANK[g.rarity] >= 2) weight *= 1.6;
     if (event.visitor?.goop === g.id && event.visitor.spot === spot.id) weight = Math.max(weight * 4, 6);
     if (trackedGoop === g.id) weight *= TRACK_WEIGHT_MULT;
     const activity = Math.max(0, Math.min(3, Number(event.activity?.[spot.id]) || 0));
