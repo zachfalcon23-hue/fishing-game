@@ -47,3 +47,6 @@ jobs:
 
       - name: Run current-mainline browser smoke tests
         run: npm run test:browser
+
+      - name: Run release-readiness browser checks
+        run: npm run test:release

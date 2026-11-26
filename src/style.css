@@ -1896,3 +1896,12 @@ img.is-shiny { filter: hue-rotate(150deg) saturate(1.3) brightness(1.08) drop-sh
 
 /* The header logo is small, so its drips hang below the lettering, not over it. */
 .slime-logo:not(.big) .drip { top: 100%; }
+
+/* ---------- Touch target sizes (release prep) ----------
+   On touch screens, tabs and map pins get larger hit areas. Visual sizes on
+   fine-pointer devices are unchanged. */
+@media (pointer: coarse) {
+  .tk-tabs button, .dex-tabs button { min-height: 40px; }
+  .mm-pin { width: 32px; height: 32px; margin-left: -16px; }
+  .mm-pin i { font-size: 13px; }
+}

@@ -42,7 +42,7 @@ Run these against the exact candidate commit:
 - [x] A current-mainline Playwright browser smoke suite is committed at `tests/browser-smoke.mjs` and wired into GitHub Actions.
 - [x] The browser smoke suite passes on desktop and mobile viewports using the supported Ubuntu 24.04 runner (run #675).
 - [x] Browser smoke coverage exercises startup, all three views, casting, bite/hook/fight transitions, uncaught errors, console errors, missing local assets, and mobile layout/touch-control sizing.
-- [ ] Extend browser coverage to catch resolution, reload/save behavior, keyboard-only controls, and accessibility announcements.
+- [x] Browser coverage extended in `tests/release-smoke.mjs` (`npm run test:release`, run in CI): keyboard-only navigation and casting, save persistence across reload, corrupt-save recovery, layouts at 1920, 1024, 360, 412 and 390 px, reduced motion, and mute state. Screen-reader announcements are checked by attribute only; they still need a manual check with a screen reader.
 - [ ] Any failed or skipped check is explained; runner-allocation failures are not counted as passing tests.
 - [x] Session telemetry accurately captures catch, miss and escape outcomes, uses current-mainline fields, and exports no player identifiers. Unit tests and the browser smoke test verify the manual JSON download.
 - [x] Primary/backup save recovery, repair, reset, and storage-failure behavior pass the regression suite; the browser reload smoke test verifies recovery and repair of both save slots.
@@ -80,3 +80,7 @@ Run these against the exact candidate commit:
 ## Release decision
 
 Release only when the automated gates pass on the final commit and the manual gameplay, save, accessibility, audio, and device checks have been completed and recorded. A previously green run on an older commit does not validate a newer candidate.
+
+## Release-prep notes (2026-11-26)
+
+Automated coverage added in the release-prep change: `tests/release-smoke.mjs` (run by `npm run test:release` and CI). Items checked above rely on that suite. Everything under "Core gameplay validation" and the device checks still needs a person to play through them. Known open items: Hidden Falls Cave and Sunken Wreck have a species-mix balance question, and touch-target sizes on phones are larger only as tap areas for tabs and map pins.
