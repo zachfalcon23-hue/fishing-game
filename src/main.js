@@ -1484,7 +1484,7 @@ function renderTank() {
     const tag = w === tankIdx ? 'HERE' : w === -1 ? 'STORAGE' : esc(s.tank.tanks[w].name.toUpperCase());
     return `<button class="res r-${g.rarity} ${w === tankIdx ? 'here' : w === -1 ? 'stored' : 'away'}" data-res="${id}" title="${w === tankIdx ? 'Move to storage' : 'Move into this tank'}">`
       + `<img src="${GOOP_ART(id)}" alt="" class="${s.dex[id].shiny ? 'is-shiny' : ''}" loading="lazy"><b>${esc(g.name)}</b><i>${tag}</i></button>`;
-  }).join('') : '<p class="muted">Catch Goops at the pond to fill your tanks.</p>';
+  }).join('') : '<p class="muted resident-empty">Catch Goops at the pond to fill your tanks.</p>';
   // decorations for this tank
   const legends = GOOPS.filter((g) => g.rarity === 'Legendary' && s.dex[g.id]).length;
   setText('decorCount', `${T.decor.length} / ${DECOR_SLOTS} SLOTS`);

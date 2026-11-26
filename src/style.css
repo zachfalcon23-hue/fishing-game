@@ -1883,3 +1883,16 @@ img.is-shiny { filter: hue-rotate(150deg) saturate(1.3) brightness(1.08) drop-sh
   gap: 1px; font-size: clamp(7px, 2.6cqi, 12px);
 }
 .shack-view .shack-scene.wall-art > .shack-stations button small { font-size: clamp(6px, 2cqi, 9px); }
+
+/* ---------- Audit fixes (0.33) ---------- */
+/* Empty Residents message spans the grid instead of one narrow column. */
+.resident-list > .resident-empty { grid-column: 1 / -1; margin: 6px 0; }
+
+/* Larger touch areas without changing how the controls look. */
+.tank-count .rename, #guideBtn, #muteBtn { position: relative; }
+.tank-count .rename::after, #guideBtn::after, #muteBtn::after {
+  content: ""; position: absolute; inset: -9px; border-radius: 50%;
+}
+
+/* The header logo is small, so its drips hang below the lettering, not over it. */
+.slime-logo:not(.big) .drip { top: 100%; }
