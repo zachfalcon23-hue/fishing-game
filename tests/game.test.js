@@ -1823,3 +1823,40 @@ test('Field Journal exploration entries are sanitized and older saves remain com
   assert.equal(normalized.explorationNotes[0].day, 3);
   assert.equal(normalized.explorationNotes[0].weather, 'rain');
 });
+
+// Bite patience: bites take a real wait, and mashing reel during the wait can't buy a perfect hook.
+test('bites never arrive faster than the patience floor', () => {
+  for (const seed of [0, 0.3, 0.7, 0.99]) {
+    const g = new FishingGame({ rng: () => seed, saveStore: memStore().store });
+    g.cast();
+    assert.ok(g.biteAt >= 2.6, `bite after ${g.biteAt}s with rng ${seed}`);
+  }
+});
+
+test('reeling before the bite spooks the fish once and delays the bite', () => {
+  const g = newGame();
+  g.cast();
+  const first = g.biteAt;
+  g.prevReel = false;
+  g.update(0.05, { reel: true });
+  assert.equal(g.spooked, true);
+  assert.ok(Math.abs(g.biteAt - (first + 1.5)) < 1e-9, 'bite delayed by the early-reel penalty');
+  g.prevReel = false;
+  g.update(0.05, { reel: true });
+  assert.ok(Math.abs(g.biteAt - (first + 1.5)) < 1e-9, 'a second early reel adds no more delay');
+  assert.equal(g.phase, PHASES.CAST);
+});
+
+test('mashing reel while waiting cannot hook a bite on the first frame', () => {
+  const g = newGame();
+  g.cast();
+  let frames = 0;
+  // Mash reel at 10 Hz throughout the wait, then keep mashing into the bite.
+  for (let t = 0; t < 10 && g.phase !== PHASES.FIGHT; t += 0.05) {
+    frames += 1;
+    g.update(0.05, { reel: Math.floor(t * 10) % 2 === 0 });
+    if (g.phase === PHASES.BITE) break;
+  }
+  assert.ok(g.phase !== PHASES.FIGHT, 'no fight starts from the mash during the wait');
+  assert.ok(frames > 0);
+});
