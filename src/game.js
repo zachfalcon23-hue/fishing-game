@@ -274,7 +274,7 @@ const SPOT_DEFS = [
     desc: 'A ribbon of sand that only shows when the tide runs out after dark.',
     secret: { when: { time: ['Night', 'Dusk'] }, rumor: '“When the moon is up, the tide pulls way back past the old dock. Walk west and see.”', clue: 'The tide is out. Something glints to the west…' },
   },
-  { id: 'dock', name: 'The Old Dock', pos: 0, unlockAt: 0, essenceMul: 1, rareMul: 1, biteMin: 1.0, biteMax: 3.0, desc: 'Lantern-lit planks over open water. After dark, the dock lamps draw rare night-active Goops toward the pilings.' },
+  { id: 'dock', name: 'The Old Dock', pos: 0, unlockAt: 0, essenceMul: 1, rareMul: 1, biteMin: 1.0, biteMax: 3.0, sight: true, desc: 'Lantern-lit planks over open water. After dark, the dock lamps draw rare night-active Goops toward the pilings.' },
   { id: 'lily', name: 'Lily Cove', pos: 1, unlockAt: 0, essenceMul: 1.1, rareMul: 1.05, biteMin: 1.0, biteMax: 2.8, desc: 'A sheltered cove of lily pads and pink blooms. At dawn and dusk, drifting petals gather rare current-loving Goops along the bloom line.' },
   { id: 'reeds', name: 'Cattail Reeds', pos: 2, unlockAt: 3, essenceMul: 1.2, rareMul: 1.1, biteMin: 0.9, biteMax: 2.6, stirMultiplier: 2, desc: 'Cattails, moss and murky shallows. Dense cover shelters feeding schools, so each cast builds water activity twice as fast.' },
   { id: 'boulder', name: 'Slime Boulders', pos: 3, unlockAt: 7, essenceMul: 1.3, rareMul: 1.15, biteMin: 1.1, biteMax: 3.0, desc: 'Slime-streaked boulders where tough Goops lurk. Rocky eddies tug at your line, narrowing the safe tension window during fights.' },
@@ -357,6 +357,9 @@ export const SHINY_ODDS = 1 / 48;
 export const BITE_FLOOR = 2.6; // minimum seconds between cast and bite
 export const BITE_PATIENCE = 2.2; // scales the spot's bite range
 export const EARLY_REEL_DELAY = 1.5; // seconds added when reel is pressed before a bite
+export const SIGHT_RANGE = 0.1; // how close (0-1 of the water width) the lure must be to the shadow
+export const SIGHT_BOOST = 1.5; // time runs this many times faster while the lure is over the shadow
+export const SIGHT_STEP = 0.08; // each steer press moves the lure this far
 export const PERFECT_HOOK = 0.4; // seconds after the bite for a perfect hook
 export const CLEAN_HOOK = 1.2; // clean hooks still earn a smaller head start
 export function hookTiming(delay) {
@@ -1864,6 +1867,8 @@ export class FishingGame {
     wait = Math.max(BITE_FLOOR, wait * BITE_PATIENCE);
     this.biteAt = wait;
     this.spooked = false;
+    // Sight fishing: on spots that allow it, a shadow drifts under the water for the lure to be steered over.
+    this.sight = z.spot.sight ? { lure: 0.5, shadow: 0.25 + this.rng() * 0.5, dir: this.rng() < 0.5 ? -1 : 1, speed: 0.07 + this.rng() * 0.05, near: false } : null;
     const researchCandidates = z.mix
       .filter(([spot, share]) => share > 0 && (spot.goops.includes(this.goop.id)
         || (ev.visitor?.goop === this.goop.id && ev.visitor.spot === spot.id)))
@@ -1893,6 +1898,7 @@ export class FishingGame {
     this.prevReel = true; // a button already held at cast time must be released and pressed again to hook
     this.message = frenzy ? 'Frenzy! They’re biting fast…'
       : activeInteraction ? activeInteraction.name + ': ' + activeInteraction.clue : 'Line out… watch for a bite.';
+    if (this.sight) this.message = 'A shadow drifts below. Steer ◀ ▶ to line your lure up with it.';
     this.emit('cast', { bait, activity, interaction: activeInteraction?.id || null });
     this.stirWater(z);
     this.advanceClock();
@@ -1953,6 +1959,20 @@ export class FishingGame {
     return true;
   }
 
+  /** Sight fishing: steer the lure, move the shadow, and speed up time while the lure is over it. */
+  tickSight(step, steer) {
+    const s = this.sight;
+    if (steer) s.lure = clamp01(s.lure + steer * SIGHT_STEP);
+    s.shadow += s.dir * s.speed * step;
+    if (s.shadow <= 0.08 || s.shadow >= 0.92) { s.dir = -s.dir; s.shadow = Math.min(0.92, Math.max(0.08, s.shadow)); }
+    const near = Math.abs(s.lure - s.shadow) < SIGHT_RANGE;
+    if (near) this.timer += step * (SIGHT_BOOST - 1);
+    if (near !== s.near) {
+      s.near = near;
+      this.message = near ? 'The shadow is under your lure. Hold steady…' : 'The shadow drifts off. Steer back under it!';
+    }
+  }
+
   update(dt, input = {}) {
     const step = Math.max(0, Math.min(dt, 0.08));
     this.ecologyTime += step;
@@ -1962,6 +1982,7 @@ export class FishingGame {
     this.timer += step;
 
     if (this.phase === PHASES.CAST) {
+      if (this.sight) this.tickSight(step, input.steer || 0);
       // Reeling before the bite spooks the fish once per cast: the bite is delayed, so mashing reel can't time a hook.
       if (pressed && !this.spooked) {
         this.spooked = true;

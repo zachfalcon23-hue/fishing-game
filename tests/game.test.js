@@ -1860,3 +1860,32 @@ test('mashing reel while waiting cannot hook a bite on the first frame', () => {
   assert.ok(g.phase !== PHASES.FIGHT, 'no fight starts from the mash during the wait');
   assert.ok(frames > 0);
 });
+
+// Sight fishing: the Old Dock shows a shadow to line the lure up with.
+test('sight fishing: steering moves the lure, and time runs faster over the shadow', () => {
+  const g = newGame();
+  g.cast();
+  assert.ok(g.sight, 'The Old Dock supports sight fishing');
+  const lure0 = g.sight.lure;
+  g.update(0.05, { steer: 1 });
+  assert.ok(g.sight.lure > lure0, 'steering right moves the lure right');
+  // Lure over the shadow: the timer gains extra time each step.
+  g.sight.shadow = g.sight.lure; g.sight.speed = 0;
+  const onBefore = g.timer;
+  g.update(0.05, {});
+  assert.ok(g.timer - onBefore > 0.05 * 1.4, `timer gained ${g.timer - onBefore} over the shadow`);
+  // Lure far from the shadow: normal time.
+  g.sight.lure = 0.02; g.sight.shadow = 0.95;
+  const offBefore = g.timer;
+  g.update(0.05, {});
+  assert.ok(Math.abs((g.timer - offBefore) - 0.05) < 1e-9, 'no boost away from the shadow');
+});
+
+test('sight fishing: the shadow stays inside the water and bounces at the edges', () => {
+  const g = newGame();
+  g.cast();
+  for (let i = 0; i < 400 && g.phase === PHASES.CAST; i += 1) {
+    g.update(0.05, {});
+    assert.ok(g.sight.shadow >= 0.08 - 1e-9 && g.sight.shadow <= 0.92 + 1e-9, `shadow ${g.sight.shadow}`);
+  }
+});
