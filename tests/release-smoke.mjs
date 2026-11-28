@@ -139,6 +139,22 @@ try {
     assert.deepEqual(errors, []);
     await context.close();
   });
+  // 7. First-catch coach: a new player sees the cast tip; Skip tips hides it and stays off after reload.
+  await check('first-catch coach shows and can be skipped', async () => {
+    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    const { page, errors } = await open(context);
+    await page.waitForSelector('#coach:not([hidden])', { timeout: 5000 });
+    assert.match(await page.locator('#coachText').textContent(), /CAST LINE/);
+    assert.equal(await page.locator('#castBtn').evaluate(el => el.classList.contains('coach-target')), true);
+    await page.locator('#coachSkip').click();
+    assert.equal(await page.locator('#coach').isHidden(), true);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => window.__goop?.game, undefined, { timeout: 20000 });
+    await page.waitForTimeout(500);
+    assert.equal(await page.locator('#coach').isHidden(), true);
+    assert.deepEqual(errors, []);
+    await context.close();
+  });
 } finally {
   await browser?.close();
   server.close();
