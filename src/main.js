@@ -783,7 +783,7 @@ function render(dt) {
   $('castBtn').disabled = game.busy || walking;
   setHTML('castBtn', game.here ? 'CAST LINE <kbd>C</kbd>' : 'CAST HERE <kbd>C</kbd>');
   const free = !game.busy;
-  const steering = game.phase === PHASES.FIGHT;
+  const steering = game.phase === PHASES.FIGHT || (game.phase === PHASES.CAST && !!game.sight);
   $('leftBtn').disabled = !free && !steering; $('rightBtn').disabled = !free && !steering;
   $('leftBtn').classList.toggle('steer-mode', steering); $('rightBtn').classList.toggle('steer-mode', steering);
   $('walkHint').classList.toggle('show', free && !walking && game.state.stats.caught < 3 && game.state.discovered.length < 3 && p === PHASES.IDLE);
@@ -1659,7 +1659,7 @@ const reelBtn = $('reelBtn');
 reelBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); press(); });
 for (const [id, side, dir] of [['leftBtn', 'left', -1], ['rightBtn', 'right', 1]]) {
   const b = $(id);
-  b.addEventListener('pointerdown', (e) => { e.preventDefault(); sfx.unlock(); if (game.phase === PHASES.FIGHT) { steerLatch = dir; return; } held[side] = true; pressAt[side] = performance.now(); });
+  b.addEventListener('pointerdown', (e) => { e.preventDefault(); sfx.unlock(); if (game.phase === PHASES.FIGHT || (game.phase === PHASES.CAST && game.sight)) { steerLatch = dir; return; } held[side] = true; pressAt[side] = performance.now(); });
   const up = () => {
     if (!held[side]) return;
     held[side] = false;
@@ -1735,7 +1735,7 @@ window.addEventListener('keydown', (e) => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (hollow.active) { if ((e.code==='Enter'||e.code==='Space') && e.target.closest('#hollowOverlay button')) return; if (['ArrowUp','KeyW'].includes(e.code)) hollow.input.y=-1; else if (['ArrowDown','KeyS'].includes(e.code)) hollow.input.y=1; else if (['ArrowLeft','KeyA'].includes(e.code)) hollow.input.x=-1; else if (['ArrowRight','KeyD'].includes(e.code)) hollow.input.x=1; else if (e.code==='KeyE'||e.code==='Enter') interactHollow(); else if (e.code==='Escape') exitHollow(); else return; e.preventDefault(); return; }
   if (anyDialogOpen() || view !== 'pond') return;
-  if (game.phase === PHASES.FIGHT && !e.repeat && ['ArrowLeft', 'KeyA', 'ArrowRight', 'KeyD'].includes(e.code)) { steerLatch = e.code === 'ArrowLeft' || e.code === 'KeyA' ? -1 : 1; e.preventDefault(); return; }
+  if ((game.phase === PHASES.FIGHT || (game.phase === PHASES.CAST && game.sight)) && !e.repeat && ['ArrowLeft', 'KeyA', 'ArrowRight', 'KeyD'].includes(e.code)) { steerLatch = e.code === 'ArrowLeft' || e.code === 'KeyA' ? -1 : 1; e.preventDefault(); return; }
   if (e.code === 'ArrowLeft' || e.code === 'KeyA') { if (!keys.left) pressAt.keyLeft = performance.now(); keys.left = true; e.preventDefault(); sfx.unlock(); return; }
   if (e.code === 'ArrowRight' || e.code === 'KeyD') { if (!keys.right) pressAt.keyRight = performance.now(); keys.right = true; e.preventDefault(); sfx.unlock(); return; }
   if (e.repeat) return;

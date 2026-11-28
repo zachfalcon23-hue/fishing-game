@@ -2110,10 +2110,11 @@ export class Scene {
     const b = this.bobber;
     this.hookedUp = phase === PHASES.CAUGHT && this.reveal && this.reveal.pos;
     this.showBobber = phase !== PHASES.IDLE && !this.snap && !this.hookedUp && game.here;
+    this.sightView = phase === PHASES.CAST && game.sight ? game.sight : null;
     if (this.cast) {
       this.cast.t += dt;
       const p = clamp(this.cast.t / this.cast.dur, 0, 1);
-      if (p >= 1 && !this.cast.landed) { this.cast.landed = true; this.splash(this.cast.tx, this.cast.ty, 14, '#e8fdff', 0.7); this.ring(this.cast.tx, this.cast.ty, 1); this.onSplash?.(); }
+      if (p >= 1 && !this.cast.landed) { this.cast.landed = true; this.sightAnchor = { x: this.cast.tx, y: this.cast.ty }; this.splash(this.cast.tx, this.cast.ty, 14, '#e8fdff', 0.7); this.ring(this.cast.tx, this.cast.ty, 1); this.onSplash?.(); }
       if (this.cast.landed && this.cast.t > this.cast.dur + 0.4) this.cast = null;
       else if (!this.cast.landed) {
         const e = ease(p);
@@ -2122,7 +2123,13 @@ export class Scene {
       }
     }
     if (!this.cast || this.cast.landed) {
-      if (this.cast?.landed) { b.x = this.cast.tx; b.y = this.cast.ty; }
+      if (this.cast?.landed || (this.sightView && this.sightAnchor)) {
+        const a = this.sightAnchor || { x: this.cast.tx, y: this.cast.ty };
+        // Sight fishing: the lure slides along the water to where you steer it.
+        if (this.sightView) b.x = lerp(b.x, a.x + (this.sightView.lure - 0.5) * W * 0.5, 1 - Math.exp(-dt * 6));
+        else b.x = a.x;
+        b.y = a.y;
+      }
       if (fight) {
         if (this.castX == null) { this.castX = b.x; this.castY = b.y; }
         const pull = Math.sin(t * 2.1) * 60 + Math.sin(t * 5.3) * 18 * fight.tension;
@@ -2142,7 +2149,7 @@ export class Scene {
         }
       }
     }
-    if (phase === PHASES.IDLE) this.castX = null;
+    if (phase === PHASES.IDLE) { this.castX = null; this.sightAnchor = null; }
     let dip = 0;
     if (phase === PHASES.BITE) dip = 6 + Math.abs(Math.sin(t * 16)) * 14;
     else if (phase === PHASES.FIGHT) dip = 10 + (fight?.tension || 0) * 8;
@@ -2150,6 +2157,7 @@ export class Scene {
     b.dip = Math.max(0, (b.dip || 0) - dt * 20);
     this.bob = Math.sin(t * 2.6) * 3 + dip + b.dip;
     this.depthScale = 0.6 + (b.y - HZ) / (H - HZ) * 0.8;
+    this.drawSightShadow(g);
     if (this.showBobber) this.drawBobber(g, b.x, b.y + this.bob, this.depthScale, phase, t);
   }
 
@@ -2379,6 +2387,22 @@ export class Scene {
       g.fillStyle = 'rgba(220,240,255,.75)'; g.beginPath(); g.moveTo(-8, -2); g.lineTo(8, -2); g.lineTo(0, -12); g.closePath(); g.fill();
       hook(4, 34);
     }
+    g.restore();
+  }
+
+  /** Sight fishing: the shadow of the fish you are after, drifting under the water. */
+  drawSightShadow(g) {
+    const s = this.sightView, a = this.sightAnchor;
+    if (!s || !a) return;
+    const x = a.x + (s.shadow - 0.5) * W * 0.5;
+    const y = a.y + 36;
+    const pulse = 1 + Math.sin(performance.now() / 180) * (s.near ? 0.08 : 0.03);
+    g.save();
+    g.globalAlpha = s.near ? 0.6 : 0.4;
+    g.fillStyle = '#04202a';
+    g.beginPath(); g.ellipse(x, y, 110 * pulse, 26 * pulse, 0, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = s.near ? 'rgba(232,253,255,0.8)' : 'rgba(232,253,255,0.25)';
+    g.lineWidth = 3; g.stroke();
     g.restore();
   }
 
