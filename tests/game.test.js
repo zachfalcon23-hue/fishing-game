@@ -1889,3 +1889,43 @@ test('sight fishing: the shadow stays inside the water and bounces at the edges'
     assert.ok(g.sight.shadow >= 0.08 - 1e-9 && g.sight.shadow <= 0.92 + 1e-9, `shadow ${g.sight.shadow}`);
   }
 });
+
+// First-catch coach.
+import { coachTip } from '../src/game.js';
+test('coach walks a new player through cast, wait, bite and fight', () => {
+  const g = newGame();
+  assert.equal(coachTip(g).step, 'cast');
+  assert.equal(coachTip(g).target, 'castBtn');
+  g.cast();
+  assert.equal(coachTip(g).step, g.sight ? 'sight' : 'wait');
+  g.phase = PHASES.BITE;
+  g.timer = 0;
+  assert.equal(coachTip(g).target, 'reelBtn');
+  g.prevReel = false;
+  g.update(0.05, { reel: true });
+  assert.equal(g.phase, PHASES.FIGHT);
+  const fightTip = coachTip(g);
+  assert.ok(fightTip === null || fightTip.step === 'fight');
+});
+
+test('coach explains an early reel, then goes quiet after the first catch is celebrated', () => {
+  const g = newGame();
+  g.cast();
+  g.prevReel = false;
+  g.update(0.05, { reel: true });
+  assert.equal(coachTip(g).step, 'wait');
+  assert.match(coachTip(g).text, /Too early/);
+  g.state.stats.caught = 1;
+  g.phase = PHASES.CAUGHT;
+  assert.equal(coachTip(g).step, 'caught');
+  g.phase = PHASES.IDLE;
+  assert.equal(coachTip(g), null);
+});
+
+test('coach explains a missed bite', () => {
+  const g = newGame();
+  g.cast();
+  g.phase = PHASES.ESCAPED;
+  g.fight = null;
+  assert.match(coachTip(g).text, /Too slow/);
+});

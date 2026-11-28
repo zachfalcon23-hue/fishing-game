@@ -368,6 +368,45 @@ export function hookTiming(delay) {
   if (elapsed <= CLEAN_HOOK) return { grade: 'clean', progress: 0.06 };
   return { grade: 'late', progress: 0 };
 }
+/**
+ * First-catch coach: a short tip for what a brand-new player should do right now,
+ * and which control to highlight. Returns null once the first Goop is landed and
+ * celebrated, or when nothing needs saying (for example during a signature move,
+ * which has its own prompt).
+ */
+export function coachTip(game) {
+  const caught = game?.state?.stats?.caught || 0;
+  const phase = game?.phase;
+  if (phase === PHASES.CAUGHT) {
+    return caught === 1 ? { step: 'caught', text: 'Your first Goop! It’s in your GoopDex now. Visit Old Wiggs at the Bait Shack for your first job.', target: null } : null;
+  }
+  if (caught > 0) return null;
+  switch (phase) {
+    case PHASES.IDLE:
+      if (game.fight) return { step: 'retry', text: 'The line snapped. Next time, let go of REEL when the needle leaves the green. Cast again!', target: 'castBtn' };
+      return { step: 'cast', text: 'Tap CAST LINE to throw your line in.', target: 'castBtn' };
+    case PHASES.ESCAPED:
+      return game.fight
+        ? { step: 'retry', text: 'The line snapped. Next time, let go of REEL when the needle leaves the green. Cast again!', target: 'castBtn' }
+        : { step: 'retry', text: 'Too slow, it got away. Tap REEL the moment you see BITE! Cast again.', target: 'castBtn' };
+    case PHASES.CAST:
+      if (game.spooked && game.timer < game.biteAt) return { step: 'wait', text: 'Too early! Reeling before a bite scares it. Wait for BITE!', target: null };
+      if (game.sight) {
+        return game.sight.near
+          ? { step: 'wait', text: 'Your bobber is over the shadow. Hold still and wait for the bite…', target: null }
+          : { step: 'sight', text: 'See the dark shadow? Steer ◀ ▶ to move your bobber over it. It bites sooner there.', target: 'steer' };
+      }
+      return { step: 'wait', text: 'Watch the bobber and wait. Don’t reel yet!', target: null };
+    case PHASES.BITE:
+      return { step: 'hook', text: 'BITE! Tap REEL now to hook it!', target: 'reelBtn' };
+    case PHASES.FIGHT:
+      if (game.fight?.move || game.fight?.breakT > 0) return null;
+      return { step: 'fight', text: 'Hold REEL to pull, let go to ease off. Keep the needle in the green until the bar fills.', target: 'reelBtn' };
+    default:
+      return null;
+  }
+}
+
 export const MOON = ['New moon', 'Crescent moon', 'Half moon', 'Full moon', 'Waning moon'];
 export const moonPhase = (day) => ((day % 5) + 5) % 5;
 export const isFullMoon = (day) => moonPhase(day) === 3;

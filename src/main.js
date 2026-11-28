@@ -1,7 +1,7 @@
 import {
   MOVE_INFO, fightReadout, GOOPS, SPOTS, SPOT_BY, UPGRADES, NOTES, PHASES, BAITS, SETS, TASTES, MOON, REROLL_COST, WEATHER,
   RODS, SKINS, BOBBERS, LINES, LURES, CHARMS, FINDER_COST, BUDDY_TRAIN, buddyBonus, QUESTS, DECOR, THEMES, TANK_CAP, DECOR_SLOTS,
-  HABITAT_RESEARCH_TIERS, HABITAT_INTERACTIONS, FishingGame, conditionText, tasteBait,
+  HABITAT_RESEARCH_TIERS, HABITAT_INTERACTIONS, FishingGame, conditionText, tasteBait, coachTip,
 } from './game.js';
 import { Scene, loadAssets, GOOP_ART, SPOT_X, SPOT_GAP, WORLD_MIN, WORLD_MAX, CLUE_X, toShore, fromShore } from './scene.js';
 import { Sfx } from './audio.js';
@@ -254,6 +254,32 @@ $('guideBtn').addEventListener('click', openGuide);
 $('guidePrev').addEventListener('click', () => { guideStep -= 1; renderGuide(); });
 $('guideNext').addEventListener('click', () => { guideStep += 1; renderGuide(); });
 $('guideFinish').addEventListener('click', () => { markGuideSeen(); closeDialog('guideDlg'); });
+
+// ---------- first-catch coach ----------
+const COACH_OFF_KEY = 'goop-fishing-coach-off';
+let coachOff = (() => { try { return localStorage.getItem(COACH_OFF_KEY) === '1'; } catch { return false; } })();
+let coachStep = '';
+function renderCoach(tip) {
+  const el = $('coach');
+  const key = tip ? tip.step + '|' + tip.text : '';
+  if (key !== coachStep) {
+    coachStep = key;
+    el.hidden = !tip;
+    if (tip) setText('coachText', tip.text);
+  }
+  $('message').classList.toggle('coach-hidden', !!tip);
+  $('coach').parentElement.classList.toggle('coaching', !!tip);
+  const target = tip?.target;
+  $('castBtn').classList.toggle('coach-target', target === 'castBtn');
+  $('reelBtn').classList.toggle('coach-target', target === 'reelBtn');
+  $('leftBtn').classList.toggle('coach-target', target === 'steer');
+  $('rightBtn').classList.toggle('coach-target', target === 'steer');
+}
+$('coachSkip').addEventListener('click', () => {
+  coachOff = true;
+  try { localStorage.setItem(COACH_OFF_KEY, '1'); } catch { /* tips stay off for this visit */ }
+  renderCoach(null);
+});
 
 // Toasts that arrive together are shown one after another.
 const notes = [];
@@ -786,7 +812,9 @@ function render(dt) {
   const steering = game.phase === PHASES.FIGHT || (game.phase === PHASES.CAST && !!game.sight);
   $('leftBtn').disabled = !free && !steering; $('rightBtn').disabled = !free && !steering;
   $('leftBtn').classList.toggle('steer-mode', steering); $('rightBtn').classList.toggle('steer-mode', steering);
-  $('walkHint').classList.toggle('show', free && !walking && game.state.stats.caught < 3 && game.state.discovered.length < 3 && p === PHASES.IDLE);
+  const tip = coachOff ? null : coachTip(game);
+  renderCoach(tip);
+  $('walkHint').classList.toggle('show', !tip && free && !walking && game.state.stats.caught < 3 && game.state.discovered.length < 3 && p === PHASES.IDLE);
   const reel = $('reelBtn');
   reel.classList.toggle('active', reelHeld);
   reel.classList.toggle('ready', p === PHASES.BITE && !reelHeld);
